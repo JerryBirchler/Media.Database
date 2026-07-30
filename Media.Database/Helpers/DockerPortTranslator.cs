@@ -6,19 +6,19 @@ namespace Media.Database.Helpers
 {
     public class DockerPortTranslator(ScyllaSettings scyllaSettings) : IAddressTranslator
     {
-        public readonly string _contactPoint = scyllaSettings.ContactPoints[0];
-        public readonly int _port = scyllaSettings.Port;
-        public readonly List<string> _externalConactPoints = scyllaSettings.ExternalContactPoints;
-
         public IPEndPoint Translate(IPEndPoint address)
         {
-            for (int i = 0; i <  _externalConactPoints.Count; i++) 
+            string contactPoint = scyllaSettings.ContactPoints[0];
+
+            for (int i = 0; i < scyllaSettings.ExternalContactPoints.Count; i++) 
             {
-                if (address.Address.ToString() == _externalConactPoints[i]) 
-                    return new IPEndPoint(IPAddress.Parse(_contactPoint), _port + i);
+                if (address.Address.ToString() == scyllaSettings.ExternalContactPoints[i]) 
+                    return new IPEndPoint(
+                        IPAddress.Parse(contactPoint),
+                        scyllaSettings.Port + i);
             };
 
-            return new IPEndPoint(IPAddress.Parse(_contactPoint), address.Port);
+            return new IPEndPoint(IPAddress.Parse(contactPoint), address.Port);
         }
     }
 }
