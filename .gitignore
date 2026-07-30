@@ -1,0 +1,8 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/Media.Database/bin/Debug/net10.0
+/Media.Database/obj
+/.vs/Media.Database/CopilotIndices/18.8.1096.64007
+/.vs/Media.Database.slnx
