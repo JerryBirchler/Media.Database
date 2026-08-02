@@ -1,21 +1,20 @@
-﻿namespace Media.Database.Models
+﻿namespace Media.Database.Models;
+
+public class File
 {
-    public class File
-    {
-        public Guid Id { get; set; }
+    public Guid Id { get; set; }
 
-        public int SourceMachineId { get; set; }
+    public int SourceMachineId { get; set; }
 
-        public string OriginalFilePath { get; set; } = string.Empty;
+    public string OriginalFilePath { get; set; } = string.Empty;
 
-        public DateTimeOffset InsertedOn { get; set; }
+    public DateTimeOffset InsertedOn { get; set; }
 
-        public DateTimeOffset? UpdatedOn { get; set; }
+    public DateTimeOffset? UpdatedOn { get; set; }
 
-        public DateTimeOffset? LastFileUpdate { get; set; }
+    public DateTimeOffset? LastFileUpdate { get; set; }
 
-        public bool IsCurrent { get; set; } = true;
+    public bool IsCurrent { get; set; } = true;
 
-        public Metadata? Metadata { get; set; }
-    }
+    public Metadata? Metadata { get; set; }
 }
