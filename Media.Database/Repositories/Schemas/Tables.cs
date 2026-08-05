@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using Microsoft.AspNetCore.Http;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
@@ -7,8 +8,10 @@ namespace Media.Database.Repositories.Schemas;
 public readonly struct Tables
 {
     public static readonly string Files = n();
+    public static readonly string WordFiles = n();
     public static readonly string Words = n();
     public static readonly string View_Current_Files = n();
+    public static readonly string View_WordFiles = n();
 
 #pragma warning disable IDE1006 // Naming Styles
     public static string n([CallerMemberName] string callerName = "")

@@ -12,7 +12,7 @@ namespace Media.Database.Repositories;
 public class FileRepository(IConfiguration configuration) 
     : BaseRepository(configuration), IFileRepository
 {
-    public async Task<Models.File?> GetById(Guid id)
+    public async Task<Models.Files?> GetById(Guid id)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
@@ -25,7 +25,7 @@ public class FileRepository(IConfiguration configuration)
         return reader.ToFile();
     }
 
-    public async Task<Models.File?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
+    public async Task<Models.Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentBySourceMachineIdSql);
@@ -39,7 +39,7 @@ public class FileRepository(IConfiguration configuration)
         return reader.ToFile();
     }
 
-    public async Task<List<Models.File>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
+    public async Task<List<Models.Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentPagesBySourceMachineIdSql);
@@ -50,7 +50,7 @@ public class FileRepository(IConfiguration configuration)
         return await reader.ToFiles();
     }
 
-    public async Task<List<Models.File>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
+    public async Task<List<Models.Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetHistoryPagesBySourceMachineIdSql);
@@ -61,15 +61,15 @@ public class FileRepository(IConfiguration configuration)
         return await reader.ToFiles();
     }
 
-    public async Task<Models.File?> Create(CreateFileRequest request)
+    public async Task<Models.Files?> Create(CreateFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);
+        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.CreateSql);
         sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
         sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-        
+
         List<Guid> previousIds = [];
-        
+
         await using (var reader = await sqlCommand.ExecuteReaderAsync())
         {
             previousIds = await reader.ToIds();
@@ -82,7 +82,7 @@ public class FileRepository(IConfiguration configuration)
         sqlCommand2.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
         await using var reader2 = await sqlCommand2.ExecuteReaderAsync();
 
-        if (!await reader2.ReadAsync())            
+        if (!await reader2.ReadAsync())
             return null;
 
         var file = reader2.ToFile();
@@ -111,7 +111,7 @@ public class FileRepository(IConfiguration configuration)
         return file;
     }
 
-    public async Task<Models.File?> Update(Guid id, UpdateFileRequest request)
+    public async Task<Models.Files?> Update(Guid id, UpdateFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.UpdateSql);
@@ -136,7 +136,7 @@ public class FileRepository(IConfiguration configuration)
         return file;
     }
 
-    public async Task<Models.File?> Delete(Guid id)
+    public async Task<Models.Files?> Delete(Guid id)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteSql);
@@ -155,7 +155,7 @@ public class FileRepository(IConfiguration configuration)
         return file;
     }
 
-    public async Task<List<Models.File>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
+    public async Task<List<Models.Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteHistorySql);

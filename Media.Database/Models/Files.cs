@@ -1,6 +1,6 @@
 ﻿namespace Media.Database.Models;
 
-public class File
+public class Files
 {
     public Guid Id { get; set; }
 

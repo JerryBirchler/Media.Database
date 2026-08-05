@@ -6,6 +6,8 @@ namespace Media.Database.Repositories.Schemas;
 
 public readonly struct Ordinals
 {
+    public static readonly string CameFromFileId = n();
+    public static readonly string FileId = n();
     public static readonly string Id = n();
     public static readonly string InsertedOn = n();
     public static readonly string IsCurrent = n();
@@ -13,10 +15,12 @@ public readonly struct Ordinals
     public static readonly string LastFileUpdate = n();
     public static readonly string Limit = n();
     public static readonly string Metadata = n();
+    public static readonly string Origin = n(); 
     public static readonly string OriginalFilePath = n();
     public static readonly string SourceMachineId = n();
     public static readonly string UpdatedOn = n();
     public static readonly string Word = n();
+    public static readonly string WordId = n();
 
 #pragma warning disable IDE1006 // Naming Styles
     public static string n([CallerMemberName] string callerName = "")

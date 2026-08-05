@@ -46,7 +46,6 @@ namespace Media.Database.Repositories.Queries.Helpers
             if (model == null)
                 return string.Empty;
    
-            // Converts your C# object into a clean JSON string block
             return JsonSerializer.Serialize(model);
         }
 
