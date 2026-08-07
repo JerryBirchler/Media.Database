@@ -3,11 +3,12 @@ using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981 
-using cn = Media.Database.Repositories.Schemas.ColumnsNoSql;
-using cs = Media.Database.Repositories.Schemas.ColumnsSql;
+using cnf = Media.Database.Repositories.Schemas.TableNoSql.TFiles;
+using csf = Media.Database.Repositories.Schemas.TableSql.TFiles;
 using on = Media.Database.Repositories.Schemas.OrdinalsNoSql;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
+using tn = Media.Database.Repositories.Schemas.TableNoSql;
 using ts = Media.Database.Repositories.Schemas.TableSql;
 #pragma warning restore CS8981 
 
@@ -18,98 +19,98 @@ namespace Media.Database.Repositories.Queries
         #region SQL Queries
         public static string GetByIdSql => $@"
             SELECT 
-                {cs.Id}, 
-                {cs.SourceMachineId}, 
-                {cs.OriginalFilePath}, 
-                {cs.InsertedOn}, 
-                {cs.UpdatedOn}, 
-                {cs.LastFileUpdate}, 
-                {cs.IsCurrent}, 
-                {cs.Metadata}
+                {csf.Id}, 
+                {csf.SourceMachineId}, 
+                {csf.OriginalFilePath}, 
+                {csf.InsertedOn}, 
+                {csf.UpdatedOn}, 
+                {csf.LastFileUpdate}, 
+                {csf.IsCurrent}, 
+                {csf.Metadata}
             FROM 
                 {ts.Files}
             WHERE 
-                {cs.Id} = {pn.Id} 
+                {csf.Id} = {pn.Id} 
             LIMIT 1
             ;";
 
         public static string GetHistoryPagesBySourceMachineIdSql => $@"
             SELECT 
-                {cs.Id}, 
-                {cs.SourceMachineId}, 
-                {cs.OriginalFilePath}, 
-                {cs.InsertedOn}, 
-                {cs.UpdatedOn}, 
-                {cs.LastFileUpdate}, 
-                {cs.IsCurrent}, 
-                {cs.Metadata}
+                {csf.Id}, 
+                {csf.SourceMachineId}, 
+                {csf.OriginalFilePath}, 
+                {csf.InsertedOn}, 
+                {csf.UpdatedOn}, 
+                {csf.LastFileUpdate}, 
+                {csf.IsCurrent}, 
+                {csf.Metadata}
             FROM 
                 {ts.Files}
             WHERE 
-                {cs.SourceMachineId} = {pn.SourceMachineId}
-                AND {cs.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
+                {csf.SourceMachineId} = {pn.SourceMachineId}
+                AND {csf.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
             ORDER BY
-                {cs.InsertedOn} DESC
+                {csf.InsertedOn} DESC
             LIMIT @Limit
             ;";
 
         public static string GetCurrentBySourceMachineIdSql => $@"
             SELECT 
-                {cs.Id}, 
-                {cs.SourceMachineId}, 
-                {cs.OriginalFilePath}, 
-                {cs.InsertedOn}, 
-                {cs.UpdatedOn}, 
-                {cs.LastFileUpdate}, 
-                {cs.IsCurrent}, 
-                {cs.Metadata}
+                {csf.Id}, 
+                {csf.SourceMachineId}, 
+                {csf.OriginalFilePath}, 
+                {csf.InsertedOn}, 
+                {csf.UpdatedOn}, 
+                {csf.LastFileUpdate}, 
+                {csf.IsCurrent}, 
+                {csf.Metadata}
             FROM 
                 {ts.View_Current_Files}
             WHERE 
-                {cs.SourceMachineId} = {pn.SourceMachineId}
-                AND {cs.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
+                {csf.SourceMachineId} = {pn.SourceMachineId}
+                AND {csf.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
             LIMIT 1
             ;";
 
         public static string GetCurrentPagesBySourceMachineIdSql => $@"
             SELECT 
-                {cs.Id}, 
-                {cs.SourceMachineId}, 
-                {cs.OriginalFilePath}, 
-                {cs.InsertedOn}, 
-                {cs.UpdatedOn}, 
-                {cs.LastFileUpdate}, 
-                {cs.IsCurrent}, 
-                {cs.Metadata}
+                {csf.Id}, 
+                {csf.SourceMachineId}, 
+                {csf.OriginalFilePath}, 
+                {csf.InsertedOn}, 
+                {csf.UpdatedOn}, 
+                {csf.LastFileUpdate}, 
+                {csf.IsCurrent}, 
+                {csf.Metadata}
             FROM 
                 {ts.View_Current_Files}
             WHERE 
-                {cs.SourceMachineId} = {pn.SourceMachineId}
-                AND {cs.OriginalFilePath} > COALESCE({pn.OriginalFilePath}, '')
+                {csf.SourceMachineId} = {pn.SourceMachineId}
+                AND {csf.OriginalFilePath} > COALESCE({pn.OriginalFilePath}, '')
             ORDER BY
-                {cs.SourceMachineId} ASC,
-                {cs.OriginalFilePath} ASC
+                {csf.SourceMachineId} ASC,
+                {csf.OriginalFilePath} ASC
             LIMIT @Limit
             ;";
 
         public static string GetPreviousIdsSql => $@"
             UPDATE {ts.Files} SET
-                {cs.IsCurrent} = false
+                {csf.IsCurrent} = false
             WHERE 
-                {cs.SourceMachineId} = {pn.SourceMachineId}
-                AND {cs.OriginalFilePath} = {pn.OriginalFilePath}
-                AND {cs.IsCurrent} = true
+                {csf.SourceMachineId} = {pn.SourceMachineId}
+                AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
+                AND {csf.IsCurrent} = true
             RETURNING 
-                {cs.Id}
+                {csf.Id}
             ;";
 
         public static string CreateSql => $@"
             INSERT INTO {ts.Files} 
             (
-                {cs.SourceMachineId}, 
-                {cs.OriginalFilePath}, 
-                {cs.LastFileUpdate}, 
-                {cs.Metadata}
+                {csf.SourceMachineId}, 
+                {csf.OriginalFilePath}, 
+                {csf.LastFileUpdate}, 
+                {csf.Metadata}
             )
             VALUES 
             (
@@ -124,17 +125,17 @@ namespace Media.Database.Repositories.Queries
 
         public static string UpdateSql => $@"
             UPDATE {ts.Files} SET
-                {cs.UpdatedOn} = {pn.UpdatedOn},
-                {cs.LastFileUpdate} = {pn.LastFileUpdate},
-                {cs.Metadata} = {pn.Metadata}
+                {csf.UpdatedOn} = {pn.UpdatedOn},
+                {csf.LastFileUpdate} = {pn.LastFileUpdate},
+                {csf.Metadata} = {pn.Metadata}
             WHERE
-                {cs.Id} = {pn.Id}
+                {csf.Id} = {pn.Id}
             RETURNING *;
             REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
             ;";
 
         public static string DeleteSql => $@"
-            DELETE FROM {ts.Files} WHERE {cs.Id} = {pn.Id}
+            DELETE FROM {ts.Files} WHERE {csf.Id} = {pn.Id}
             RETURNING *;
             REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
             ;";
@@ -143,13 +144,13 @@ namespace Media.Database.Repositories.Queries
             WITH deleted_rows AS (            
                 DELETE FROM {ts.Files} 
                 WHERE 
-                    {cs.SourceMachineId} = {pn.SourceMachineId}
-                    AND {cs.OriginalFilePath} = {pn.OriginalFilePath}
+                    {csf.SourceMachineId} = {pn.SourceMachineId}
+                    AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
                 RETURNING *
             )
             SELECT * 
             FROM deleted_rows
-            ORDER BY {cs.InsertedOn} DESC;
+            ORDER BY {csf.InsertedOn} DESC;
             REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
             ;";
         #endregion
@@ -157,38 +158,38 @@ namespace Media.Database.Repositories.Queries
         #region NoSQL Queries           
         public static string GetByIdNoSql => $@"
             SELECT 
-                {cn.Id}, 
-                {cn.SourceMachineId}, 
-                {cn.OriginalFilePath}, 
-                {cn.InsertedOn}, 
-                {cn.UpdatedOn}, 
-                {cn.LastFileUpdate}, 
-                {cn.IsCurrent}, 
-                {cn.Metadata}
+                {cnf.Id}, 
+                {cnf.SourceMachineId}, 
+                {cnf.OriginalFilePath}, 
+                {cnf.InsertedOn}, 
+                {cnf.UpdatedOn}, 
+                {cnf.LastFileUpdate}, 
+                {cnf.IsCurrent}, 
+                {cnf.Metadata}
             FROM 
-                files          
+                {tn.Files}          
             WHERE 
-                {cn.Id} = {pn.Id} 
+                {cnf.Id} = {pn.Id} 
             LIMIT 1
             ;";
 
         public static string InactivateNoSql => $@"
-            UPDATE files SET
-                {cn.IsCurrent} = false
+            UPDATE {tn.Files} SET
+                {cnf.IsCurrent} = false
             WHERE 
-                {cn.Id} = {pn.Id}
+                {cnf.Id} = {pn.Id}
             ;";
 
         public static string CreateNoSql => $@"
-            INSERT INTO files 
+            INSERT INTO {tn.Files} 
             (
-                {cn.Id}, 
-                {cn.SourceMachineId}, 
-                {cn.OriginalFilePath}, 
-                {cn.InsertedOn}, 
-                {cn.LastFileUpdate}, 
-                {cn.IsCurrent}, 
-                {cn.Metadata}
+                {cnf.Id}, 
+                {cnf.SourceMachineId}, 
+                {cnf.OriginalFilePath}, 
+                {cnf.InsertedOn}, 
+                {cnf.LastFileUpdate}, 
+                {cnf.IsCurrent}, 
+                {cnf.Metadata}
             )
             VALUES 
             (
@@ -203,21 +204,21 @@ namespace Media.Database.Repositories.Queries
             ;";
 
         public static string UpdateNoSql => $@"
-            UPDATE files SET 
-                {cn.UpdatedOn} = {pn.UpdatedOn},
-                {cn.LastFileUpdate} = {pn.LastFileUpdate},
-                {cn.Metadata} = {pn.Metadata}
+            UPDATE {tn.Files} SET 
+                {cnf.UpdatedOn} = {pn.UpdatedOn},
+                {cnf.LastFileUpdate} = {pn.LastFileUpdate},
+                {cnf.Metadata} = {pn.Metadata}
             WHERE
-                {cn.Id} = {pn.Id}
+                {cnf.Id} = {pn.Id}
             ;";
 
         public static string DeleteNoSql => $@"
-            DELETE FROM files WHERE id = {pn.Id};";
+            DELETE FROM {tn.Files} WHERE id = {pn.Id};";
         #endregion
 
-        public static async Task<List<Models.File>> ToFiles(this NpgsqlDataReader reader)
+        public static async Task<List<Models.Files>> ToFiles(this NpgsqlDataReader reader)
         {
-            List<Models.File> files = [];
+            List<Models.Files> files = [];
 
             while (await reader.ReadAsync())
                 files.Add(reader.ToFile());
@@ -225,9 +226,9 @@ namespace Media.Database.Repositories.Queries
             return files;
         }
 
-        public static Models.File ToFile(this NpgsqlDataReader reader)
+        public static Models.Files ToFile(this NpgsqlDataReader reader)
         {
-            return new Models.File
+            return new Models.Files
             {
                 Id = reader.GetGuid(reader.GetOrdinal(os.Id)),
                 SourceMachineId = reader.GetInt32(reader.GetOrdinal(os.SourceMachineId)),
@@ -251,9 +252,9 @@ namespace Media.Database.Repositories.Queries
             return ids;
         }
 
-        public static Models.File ToFile(this Row row)
+        public static Models.Files ToFile(this Row row)
         {
-            return new Models.File
+            return new Models.Files
             {
                 Id = row.GetValue<Guid>(on.Id),
                 SourceMachineId = row.GetValue<int>(on.SourceMachineId),

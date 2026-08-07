@@ -1,13 +1,12 @@
-﻿namespace Media.Database.Models
+﻿namespace Media.Database.Models;
+
+public record CreateFileRequest
 {
-    public class CreateFileRequest
-    {
-        public int SourceMachineId { get; set; }
+    public required int SourceMachineId { get; set; }
 
-        public string OriginalFilePath { get; set; } = string.Empty;
+    public required string OriginalFilePath { get; set; } 
 
-        public DateTimeOffset? LastFileUpdate { get; set; }
+    public DateTimeOffset? LastFileUpdate { get; set; }
 
-        public Metadata? Metadata { get; set; }
-    }
+    public Metadata? Metadata { get; set; }
 }
