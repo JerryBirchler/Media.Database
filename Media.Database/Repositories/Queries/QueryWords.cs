@@ -3,12 +3,12 @@ using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981 
-using csw = Media.Database.Repositories.Schemas.TableSql.TWords;
-using cswf = Media.Database.Repositories.Schemas.TableSql.TWordFiles;
-using csvwf = Media.Database.Repositories.Schemas.TableSql.TView_WordFiles;
+using csw = Media.Database.Repositories.Schemas.TablesSql.WordsColumns;
+using cswf = Media.Database.Repositories.Schemas.TablesSql.WordFilesColumns;
+using csvwf = Media.Database.Repositories.Schemas.TablesSql.View_WordFilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
-using ts = Media.Database.Repositories.Schemas.TableSql;
+using ts = Media.Database.Repositories.Schemas.TablesSql;
 using Media.Database.Models;
 #pragma warning restore CS8981 
 

@@ -40,22 +40,22 @@ public class WordRepository(IConfiguration configuration)
 
     public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordOrigin(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByWordOriginSql, word, origin, fileId);
+        return await GetFilePages(QueryWords.GetFilePagesByWordOriginSql, word, origin, fileId, limit);
     }
 
     public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordFileId(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId);
+        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, limit);
     }
 
     public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdOrigin(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByFileIdOriginSql, word, origin, fileId);
+        return await GetFilePages(QueryWords.GetFilePagesByFileIdOriginSql, word, origin, fileId, limit);
     }
 
     public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdWord(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByFileIdWordSql, word, origin, fileId);
+        return await GetFilePages(QueryWords.GetFilePagesByFileIdWordSql, word, origin, fileId, limit);
     }
 
     public async Task Upsert(UpsertWordRequest request)

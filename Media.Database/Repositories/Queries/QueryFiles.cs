@@ -3,13 +3,12 @@ using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981 
-using cnf = Media.Database.Repositories.Schemas.TableNoSql.TFiles;
-using csf = Media.Database.Repositories.Schemas.TableSql.TFiles;
-using on = Media.Database.Repositories.Schemas.OrdinalsNoSql;
+using cnf = Media.Database.Repositories.Schemas.TableNoSql.FilesColumns;
+using csf = Media.Database.Repositories.Schemas.TablesSql.FilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
 using tn = Media.Database.Repositories.Schemas.TableNoSql;
-using ts = Media.Database.Repositories.Schemas.TableSql;
+using ts = Media.Database.Repositories.Schemas.TablesSql;
 #pragma warning restore CS8981 
 
 namespace Media.Database.Repositories.Queries
@@ -256,14 +255,14 @@ namespace Media.Database.Repositories.Queries
         {
             return new Models.Files
             {
-                Id = row.GetValue<Guid>(on.Id),
-                SourceMachineId = row.GetValue<int>(on.SourceMachineId),
-                OriginalFilePath = row.GetValue<string>(on.OriginalFilePath),
-                LastFileUpdate = row.GetValue<DateTimeOffset?>(on.LastFileUpdate),
-                InsertedOn = row.GetValue<DateTimeOffset>(on.InsertedOn),
-                UpdatedOn = row.GetValue<DateTimeOffset?>(on.UpdatedOn),
-                IsCurrent = row.GetValue<bool>(on.IsCurrent),
-                Metadata = row.GetValueOrDefault<Models.Metadata>(on.Metadata)
+                Id = row.GetValue<Guid>(cnf.Id),
+                SourceMachineId = row.GetValue<int>(cnf.SourceMachineId),
+                OriginalFilePath = row.GetValue<string>(cnf.OriginalFilePath),
+                LastFileUpdate = row.GetValue<DateTimeOffset?>(cnf.LastFileUpdate),
+                InsertedOn = row.GetValue<DateTimeOffset>(cnf.InsertedOn),
+                UpdatedOn = row.GetValue<DateTimeOffset?>(cnf.UpdatedOn),
+                IsCurrent = row.GetValue<bool>(cnf.IsCurrent),
+                Metadata = row.GetValueOrDefault<Models.Metadata>(cnf.Metadata)
             };
         }
     }

@@ -64,7 +64,7 @@ public class FileRepository(IConfiguration configuration)
     public async Task<Models.Files?> Create(CreateFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.CreateSql);
+        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);
         sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
         sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
 
