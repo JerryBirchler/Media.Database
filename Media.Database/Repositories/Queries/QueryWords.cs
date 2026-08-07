@@ -1,6 +1,4 @@
-﻿using Cassandra;
-using Media.Database.Repositories.Queries.Helpers;
-using Npgsql;
+﻿using Npgsql;
 
 #pragma warning disable CS8981 
 using csw = Media.Database.Repositories.Schemas.TablesSql.WordsColumns;
