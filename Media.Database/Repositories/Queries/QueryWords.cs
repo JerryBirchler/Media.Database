@@ -155,10 +155,10 @@ namespace Media.Database.Repositories.Queries
             FROM 
                 inserted_rows
             ON CONFLICT ({cswf.WordId}, {cswf.FileId})
-            DO NOTHING;
-            REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_WordFiles}
-            ;";
+            DO NOTHING;";
 
+        public static string RefreshViewSql => $@"
+            REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_WordFiles};";
         #endregion
 
         public static async Task<List<Models.Words>> ToWords(this NpgsqlDataReader reader)

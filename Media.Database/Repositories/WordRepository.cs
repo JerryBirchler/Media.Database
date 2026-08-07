@@ -70,6 +70,13 @@ public class WordRepository(IConfiguration configuration)
         await sqlCommand.ExecuteNonQueryAsync();
     }
 
+    public async Task RefreshView()
+    {
+        await using var sqlConnection = GetSqlConnection();
+        await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.RefreshViewSql);
+        await sqlCommand.ExecuteNonQueryAsync();
+    }
+
     public async Task Delete(int id)
     {
         await using var sqlConnection = GetSqlConnection();

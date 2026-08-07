@@ -10,5 +10,6 @@ public interface IWordRepository
     Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdOrigin(string? word, WordOrigin? origin, Guid? fileId, int limit = 5);
     Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdWord(string? word, WordOrigin? origin, Guid? fileId, int limit = 5);
     Task Upsert(UpsertWordRequest request);
+    Task RefreshView();
     Task Delete(int id);
 }
