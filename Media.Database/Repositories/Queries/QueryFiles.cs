@@ -3,11 +3,11 @@ using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981 
-using cnf = Media.Database.Repositories.Schemas.TableNoSql.FilesColumns;
+using cnf = Media.Database.Repositories.Schemas.TablesNoSql.FilesColumns;
 using csf = Media.Database.Repositories.Schemas.TablesSql.FilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
-using tn = Media.Database.Repositories.Schemas.TableNoSql;
+using tn = Media.Database.Repositories.Schemas.TablesNoSql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
 #pragma warning restore CS8981 
 

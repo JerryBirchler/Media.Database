@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Media.Database.Repositories.Schemas;
 
-public class TableNoSql : BaseSchema<TableNoSql, Tables>
+public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
 {
     public static readonly string Files = x();
 
