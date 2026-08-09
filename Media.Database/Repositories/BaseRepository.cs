@@ -31,10 +31,10 @@ namespace Media.Database.Repositories
                     var addressTranslator = new DockerPortTranslator(_scyllaSettings);
 
                     var cluster = Cluster.Builder()
-                             .AddContactPoints(_scyllaSettings.ContactPoints.ToString())
-                             .WithPort(_scyllaSettings.Port)
-                             .WithAddressTranslator(addressTranslator)
-                             .Build();
+                        .AddContactPoints(_scyllaSettings.ContactPoints[0].ToString())
+                        .WithPort(_scyllaSettings.Port)
+                        .WithAddressTranslator(addressTranslator)
+                        .Build();
 
                     _session = cluster.Connect(_scyllaSettings.Keyspace);
                 }
