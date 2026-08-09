@@ -1,13 +1,12 @@
-﻿namespace Media.Database.Models
+﻿namespace Media.Database.Models;
+
+public class SourceMachine
 {
-    public class SourceMachine
-    {
-        public int Id { get; set; }
+    public int Id { get; set; }
 
-        public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 
-        public DateTimeOffset InsertedOn { get; set; }
+    public DateTimeOffset InsertedOn { get; set; }
 
-        public string? MetaData { get; set; }
-    }
+    public string? MetaData { get; set; }
 }

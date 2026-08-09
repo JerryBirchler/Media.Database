@@ -4,19 +4,19 @@ namespace Media.Database.Repositories;
 
 public interface IFileRepository
 {
-    Task<Models.File?> GetById(Guid id);
+    Task<Models.Files?> GetById(Guid id);
 
-    Task<Models.File?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
+    Task<Models.Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
 
-    Task<List<Models.File>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
+    Task<List<Models.Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
 
-    Task<List<Models.File>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5);
+    Task<List<Models.Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5);
 
-    Task<Models.File?> Create(CreateFileRequest request);
+    Task<Models.Files?> Create(UploadFileRequest request);
 
-    Task<Models.File?> Update(Guid id, UpdateFileRequest request);
+    Task<Models.Files?> Update(Guid id, UpdateFileRequest request);
 
-    Task<Models.File?> Delete(Guid id);
+    Task<Models.Files?> Delete(Guid id);
 
-    Task<List<Models.File>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath);
+    Task<List<Models.Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath);
 }
