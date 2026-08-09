@@ -1,6 +1,6 @@
 ﻿namespace Media.Database.Models;
 
-public record CreateFileRequest
+public record UploadFileRequest
 {
     public required int SourceMachineId { get; set; }
 

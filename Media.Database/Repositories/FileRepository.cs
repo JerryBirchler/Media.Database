@@ -61,7 +61,7 @@ public class FileRepository(IConfiguration configuration)
         return await reader.ToFiles();
     }
 
-    public async Task<Models.Files?> Create(CreateFileRequest request)
+    public async Task<Models.Files?> Create(UploadFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);

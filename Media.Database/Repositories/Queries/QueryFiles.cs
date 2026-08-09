@@ -17,202 +17,205 @@ public static class QueryFiles
 {
     #region SQL Queries
     public static string GetByIdSql => $@"
-            SELECT 
-                {csf.Id}, 
-                {csf.SourceMachineId}, 
-                {csf.OriginalFilePath}, 
-                {csf.InsertedOn}, 
-                {csf.UpdatedOn}, 
-                {csf.LastFileUpdate}, 
-                {csf.IsCurrent}, 
-                {csf.Metadata}
-            FROM 
-                {ts.Files}
-            WHERE 
-                {csf.Id} = {pn.Id} 
-            LIMIT 1
-            ;";
+        SELECT 
+            {csf.Id}, 
+            {csf.SourceMachineId}, 
+            {csf.OriginalFilePath}, 
+            {csf.InsertedOn}, 
+            {csf.UpdatedOn}, 
+            {csf.LastFileUpdate}, 
+            {csf.IsCurrent}, 
+            {csf.Metadata}
+        FROM 
+            {ts.Files}
+        WHERE 
+            {csf.Id} = {pn.Id} 
+        LIMIT 1
+        ;";
 
     public static string GetHistoryPagesBySourceMachineIdSql => $@"
-            SELECT 
-                {csf.Id}, 
-                {csf.SourceMachineId}, 
-                {csf.OriginalFilePath}, 
-                {csf.InsertedOn}, 
-                {csf.UpdatedOn}, 
-                {csf.LastFileUpdate}, 
-                {csf.IsCurrent}, 
-                {csf.Metadata}
-            FROM 
-                {ts.Files}
-            WHERE 
-                {csf.SourceMachineId} = {pn.SourceMachineId}
-                AND {csf.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
-            ORDER BY
-                {csf.InsertedOn} DESC
-            LIMIT @Limit
-            ;";
+        SELECT 
+            {csf.Id}, 
+            {csf.SourceMachineId}, 
+            {csf.OriginalFilePath}, 
+            {csf.InsertedOn}, 
+            {csf.UpdatedOn}, 
+            {csf.LastFileUpdate}, 
+            {csf.IsCurrent}, 
+            {csf.Metadata}
+        FROM 
+            {ts.Files}
+        WHERE 
+            {csf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csf.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
+        ORDER BY
+            {csf.InsertedOn} DESC
+        LIMIT @Limit
+        ;";
 
     public static string GetCurrentBySourceMachineIdSql => $@"
-            SELECT 
-                {csf.Id}, 
-                {csf.SourceMachineId}, 
-                {csf.OriginalFilePath}, 
-                {csf.InsertedOn}, 
-                {csf.UpdatedOn}, 
-                {csf.LastFileUpdate}, 
-                {csf.IsCurrent}, 
-                {csf.Metadata}
-            FROM 
-                {ts.View_Current_Files}
-            WHERE 
-                {csf.SourceMachineId} = {pn.SourceMachineId}
-                AND {csf.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
-            LIMIT 1
-            ;";
+        SELECT 
+            {csf.Id}, 
+            {csf.SourceMachineId}, 
+            {csf.OriginalFilePath}, 
+            {csf.InsertedOn}, 
+            {csf.UpdatedOn}, 
+            {csf.LastFileUpdate}, 
+            {csf.IsCurrent}, 
+            {csf.Metadata}
+        FROM 
+            {ts.View_Current_Files}
+        WHERE 
+            {csf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csf.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
+        LIMIT 1
+        ;";
 
     public static string GetCurrentPagesBySourceMachineIdSql => $@"
-            SELECT 
-                {csf.Id}, 
-                {csf.SourceMachineId}, 
-                {csf.OriginalFilePath}, 
-                {csf.InsertedOn}, 
-                {csf.UpdatedOn}, 
-                {csf.LastFileUpdate}, 
-                {csf.IsCurrent}, 
-                {csf.Metadata}
-            FROM 
-                {ts.View_Current_Files}
-            WHERE 
-                {csf.SourceMachineId} = {pn.SourceMachineId}
-                AND {csf.OriginalFilePath} > COALESCE({pn.OriginalFilePath}, '')
-            ORDER BY
-                {csf.SourceMachineId} ASC,
-                {csf.OriginalFilePath} ASC
-            LIMIT @Limit
-            ;";
+        SELECT 
+            {csf.Id}, 
+            {csf.SourceMachineId}, 
+            {csf.OriginalFilePath}, 
+            {csf.InsertedOn}, 
+            {csf.UpdatedOn}, 
+            {csf.LastFileUpdate}, 
+            {csf.IsCurrent}, 
+            {csf.Metadata}
+        FROM 
+            {ts.View_Current_Files}
+        WHERE 
+            ({csf.SourceMachineId}, {csf.OriginalFilePath}) > 
+            (
+                COALESCE({pn.SourceMachineId}, 0),
+                COALESCE({pn.OriginalFilePath}, '')
+            )
+        ORDER BY
+            {csf.SourceMachineId} ASC,
+            {csf.OriginalFilePath} ASC
+        LIMIT @Limit
+        ;";
 
     public static string GetPreviousIdsSql => $@"
-            UPDATE {ts.Files} SET
-                {csf.IsCurrent} = false
+        UPDATE {ts.Files} SET
+            {csf.IsCurrent} = false
+        WHERE 
+            {csf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
+            AND {csf.IsCurrent} = true
+        RETURNING 
+            {csf.Id}
+        ;";
+
+    public static string CreateSql => $@"
+        INSERT INTO {ts.Files} 
+        (
+            {csf.SourceMachineId}, 
+            {csf.OriginalFilePath}, 
+            {csf.LastFileUpdate}, 
+            {csf.Metadata}
+        )
+        VALUES 
+        (
+            {pn.SourceMachineId}, 
+            {pn.OriginalFilePath}, 
+            {pn.LastFileUpdate}, 
+            {pn.Metadata}
+        )
+        RETURNING *;
+        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        ;";
+
+    public static string UpdateSql => $@"
+        UPDATE {ts.Files} SET
+            {csf.UpdatedOn} = {pn.UpdatedOn},
+            {csf.LastFileUpdate} = {pn.LastFileUpdate},
+            {csf.Metadata} = {pn.Metadata}
+        WHERE
+            {csf.Id} = {pn.Id}
+        RETURNING *;
+        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        ;";
+
+    public static string DeleteSql => $@"
+        DELETE FROM {ts.Files} WHERE {csf.Id} = {pn.Id}
+        RETURNING *;
+        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        ;";
+
+    public static string DeleteHistorySql => $@"
+        WITH deleted_rows AS (            
+            DELETE FROM {ts.Files} 
             WHERE 
                 {csf.SourceMachineId} = {pn.SourceMachineId}
                 AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
-                AND {csf.IsCurrent} = true
-            RETURNING 
-                {csf.Id}
-            ;";
-
-    public static string CreateSql => $@"
-            INSERT INTO {ts.Files} 
-            (
-                {csf.SourceMachineId}, 
-                {csf.OriginalFilePath}, 
-                {csf.LastFileUpdate}, 
-                {csf.Metadata}
-            )
-            VALUES 
-            (
-                {pn.SourceMachineId}, 
-                {pn.OriginalFilePath}, 
-                {pn.LastFileUpdate}, 
-                {pn.Metadata}
-            )
-            RETURNING *;
-            REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
-            ;";
-
-    public static string UpdateSql => $@"
-            UPDATE {ts.Files} SET
-                {csf.UpdatedOn} = {pn.UpdatedOn},
-                {csf.LastFileUpdate} = {pn.LastFileUpdate},
-                {csf.Metadata} = {pn.Metadata}
-            WHERE
-                {csf.Id} = {pn.Id}
-            RETURNING *;
-            REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
-            ;";
-
-    public static string DeleteSql => $@"
-            DELETE FROM {ts.Files} WHERE {csf.Id} = {pn.Id}
-            RETURNING *;
-            REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
-            ;";
-
-    public static string DeleteHistorySql => $@"
-            WITH deleted_rows AS (            
-                DELETE FROM {ts.Files} 
-                WHERE 
-                    {csf.SourceMachineId} = {pn.SourceMachineId}
-                    AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
-                RETURNING *
-            )
-            SELECT * 
-            FROM deleted_rows
-            ORDER BY {csf.InsertedOn} DESC;
-            REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
-            ;";
+            RETURNING *
+        )
+        SELECT * 
+        FROM deleted_rows
+        ORDER BY {csf.InsertedOn} DESC;
+        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        ;";
     #endregion
 
     #region NoSQL Queries           
     public static string GetByIdNoSql => $@"
-            SELECT 
-                {cnf.Id}, 
-                {cnf.SourceMachineId}, 
-                {cnf.OriginalFilePath}, 
-                {cnf.InsertedOn}, 
-                {cnf.UpdatedOn}, 
-                {cnf.LastFileUpdate}, 
-                {cnf.IsCurrent}, 
-                {cnf.Metadata}
-            FROM 
-                {tn.Files}          
-            WHERE 
-                {cnf.Id} = {pn.Id} 
-            LIMIT 1
-            ;";
+        SELECT 
+            {cnf.Id}, 
+            {cnf.SourceMachineId}, 
+            {cnf.OriginalFilePath}, 
+            {cnf.InsertedOn}, 
+            {cnf.UpdatedOn}, 
+            {cnf.LastFileUpdate}, 
+            {cnf.IsCurrent}, 
+            {cnf.Metadata}
+        FROM 
+            {tn.Files}          
+        WHERE 
+            {cnf.Id} = {pn.Id} 
+        LIMIT 1
+        ;";
 
     public static string InactivateNoSql => $@"
-            UPDATE {tn.Files} SET
-                {cnf.IsCurrent} = false
-            WHERE 
-                {cnf.Id} = {pn.Id}
-            ;";
+        UPDATE {tn.Files} SET
+            {cnf.IsCurrent} = false
+        WHERE 
+            {cnf.Id} = {pn.Id}
+        ;";
 
     public static string CreateNoSql => $@"
-            INSERT INTO {tn.Files} 
-            (
-                {cnf.Id}, 
-                {cnf.SourceMachineId}, 
-                {cnf.OriginalFilePath}, 
-                {cnf.InsertedOn}, 
-                {cnf.LastFileUpdate}, 
-                {cnf.IsCurrent}, 
-                {cnf.Metadata}
-            )
-            VALUES 
-            (
-                {pn.Id}, 
-                {pn.SourceMachineId}, 
-                {pn.OriginalFilePath}, 
-                {pn.InsertedOn}, 
-                {pn.LastFileUpdate}, 
-                {pn.IsCurrent}, 
-                {pn.Metadata}
-            )
-            ;";
+        INSERT INTO {tn.Files} 
+        (
+            {cnf.Id}, 
+            {cnf.SourceMachineId}, 
+            {cnf.OriginalFilePath}, 
+            {cnf.InsertedOn}, 
+            {cnf.LastFileUpdate}, 
+            {cnf.IsCurrent}, 
+            {cnf.Metadata}
+        )
+        VALUES 
+        (
+            {pn.Id}, 
+            {pn.SourceMachineId}, 
+            {pn.OriginalFilePath}, 
+            {pn.InsertedOn}, 
+            {pn.LastFileUpdate}, 
+            {pn.IsCurrent}, 
+            {pn.Metadata}
+        )
+        ;";
 
     public static string UpdateNoSql => $@"
-            UPDATE {tn.Files} SET 
-                {cnf.UpdatedOn} = {pn.UpdatedOn},
-                {cnf.LastFileUpdate} = {pn.LastFileUpdate},
-                {cnf.Metadata} = {pn.Metadata}
-            WHERE
-                {cnf.Id} = {pn.Id}
-            ;";
+        UPDATE {tn.Files} SET 
+            {cnf.UpdatedOn} = {pn.UpdatedOn},
+            {cnf.LastFileUpdate} = {pn.LastFileUpdate},
+            {cnf.Metadata} = {pn.Metadata}
+        WHERE
+            {cnf.Id} = {pn.Id}
+        ;";
 
     public static string DeleteNoSql => $@"
-            DELETE FROM {tn.Files} WHERE id = {pn.Id};";
+        DELETE FROM {tn.Files} WHERE id = {pn.Id};";
     #endregion
 
     public static async Task<List<Models.Files>> ToFiles(this NpgsqlDataReader reader)
