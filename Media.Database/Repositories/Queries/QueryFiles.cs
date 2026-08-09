@@ -11,12 +11,12 @@ using tn = Media.Database.Repositories.Schemas.TableNoSql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
 #pragma warning restore CS8981 
 
-namespace Media.Database.Repositories.Queries
+namespace Media.Database.Repositories.Queries;
+
+public static class QueryFiles
 {
-    public static class QueryFiles
-    {
-        #region SQL Queries
-        public static string GetByIdSql => $@"
+    #region SQL Queries
+    public static string GetByIdSql => $@"
             SELECT 
                 {csf.Id}, 
                 {csf.SourceMachineId}, 
@@ -33,7 +33,7 @@ namespace Media.Database.Repositories.Queries
             LIMIT 1
             ;";
 
-        public static string GetHistoryPagesBySourceMachineIdSql => $@"
+    public static string GetHistoryPagesBySourceMachineIdSql => $@"
             SELECT 
                 {csf.Id}, 
                 {csf.SourceMachineId}, 
@@ -53,7 +53,7 @@ namespace Media.Database.Repositories.Queries
             LIMIT @Limit
             ;";
 
-        public static string GetCurrentBySourceMachineIdSql => $@"
+    public static string GetCurrentBySourceMachineIdSql => $@"
             SELECT 
                 {csf.Id}, 
                 {csf.SourceMachineId}, 
@@ -71,7 +71,7 @@ namespace Media.Database.Repositories.Queries
             LIMIT 1
             ;";
 
-        public static string GetCurrentPagesBySourceMachineIdSql => $@"
+    public static string GetCurrentPagesBySourceMachineIdSql => $@"
             SELECT 
                 {csf.Id}, 
                 {csf.SourceMachineId}, 
@@ -92,7 +92,7 @@ namespace Media.Database.Repositories.Queries
             LIMIT @Limit
             ;";
 
-        public static string GetPreviousIdsSql => $@"
+    public static string GetPreviousIdsSql => $@"
             UPDATE {ts.Files} SET
                 {csf.IsCurrent} = false
             WHERE 
@@ -103,7 +103,7 @@ namespace Media.Database.Repositories.Queries
                 {csf.Id}
             ;";
 
-        public static string CreateSql => $@"
+    public static string CreateSql => $@"
             INSERT INTO {ts.Files} 
             (
                 {csf.SourceMachineId}, 
@@ -122,7 +122,7 @@ namespace Media.Database.Repositories.Queries
             REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
             ;";
 
-        public static string UpdateSql => $@"
+    public static string UpdateSql => $@"
             UPDATE {ts.Files} SET
                 {csf.UpdatedOn} = {pn.UpdatedOn},
                 {csf.LastFileUpdate} = {pn.LastFileUpdate},
@@ -133,13 +133,13 @@ namespace Media.Database.Repositories.Queries
             REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
             ;";
 
-        public static string DeleteSql => $@"
+    public static string DeleteSql => $@"
             DELETE FROM {ts.Files} WHERE {csf.Id} = {pn.Id}
             RETURNING *;
             REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
             ;";
 
-        public static string DeleteHistorySql => $@"
+    public static string DeleteHistorySql => $@"
             WITH deleted_rows AS (            
                 DELETE FROM {ts.Files} 
                 WHERE 
@@ -152,10 +152,10 @@ namespace Media.Database.Repositories.Queries
             ORDER BY {csf.InsertedOn} DESC;
             REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
             ;";
-        #endregion
+    #endregion
 
-        #region NoSQL Queries           
-        public static string GetByIdNoSql => $@"
+    #region NoSQL Queries           
+    public static string GetByIdNoSql => $@"
             SELECT 
                 {cnf.Id}, 
                 {cnf.SourceMachineId}, 
@@ -172,14 +172,14 @@ namespace Media.Database.Repositories.Queries
             LIMIT 1
             ;";
 
-        public static string InactivateNoSql => $@"
+    public static string InactivateNoSql => $@"
             UPDATE {tn.Files} SET
                 {cnf.IsCurrent} = false
             WHERE 
                 {cnf.Id} = {pn.Id}
             ;";
 
-        public static string CreateNoSql => $@"
+    public static string CreateNoSql => $@"
             INSERT INTO {tn.Files} 
             (
                 {cnf.Id}, 
@@ -202,7 +202,7 @@ namespace Media.Database.Repositories.Queries
             )
             ;";
 
-        public static string UpdateNoSql => $@"
+    public static string UpdateNoSql => $@"
             UPDATE {tn.Files} SET 
                 {cnf.UpdatedOn} = {pn.UpdatedOn},
                 {cnf.LastFileUpdate} = {pn.LastFileUpdate},
@@ -211,59 +211,58 @@ namespace Media.Database.Repositories.Queries
                 {cnf.Id} = {pn.Id}
             ;";
 
-        public static string DeleteNoSql => $@"
+    public static string DeleteNoSql => $@"
             DELETE FROM {tn.Files} WHERE id = {pn.Id};";
-        #endregion
+    #endregion
 
-        public static async Task<List<Models.Files>> ToFiles(this NpgsqlDataReader reader)
+    public static async Task<List<Models.Files>> ToFiles(this NpgsqlDataReader reader)
+    {
+        List<Models.Files> files = [];
+
+        while (await reader.ReadAsync())
+            files.Add(reader.ToFile());
+
+        return files;
+    }
+
+    public static Models.Files ToFile(this NpgsqlDataReader reader)
+    {
+        return new Models.Files
         {
-            List<Models.Files> files = [];
+            Id = reader.GetGuid(reader.GetOrdinal(os.Id)),
+            SourceMachineId = reader.GetInt32(reader.GetOrdinal(os.SourceMachineId)),
+            OriginalFilePath = reader.GetString(reader.GetOrdinal(os.OriginalFilePath)),
+            InsertedOn = reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal(os.InsertedOn)),
+            UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(reader.GetOrdinal(os.UpdatedOn)),
+            LastFileUpdate = reader.GetFieldValue<DateTimeOffset?>(reader.GetOrdinal(os.LastFileUpdate)),
+            IsCurrent = reader.GetFieldValue<bool>(reader.GetOrdinal(os.IsCurrent)),
+            Metadata = reader.ToModelOrDefault<Models.Metadata>(os.Metadata)
+        };
+    }
 
-            while (await reader.ReadAsync())
-                files.Add(reader.ToFile());
-
-            return files;
+    public static async Task<List<Guid>> ToIds(this NpgsqlDataReader reader)
+    {
+        var ids = new List<Guid>();
+        while (await reader.ReadAsync())
+        {
+            ids.Add(reader.GetGuid(reader.GetOrdinal(os.Id)));
         }
 
-        public static Models.Files ToFile(this NpgsqlDataReader reader)
-        {
-            return new Models.Files
-            {
-                Id = reader.GetGuid(reader.GetOrdinal(os.Id)),
-                SourceMachineId = reader.GetInt32(reader.GetOrdinal(os.SourceMachineId)),
-                OriginalFilePath = reader.GetString(reader.GetOrdinal(os.OriginalFilePath)),
-                InsertedOn = reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal(os.InsertedOn)),
-                UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(reader.GetOrdinal(os.UpdatedOn)),
-                LastFileUpdate = reader.GetFieldValue<DateTimeOffset?>(reader.GetOrdinal(os.LastFileUpdate)),
-                IsCurrent = reader.GetFieldValue<bool>(reader.GetOrdinal(os.IsCurrent)),
-                Metadata = reader.ToModelOrDefault<Models.Metadata>(os.Metadata)
-            };
-        }
+        return ids;
+    }
 
-        public static async Task<List<Guid>> ToIds(this NpgsqlDataReader reader)
+    public static Models.Files ToFile(this Row row)
+    {
+        return new Models.Files
         {
-            var ids = new List<Guid>();
-            while (await reader.ReadAsync())
-            {
-                ids.Add(reader.GetGuid(reader.GetOrdinal(os.Id)));
-            }
-
-            return ids;
-        }
-
-        public static Models.Files ToFile(this Row row)
-        {
-            return new Models.Files
-            {
-                Id = row.GetValue<Guid>(cnf.Id),
-                SourceMachineId = row.GetValue<int>(cnf.SourceMachineId),
-                OriginalFilePath = row.GetValue<string>(cnf.OriginalFilePath),
-                LastFileUpdate = row.GetValue<DateTimeOffset?>(cnf.LastFileUpdate),
-                InsertedOn = row.GetValue<DateTimeOffset>(cnf.InsertedOn),
-                UpdatedOn = row.GetValue<DateTimeOffset?>(cnf.UpdatedOn),
-                IsCurrent = row.GetValue<bool>(cnf.IsCurrent),
-                Metadata = row.GetValueOrDefault<Models.Metadata>(cnf.Metadata)
-            };
-        }
+            Id = row.GetValue<Guid>(cnf.Id),
+            SourceMachineId = row.GetValue<int>(cnf.SourceMachineId),
+            OriginalFilePath = row.GetValue<string>(cnf.OriginalFilePath),
+            LastFileUpdate = row.GetValue<DateTimeOffset?>(cnf.LastFileUpdate),
+            InsertedOn = row.GetValue<DateTimeOffset>(cnf.InsertedOn),
+            UpdatedOn = row.GetValue<DateTimeOffset?>(cnf.UpdatedOn),
+            IsCurrent = row.GetValue<bool>(cnf.IsCurrent),
+            Metadata = row.GetValueOrDefault<Models.Metadata>(cnf.Metadata)
+        };
     }
 }

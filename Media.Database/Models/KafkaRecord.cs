@@ -1,18 +1,17 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Media.Database.Models
-{
-    public record KafkaRecord(
-        [property: JsonPropertyName("topic")] 
-        string Topic,
+namespace Media.Database.Models;
 
-        [property: JsonPropertyName("partition")]
-        int Partition,
+public record KafkaRecord(
+    [property: JsonPropertyName("topic")] 
+    string Topic,
 
-        [property: JsonPropertyName("offset")] 
-        long Offset,
-        
-        [property: JsonPropertyName("value")] 
-        CreateWordRequest Value
-    );
-}
+    [property: JsonPropertyName("partition")]
+    int Partition,
+
+    [property: JsonPropertyName("offset")] 
+    long Offset,
+    
+    [property: JsonPropertyName("value")] 
+    CreateWordRequest Value
+);

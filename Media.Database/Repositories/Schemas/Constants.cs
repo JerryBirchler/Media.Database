@@ -1,7 +1,6 @@
-﻿namespace Media.Database.Repositories.Schemas
+﻿namespace Media.Database.Repositories.Schemas;
+
+internal class Constants
 {
-    internal class Constants
-    {
-        public const string NotFound = "{0} {1} not found in {2}.";
-    }
+    public const string NotFound = "{0} {1} not found in {2}.";
 }

@@ -26,36 +26,52 @@ public class WordRepository(IConfiguration configuration)
     }
 
     public async Task<List<Models.ViewWordFiles>> GetFilePages(
-        string sql, string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
+        string sql, string? word, WordOrigin? origin, Guid? fileId, 
+        bool? isCurrent, bool? isProperName,
+        int? limit = 10)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(sql);
         sqlCommand.Parameters.AddWithValue(pn.Word, (object)word ?? DBNull.Value);
         sqlCommand.Parameters.AddWithValue(pn.Origin, (object)origin ?? DBNull.Value);
         sqlCommand.Parameters.AddWithValue(pn.FileId, (object)fileId ?? DBNull.Value);
-        sqlCommand.Parameters.AddWithValue(pn.Limit, limit);
+        sqlCommand.Parameters.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent ?? DBNull.Value);
+        sqlCommand.Parameters.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName ?? DBNull.Value);
+        sqlCommand.Parameters.AddWithValue(pn.Limit, limit ?? 10);
         await using var reader = await sqlCommand.ExecuteReaderAsync();
         return await reader.ToWordFiles();
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordOrigin(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
+    public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordOrigin(
+        string? word, WordOrigin? origin, Guid? fileId, 
+        bool? isCurrent, bool? isProperName, 
+        int? limit = 10)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByWordOriginSql, word, origin, fileId, limit);
+        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordFileId(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
+    public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordFileId(
+        string? word, WordOrigin? origin, Guid? fileId,
+        bool? isCurrent, bool? isProperName,
+        int? limit = 10)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, limit);
+        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdOrigin(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
+    public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdOrigin(
+        string? word, WordOrigin? origin, Guid? fileId,
+        bool? isCurrent, bool? isProperName,
+        int? limit = 10)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByFileIdOriginSql, word, origin, fileId, limit);
+        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdWord(string? word, WordOrigin? origin, Guid? fileId, int limit = 5)
+    public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdWord(
+        string? word, WordOrigin? origin, Guid? fileId,
+        bool? isCurrent, bool? isProperName,
+        int? limit = 10)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByFileIdWordSql, word, origin, fileId, limit);
+        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
     public async Task Upsert(UpsertWordRequest request)

@@ -1,12 +1,11 @@
-﻿namespace Media.Database.Models
+﻿namespace Media.Database.Models;
+
+public enum WordOrigin
 {
-    public enum WordOrigin
-    {
-        Name,
-        Keyword, 
-        FromTitle, 
-        FromDescription,
-        FromEvent,
-        FromLocation
-    }
+    Name,
+    Keyword, 
+    FromTitle, 
+    FromDescription,
+    FromEvent,
+    FromLocation
 }
