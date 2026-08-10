@@ -150,7 +150,6 @@ public static class QueryWords
             {cswf.FileId} 
         )
         SELECT 
-            {csvwf.IsCurrent} DESC,
             {cswf.Origin}, 
             {csw.Id}, 
             {pn.CameFromFileId}
