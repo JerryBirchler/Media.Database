@@ -106,7 +106,7 @@ public static class QueryFiles
             {csf.Id}
         ;";
 
-    public static string CreateSql => $@"
+    public static string UpsertSql => $@"
         INSERT INTO {ts.Files} 
         (
             {csf.SourceMachineId}, 
@@ -121,6 +121,10 @@ public static class QueryFiles
             {pn.LastFileUpdate}, 
             {pn.Metadata}
         )
+        ON CONFLICT ({csf.SourceMachineId}, {csf.OriginalFilePath}, {csf.LastFileUpdate})
+        DO UPDATE SET 
+            {csf.Metadata} = {pn.Metadata},
+            {csf.UpdatedOn} = {pn.UpdatedOn}
         RETURNING *;
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
@@ -136,9 +140,22 @@ public static class QueryFiles
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
 
+    public static string ExistsSql => $@"
+        SELECT EXISTS(SELECT 1 
+            FROM {ts.Files} 
+            WHERE 
+                {csf.SourceMachineId} = {pn.SourceMachineId}
+                AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
+                AND {csf.LastFileUpdate} = {pn.LastFileUpdate}
+            ) AS Any;";
+
     public static string DeleteSql => $@"
-        DELETE FROM {ts.Files} WHERE {csf.Id} = {pn.Id}
-        RETURNING *;
+        WITH deleted_rows AS (
+            DELETE FROM {ts.Files} 
+            WHERE {csf.Id} = {pn.Id}
+            RETURNING 1
+        )
+        SELECT EXISTS(SELECT 1 FROM deleted_rows) AS Any;
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
 

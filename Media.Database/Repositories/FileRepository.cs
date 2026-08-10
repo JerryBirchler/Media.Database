@@ -61,31 +61,51 @@ public class FileRepository(IConfiguration configuration)
         return await reader.ToFiles();
     }
 
-    public async Task<Models.Files?> Create(UploadFileRequest request)
+    public async Task<Models.Files?> Upsert(UploadFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);
+        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.ExistsSql);
         sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
         sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+        sqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate ?? DBNull.Value);
 
-        List<Guid> previousIds = [];
-
+        bool anyMatch = false;
         await using (var reader = await sqlCommand.ExecuteReaderAsync())
         {
-            previousIds = await reader.ToIds();
+            await reader.ReadAsync();
+            anyMatch = reader.GetBoolean(0);
         }
 
-        await using var sqlCommand2 = await sqlConnection.GetCommand(QueryFiles.CreateSql);
-        sqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-        sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-        sqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
-        sqlCommand2.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
-        await using var reader2 = await sqlCommand2.ExecuteReaderAsync();
+        await sqlCommand.DisposeAsync();
 
-        if (!await reader2.ReadAsync())
+        List<Guid> previousIds = [];
+        if (!anyMatch)
+        {
+            await using var sqlCommand2 = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);
+            sqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+            sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+
+            await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
+            previousIds = await reader2.ToIds();
+            await sqlCommand2.DisposeAsync();
+        }
+
+        await using var sqlCommand3 = await sqlConnection.GetCommand(QueryFiles.UpsertSql);
+        sqlCommand3.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+        sqlCommand3.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+        sqlCommand3.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
+        sqlCommand3.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
+        sqlCommand3.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+        await using var reader3 = await sqlCommand3.ExecuteReaderAsync();
+
+        if (!await reader3.ReadAsync())
             return null;
 
-        var file = reader2.ToFile();
+        var file = reader3.ToFile();
+        
+        await sqlCommand3.DisposeAsync();
+        await sqlConnection.CloseAsync();
+
         var noSqlConnection = GetNoSqlConnection();
 
         NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
@@ -98,8 +118,7 @@ public class FileRepository(IConfiguration configuration)
         await Task.WhenAll(tasks);
         await noSqlCommand.EndBatch();
 
-        var noSqlCommand2 = noSqlConnection.GetNoSqlCommand(QueryFiles.CreateNoSql);
-        
+        var noSqlCommand2 = noSqlConnection.GetNoSqlCommand(QueryFiles.CreateNoSql);        
         noSqlCommand2.Parameters.AddWithValue(pn.Id, file.Id);
         noSqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, file.SourceMachineId);
         noSqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, file.OriginalFilePath);
