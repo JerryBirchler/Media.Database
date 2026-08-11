@@ -1,6 +1,6 @@
 ﻿using Cassandra;
-using Media.Database.Helpers;
-using Media.Database.Models;
+using Media.Common.Helpers;
+using Media.Common.Models;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 

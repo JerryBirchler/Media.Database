@@ -20,4 +20,12 @@
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Helpers\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Media.Common\Media.Common\Media.Common.csproj" />
+  </ItemGroup>
+
 </Project>
