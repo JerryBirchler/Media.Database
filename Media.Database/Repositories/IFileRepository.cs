@@ -14,7 +14,7 @@ public interface IFileRepository
 
     Task<Models.Files?> Upsert(UploadFileRequest request);
 
-    Task<Models.Files?> Update(Guid id, UpdateFileRequest request);
+    Task<UpdateFileResponse> Update(Guid id, UpdateFileRequest request);
 
     Task<Models.Files?> Delete(Guid id);
 

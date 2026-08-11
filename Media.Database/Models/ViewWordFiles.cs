@@ -11,7 +11,7 @@ public class ViewWordFiles
     public int WordId { get; set; }
 
     [JsonPropertyName("word")]
-    public string Word { get; set; }
+    public string Word { get; set; } = string.Empty;
 
     [JsonPropertyName("fileId")]
     public Guid FileId { get; set; }

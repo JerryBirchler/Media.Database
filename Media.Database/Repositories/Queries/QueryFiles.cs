@@ -129,7 +129,7 @@ public static class QueryFiles
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
 
-    public static string UpdateSql => $@"
+    public static string UpdateSql => $@"        
         UPDATE {ts.Files} SET
             {csf.UpdatedOn} = {pn.UpdatedOn},
             {csf.LastFileUpdate} = {pn.LastFileUpdate},
@@ -199,13 +199,14 @@ public static class QueryFiles
             {cnf.Id} = {pn.Id}
         ;";
 
-    public static string CreateNoSql => $@"
+    public static string UpsertNoSql => $@"
         INSERT INTO {tn.Files} 
         (
             {cnf.Id}, 
             {cnf.SourceMachineId}, 
             {cnf.OriginalFilePath}, 
             {cnf.InsertedOn}, 
+            {cnf.UpdatedOn}, 
             {cnf.LastFileUpdate}, 
             {cnf.IsCurrent}, 
             {cnf.Metadata}
@@ -216,6 +217,7 @@ public static class QueryFiles
             {pn.SourceMachineId}, 
             {pn.OriginalFilePath}, 
             {pn.InsertedOn}, 
+            {pn.UpdatedOn}, 
             {pn.LastFileUpdate}, 
             {pn.IsCurrent}, 
             {pn.Metadata}

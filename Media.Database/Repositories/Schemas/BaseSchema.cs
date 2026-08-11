@@ -13,14 +13,14 @@ public abstract class BaseSchema<T1, T2>
     where T2 : class, new()
 {
     private static readonly Dictionary<Type, BaseSchemaLookup> _lookup = [];
-    private static Type T1Type = null;
-    private static BaseSchemaLookup T1Value = null;
-    private static Type T2Type = null;
-    private static BaseSchemaLookup T2Value = null;
+    private static Type T1Type = null!;
+    private static BaseSchemaLookup T1Value = null!;
+    private static Type T2Type = null!;
+    private static BaseSchemaLookup T2Value = null!;
     private static readonly T2? SubFields = (new Func<T2?>(() =>
     {
         T1Type = typeof(T1);
-        _lookup.TryGetValue(T1Type, out T1Value);
+        _lookup.TryGetValue(T1Type, out T1Value!);
 
         if (T1Value is null)
         {
@@ -31,7 +31,7 @@ public abstract class BaseSchema<T1, T2>
         T2Type = typeof(T2);       
         if (T2Type == typeof(NoSubFields)) return null;
         
-        _lookup.TryGetValue(T2Type, out T2Value);
+        _lookup.TryGetValue(T2Type, out T2Value!);
 
         if (T2Value is null)
         {

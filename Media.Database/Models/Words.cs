@@ -8,7 +8,7 @@ public class Words
     public int Id { get; set; }
 
     [JsonPropertyName("word")]
-    public string Word { get; set; }
+    public string Word { get; set; } = string.Empty;
 
     [JsonPropertyName("origin")]
     public WordOrigin Origin { get; set; }

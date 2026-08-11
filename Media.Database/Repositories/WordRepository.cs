@@ -32,11 +32,11 @@ public class WordRepository(IConfiguration configuration)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(sql);
-        sqlCommand.Parameters.AddWithValue(pn.Word, (object)word ?? DBNull.Value);
-        sqlCommand.Parameters.AddWithValue(pn.Origin, (object)origin ?? DBNull.Value);
-        sqlCommand.Parameters.AddWithValue(pn.FileId, (object)fileId ?? DBNull.Value);
-        sqlCommand.Parameters.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent ?? DBNull.Value);
-        sqlCommand.Parameters.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName ?? DBNull.Value);
+        sqlCommand.Parameters.AddWithValue(pn.Word, (object)word! ?? DBNull.Value);
+        sqlCommand.Parameters.AddWithValue(pn.Origin, (object)origin! ?? DBNull.Value);
+        sqlCommand.Parameters.AddWithValue(pn.FileId, (object)fileId! ?? DBNull.Value);
+        sqlCommand.Parameters.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent! ?? DBNull.Value);
+        sqlCommand.Parameters.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName! ?? DBNull.Value);
         sqlCommand.Parameters.AddWithValue(pn.Limit, limit ?? 10);
         await using var reader = await sqlCommand.ExecuteReaderAsync();
         return await reader.ToWordFiles();
