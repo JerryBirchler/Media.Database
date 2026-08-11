@@ -12,9 +12,9 @@ public interface IFileRepository
 
     Task<List<Models.Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5);
 
-    Task<Models.Files?> Create(UploadFileRequest request);
+    Task<Models.Files?> Upsert(UploadFileRequest request);
 
-    Task<Models.Files?> Update(Guid id, UpdateFileRequest request);
+    Task<UpdateFileResponse> Update(Guid id, UpdateFileRequest request);
 
     Task<Models.Files?> Delete(Guid id);
 
