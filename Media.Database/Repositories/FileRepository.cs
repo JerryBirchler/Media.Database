@@ -1,11 +1,9 @@
 ﻿using Media.Common.Helpers;
+using Media.Database.Helpers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Npgsql;
-
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -13,17 +11,20 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories;
 
-public class FileRepository(IConfiguration configuration, ILogger<FileRepository> logger)
-    : BaseRepository(configuration), IFileRepository
+public class FileRepository(
+    ILogger<FileRepository> logger)
+    : BaseRepository(), IFileRepository
 {
     private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>
     {
         var className = ClassHelper.GetName();
-        logger.LogInformation("class: [{className}] initializing", className);
+        logger.LogInformation("class: [{ClassName}] initializing", className);
         return logger;
     })());
 
-    public async Task<Models.Files?> GetById(Guid id)
+    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings!.MaxBatchsize;
+
+    public async Task<Files?> GetById(Guid id)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
@@ -36,7 +37,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
         return reader.ToFile();
     }
 
-    public async Task<Models.Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
+    public async Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentBySourceMachineIdSql);
@@ -87,7 +88,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 return new Files 
                 {
                     Id = reader.ToId(),
-                    IsUpdate = true
+                    Exists = true
                 };
             }
         }
@@ -164,207 +165,22 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
         return response;
     }
 
-    private List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest pending)
+    private static List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest request)
     {
-        List<ChangeWordRequest> updates = [];
-        if (current.Metadata is null && pending.Metadata is null)
+        var updates = new List<ChangeWordRequest>();
+        var curMeta = current.Metadata;
+        var newMeta = request.Metadata;
+
+        if (curMeta is null && newMeta is null)
             return updates;
 
-        if (current.Metadata?.Names?.Count > 0)
-            foreach (var item in current.Metadata.Names)
-                if ((pending.Metadata?.Names?.Count == 0)
-                    || pending!.Metadata!.Names!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Delete,
-                        Origin = WordOrigin.Name,
-                        PendingClause = item,
-                        CameFromFileId = current.Id
-                    });
+        updates.ProcessList(curMeta?.Names, newMeta?.Names, current, WordOrigin.Name);
+        updates.ProcessList(curMeta?.KeyWords, newMeta?.KeyWords, current, WordOrigin.Keyword);
 
-        if (pending.Metadata?.Names?.Count > 0)
-            foreach (var item in pending.Metadata.Names)
-                if ((current.Metadata?.Names?.Count == 0)
-                    || current!.Metadata!.Names!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Upsert,
-                        Origin = WordOrigin.Name,
-                        PendingClause = item,
-                        CameFromFileId = current.Id
-                    });
-
-        if (current.Metadata?.KeyWords?.Count > 0)
-            foreach (var item in current.Metadata.KeyWords!)
-                if ((pending?.Metadata?.KeyWords?.Count == 0)
-                    || pending!.Metadata!.KeyWords!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Delete,
-                        Origin = WordOrigin.Keyword,
-                        PendingClause = item,
-                        CameFromFileId = current.Id
-                    });
-
-        if (pending.Metadata?.KeyWords?.Count > 0)
-            foreach (var item in pending?.Metadata?.KeyWords!)
-                if ((current.Metadata?.KeyWords?.Count == 0)
-                    || current!.Metadata!.KeyWords!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Upsert,
-                        Origin = WordOrigin.Keyword,
-                        PendingClause = item,
-                        CameFromFileId = current.Id
-                    });
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Title)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Title))))
-        {
-            if (current.Metadata.Title != pending.Metadata.Title)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromTitle,
-                    CurrentClause = current.Metadata.Title,
-                    PendingClause = pending.Metadata.Title,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Title)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Title))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromTitle,
-                CurrentClause = current.Metadata.Title,
-                PendingClause = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Title)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Title))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromTitle,
-                PendingClause = pending.Metadata.Title,
-                CameFromFileId = current.Id
-            });
-        }
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Description)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Description))))
-        {
-            if (current.Metadata.Description != pending.Metadata.Description)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromDescription,
-                    CurrentClause = current.Metadata.Description,
-                    PendingClause = pending.Metadata.Description,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Description)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Description))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromDescription,
-                CurrentClause = current.Metadata.Description,
-                PendingClause = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Description)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Description))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromDescription,
-                PendingClause = pending.Metadata.Description,
-                CameFromFileId = current.Id
-            });
-        }
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Event)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Event))))
-        {
-            if (current.Metadata.Event != pending.Metadata.Event)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromEvent,
-                    CurrentClause = current.Metadata.Event,
-                    PendingClause = pending.Metadata.Event,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Event)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Event))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromEvent,
-                CurrentClause = current.Metadata.Event,
-                PendingClause = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Event)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Event))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromEvent,
-                PendingClause = pending.Metadata.Event,
-                CameFromFileId = current.Id
-            });
-        }
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Location)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Location))))
-        {
-            if (current.Metadata.Location != pending.Metadata.Location)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromLocation,
-                    CurrentClause = current.Metadata.Location,
-                    PendingClause = pending.Metadata.Location,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Location)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Location))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromLocation,
-                CurrentClause = current.Metadata.Location,
-                PendingClause = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Location)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Location))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromLocation,
-                PendingClause = pending.Metadata.Location,
-                CameFromFileId = current.Id
-            });
-        }
+        updates.ProcessScalar(curMeta?.Title, newMeta?.Title, current, WordOrigin.FromTitle);
+        updates.ProcessScalar(curMeta?.Description, newMeta?.Description, current, WordOrigin.FromDescription);
+        updates.ProcessScalar(curMeta?.Event, newMeta?.Event, current, WordOrigin.FromEvent);
+        updates.ProcessScalar(curMeta?.Location, newMeta?.Location, current, WordOrigin.FromLocation);
 
         return updates;
     }
@@ -380,7 +196,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 if (previousIds.Count > 0)
                 {
                     NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                    QueryFiles.InactivateNoSql, _scyllaSettings.MaxBatchsize)!;
+                    QueryFiles.InactivateNoSql, _scyllaMaxBatchsize)!;
 
                     noSqlCommand.BeginBatch();
 
@@ -491,7 +307,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 var noSqlConnection = GetNoSqlConnection();
 
                 NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                    QueryFiles.DeleteNoSql, _scyllaSettings.MaxBatchsize)!;
+                    QueryFiles.DeleteNoSql, _scyllaMaxBatchsize)!;
 
                 noSqlCommand.BeginBatch();
 
