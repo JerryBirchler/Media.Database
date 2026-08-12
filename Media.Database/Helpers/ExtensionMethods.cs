@@ -1,4 +1,5 @@
-﻿using Media.Common.Helpers;
+﻿using LanguageExt.Pipes;
+using Media.Common.Helpers;
 using Media.Database.Models;
 
 namespace Media.Database.Helpers;
