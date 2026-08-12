@@ -1,4 +1,5 @@
 ﻿using Media.Common.Helpers;
+using Media.Database.Helpers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
@@ -87,7 +88,7 @@ public class FileRepository(
                 return new Files 
                 {
                     Id = reader.ToId(),
-                    IsUpdate = true
+                    Exists = true
                 };
             }
         }
@@ -164,207 +165,22 @@ public class FileRepository(
         return response;
     }
 
-    private List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest pending)
+    private static List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest request)
     {
-        List<ChangeWordRequest> updates = [];
-        if (current.Metadata is null && pending.Metadata is null)
+        var updates = new List<ChangeWordRequest>();
+        var curMeta = current.Metadata;
+        var newMeta = request.Metadata;
+
+        if (curMeta is null && newMeta is null)
             return updates;
 
-        if (current.Metadata?.Names?.Count > 0)
-            foreach (var item in current.Metadata.Names)
-                if ((pending.Metadata?.Names?.Count == 0)
-                    || pending!.Metadata!.Names!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Delete,
-                        Origin = WordOrigin.Name,
-                        PendingSpan = item,
-                        CameFromFileId = current.Id
-                    });
+        updates.ProcessList(curMeta?.Names, newMeta?.Names, current, WordOrigin.Name);
+        updates.ProcessList(curMeta?.KeyWords, newMeta?.KeyWords, current, WordOrigin.Keyword);
 
-        if (pending.Metadata?.Names?.Count > 0)
-            foreach (var item in pending.Metadata.Names)
-                if ((current.Metadata?.Names?.Count == 0)
-                    || current!.Metadata!.Names!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Upsert,
-                        Origin = WordOrigin.Name,
-                        PendingSpan = item,
-                        CameFromFileId = current.Id
-                    });
-
-        if (current.Metadata?.KeyWords?.Count > 0)
-            foreach (var item in current.Metadata.KeyWords!)
-                if ((pending?.Metadata?.KeyWords?.Count == 0)
-                    || pending!.Metadata!.KeyWords!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Delete,
-                        Origin = WordOrigin.Keyword,
-                        PendingSpan = item,
-                        CameFromFileId = current.Id
-                    });
-
-        if (pending.Metadata?.KeyWords?.Count > 0)
-            foreach (var item in pending?.Metadata?.KeyWords!)
-                if ((current.Metadata?.KeyWords?.Count == 0)
-                    || current!.Metadata!.KeyWords!.Contains(item))
-                    updates.Add(new ChangeWordRequest
-                    {
-                        Action = KafkaProducerActions.Upsert,
-                        Origin = WordOrigin.Keyword,
-                        PendingSpan = item,
-                        CameFromFileId = current.Id
-                    });
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Title)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Title))))
-        {
-            if (current.Metadata.Title != pending.Metadata.Title)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromTitle,
-                    CurrentSpan = current.Metadata.Title,
-                    PendingSpan = pending.Metadata.Title,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Title)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Title))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromTitle,
-                CurrentSpan = current.Metadata.Title,
-                PendingSpan = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Title)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Title))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromTitle,
-                PendingSpan = pending.Metadata.Title,
-                CameFromFileId = current.Id
-            });
-        }
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Description)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Description))))
-        {
-            if (current.Metadata.Description != pending.Metadata.Description)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromDescription,
-                    CurrentSpan = current.Metadata.Description,
-                    PendingSpan = pending.Metadata.Description,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Description)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Description))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromDescription,
-                CurrentSpan = current.Metadata.Description,
-                PendingSpan = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Description)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Description))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromDescription,
-                PendingSpan = pending.Metadata.Description,
-                CameFromFileId = current.Id
-            });
-        }
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Event)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Event))))
-        {
-            if (current.Metadata.Event != pending.Metadata.Event)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromEvent,
-                    CurrentSpan = current.Metadata.Event,
-                    PendingSpan = pending.Metadata.Event,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Event)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Event))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromEvent,
-                CurrentSpan = current.Metadata.Event,
-                PendingSpan = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Event)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Event))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromEvent,
-                PendingSpan = pending.Metadata.Event,
-                CameFromFileId = current.Id
-            });
-        }
-
-        if ((!string.IsNullOrWhiteSpace(current.Metadata?.Location)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Location))))
-        {
-            if (current.Metadata.Location != pending.Metadata.Location)
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Update,
-                    Origin = WordOrigin.FromLocation,
-                    CurrentSpan = current.Metadata.Location,
-                    PendingSpan = pending.Metadata.Location,
-                    CameFromFileId = current.Id
-                });
-        }
-        else if ((!string.IsNullOrWhiteSpace(current.Metadata?.Location)
-            && (string.IsNullOrWhiteSpace(pending.Metadata?.Location))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Delete,
-                Origin = WordOrigin.FromLocation,
-                CurrentSpan = current.Metadata.Location,
-                PendingSpan = null!,
-                CameFromFileId = current.Id
-            });
-        }
-        else if ((string.IsNullOrWhiteSpace(current.Metadata?.Location)
-            && (!string.IsNullOrWhiteSpace(pending.Metadata?.Location))))
-        {
-            updates.Add(new ChangeWordRequest
-            {
-                Action = KafkaProducerActions.Upsert,
-                Origin = WordOrigin.FromLocation,
-                PendingSpan = pending.Metadata.Location,
-                CameFromFileId = current.Id
-            });
-        }
+        updates.ProcessScalar(curMeta?.Title, newMeta?.Title, current, WordOrigin.FromTitle);
+        updates.ProcessScalar(curMeta?.Description, newMeta?.Description, current, WordOrigin.FromDescription);
+        updates.ProcessScalar(curMeta?.Event, newMeta?.Event, current, WordOrigin.FromEvent);
+        updates.ProcessScalar(curMeta?.Location, newMeta?.Location, current, WordOrigin.FromLocation);
 
         return updates;
     }

@@ -5,7 +5,7 @@ namespace Media.Database.Models;
 public record ChangeWordRequest
 {
     public virtual KafkaProducerActions Action { get; set; }
-    public required string PendingSpan { get; set; }
+    public required string NewSpan { get; set; }
 
     public string? CurrentSpan { get; set; } = null;
     
