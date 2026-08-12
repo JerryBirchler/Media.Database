@@ -4,6 +4,9 @@ namespace Media.Database.Models;
 
 public class Files
 {
+    [JsonIgnore]
+    public bool IsUpdate { get; internal set; } = false;
+
     [JsonPropertyName("id")]
     public Guid Id { get; set; }
 

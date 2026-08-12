@@ -4,6 +4,8 @@ using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Npgsql;
+
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -78,26 +80,28 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
         sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
         sqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate! ?? DBNull.Value);
 
-        bool anyMatch = false;
         await using (var reader = await sqlCommand.ExecuteReaderAsync())
         {
-            await reader.ReadAsync();
-            anyMatch = reader.GetBoolean(0);
+            if (await reader.ReadAsync())
+            {
+                return new Files 
+                {
+                    Id = reader.ToId(),
+                    IsUpdate = true
+                };
+            }
         }
 
         await sqlCommand.DisposeAsync();
 
         List<Guid> previousIds = [];
-        if (!anyMatch)
-        {
-            await using var sqlCommand2 = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);
-            sqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-            sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+        await using var sqlCommand2 = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);
+        sqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+        sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
 
-            await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
-            previousIds = await reader2.ToIds();
-            await sqlCommand2.DisposeAsync();
-        }
+        await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
+        previousIds = await reader2.ToIds();
+        await sqlCommand2.DisposeAsync();
 
         await using var sqlCommand3 = await sqlConnection.GetCommand(QueryFiles.UpsertSql);
         sqlCommand3.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
@@ -119,32 +123,42 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
         return file;
     }
 
-    public async Task<UpdateFileResponse> Update(Guid id, UpdateFileRequest request)
+    public async Task<UpdateFileResponse> Update(
+        Guid id, 
+        UpdateFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
         sqlCommand.Parameters.AddWithValue(pn.Id, id);
-        await using var reader = await sqlCommand.ExecuteReaderAsync();
+        
+        Files currentFile = null!;
+        
+        await using (var reader = await sqlCommand.ExecuteReaderAsync())
+        { 
+            if (!await reader.ReadAsync())
+                return new UpdateFileResponse { File = null };
 
-        if (!await reader.ReadAsync())
-            return new UpdateFileResponse { File = null };
+            currentFile = reader.ToFile();
+        }
 
-        UpdateFileResponse response = new();
-        var currentFile = reader.ToFile()!;
-
-        response.Updates = GetUpdates(currentFile, request);
+        UpdateFileResponse response = new()
+        {
+            Updates = GetUpdates(currentFile, request)
+        };
 
         await using var sqlCommand2 = await sqlConnection.GetCommand(QueryFiles.UpdateSql);
         sqlCommand2.Parameters.AddWithValue(pn.Id, id);
         sqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
         sqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
         sqlCommand2.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
-        await using var reader2 = await sqlCommand2.ExecuteReaderAsync();
+        
+        await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
+        {
+            if (!await reader2.ReadAsync())
+                return response;
 
-        if (!await reader2.ReadAsync())
-            return response;
-
-        response.File = reader2.ToFile();
+            response.File = reader2.ToFile();
+        }
 
         BackgroundUpdate(response.File);
         return response;
@@ -156,49 +170,53 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
         if (current.Metadata is null && pending.Metadata is null)
             return updates;
 
-        foreach (var item in current?.Metadata?.Names!)
-            if ((pending.Metadata?.Names?.Count == 0)
-                || pending.Metadata!.Names!.Contains(item))
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Delete,
-                    Origin = WordOrigin.Name,
-                    PendingClause = item,
-                    CameFromFileId = current.Id
-                });
+        if (current.Metadata?.Names?.Count > 0)
+            foreach (var item in current.Metadata.Names)
+                if ((pending.Metadata?.Names?.Count == 0)
+                    || pending!.Metadata!.Names!.Contains(item))
+                    updates.Add(new ChangeWordRequest
+                    {
+                        Action = KafkaProducerActions.Delete,
+                        Origin = WordOrigin.Name,
+                        PendingClause = item,
+                        CameFromFileId = current.Id
+                    });
 
-        foreach (var item in pending?.Metadata?.Names!)
-            if ((current.Metadata?.Names?.Count == 0)
-                || current.Metadata!.Names!.Contains(item))
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Upsert,
-                    Origin = WordOrigin.Name,
-                    PendingClause = item,
-                    CameFromFileId = current.Id
-                });
+        if (pending.Metadata?.Names?.Count > 0)
+            foreach (var item in pending.Metadata.Names)
+                if ((current.Metadata?.Names?.Count == 0)
+                    || current!.Metadata!.Names!.Contains(item))
+                    updates.Add(new ChangeWordRequest
+                    {
+                        Action = KafkaProducerActions.Upsert,
+                        Origin = WordOrigin.Name,
+                        PendingClause = item,
+                        CameFromFileId = current.Id
+                    });
 
-        foreach (var item in current?.Metadata?.KeyWords!)
-            if ((pending.Metadata?.KeyWords?.Count == 0)
-                || pending.Metadata!.KeyWords!.Contains(item))
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Delete,
-                    Origin = WordOrigin.Keyword,
-                    PendingClause = item,
-                    CameFromFileId = current.Id
-                });
+        if (current.Metadata?.KeyWords?.Count > 0)
+            foreach (var item in current.Metadata.KeyWords!)
+                if ((pending?.Metadata?.KeyWords?.Count == 0)
+                    || pending!.Metadata!.KeyWords!.Contains(item))
+                    updates.Add(new ChangeWordRequest
+                    {
+                        Action = KafkaProducerActions.Delete,
+                        Origin = WordOrigin.Keyword,
+                        PendingClause = item,
+                        CameFromFileId = current.Id
+                    });
 
-        foreach (var item in pending?.Metadata?.KeyWords!)
-            if ((current.Metadata?.KeyWords?.Count == 0)
-                || current.Metadata!.KeyWords!.Contains(item))
-                updates.Add(new ChangeWordRequest
-                {
-                    Action = KafkaProducerActions.Upsert,
-                    Origin = WordOrigin.Keyword,
-                    PendingClause = item,
-                    CameFromFileId = current.Id
-                });
+        if (pending.Metadata?.KeyWords?.Count > 0)
+            foreach (var item in pending?.Metadata?.KeyWords!)
+                if ((current.Metadata?.KeyWords?.Count == 0)
+                    || current!.Metadata!.KeyWords!.Contains(item))
+                    updates.Add(new ChangeWordRequest
+                    {
+                        Action = KafkaProducerActions.Upsert,
+                        Origin = WordOrigin.Keyword,
+                        PendingClause = item,
+                        CameFromFileId = current.Id
+                    });
 
         if ((!string.IsNullOrWhiteSpace(current.Metadata?.Title)
             && (!string.IsNullOrWhiteSpace(pending.Metadata?.Title))))
