@@ -12,4 +12,6 @@ public interface IWordRepository
     Task Upsert(UpsertWordRequest request);
     Task RefreshView();
     Task Delete(int id);
+    Task DeleteFile(Guid fileId);
+
 }

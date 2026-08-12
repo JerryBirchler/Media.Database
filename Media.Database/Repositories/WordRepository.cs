@@ -100,4 +100,12 @@ public class WordRepository(IConfiguration configuration)
         sqlCommand.Parameters.AddWithValue(pn.Id, id);
         await sqlCommand.ExecuteReaderAsync();
     }
+
+    public async Task DeleteFile(Guid fileId)
+    {
+        await using var sqlConnection = GetSqlConnection();
+        await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.DeleteWordFileSql);
+        sqlCommand.Parameters.AddWithValue(pn.FileId, fileId);
+        await sqlCommand.ExecuteReaderAsync();
+    }
 }
