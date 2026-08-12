@@ -178,7 +178,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                     {
                         Action = KafkaProducerActions.Delete,
                         Origin = WordOrigin.Name,
-                        PendingClause = item,
+                        PendingSpan = item,
                         CameFromFileId = current.Id
                     });
 
@@ -190,7 +190,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                     {
                         Action = KafkaProducerActions.Upsert,
                         Origin = WordOrigin.Name,
-                        PendingClause = item,
+                        PendingSpan = item,
                         CameFromFileId = current.Id
                     });
 
@@ -202,7 +202,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                     {
                         Action = KafkaProducerActions.Delete,
                         Origin = WordOrigin.Keyword,
-                        PendingClause = item,
+                        PendingSpan = item,
                         CameFromFileId = current.Id
                     });
 
@@ -214,7 +214,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                     {
                         Action = KafkaProducerActions.Upsert,
                         Origin = WordOrigin.Keyword,
-                        PendingClause = item,
+                        PendingSpan = item,
                         CameFromFileId = current.Id
                     });
 
@@ -226,8 +226,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 {
                     Action = KafkaProducerActions.Update,
                     Origin = WordOrigin.FromTitle,
-                    CurrentClause = current.Metadata.Title,
-                    PendingClause = pending.Metadata.Title,
+                    CurrentSpan = current.Metadata.Title,
+                    PendingSpan = pending.Metadata.Title,
                     CameFromFileId = current.Id
                 });
         }
@@ -238,8 +238,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Delete,
                 Origin = WordOrigin.FromTitle,
-                CurrentClause = current.Metadata.Title,
-                PendingClause = null!,
+                CurrentSpan = current.Metadata.Title,
+                PendingSpan = null!,
                 CameFromFileId = current.Id
             });
         }
@@ -250,7 +250,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Upsert,
                 Origin = WordOrigin.FromTitle,
-                PendingClause = pending.Metadata.Title,
+                PendingSpan = pending.Metadata.Title,
                 CameFromFileId = current.Id
             });
         }
@@ -263,8 +263,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 {
                     Action = KafkaProducerActions.Update,
                     Origin = WordOrigin.FromDescription,
-                    CurrentClause = current.Metadata.Description,
-                    PendingClause = pending.Metadata.Description,
+                    CurrentSpan = current.Metadata.Description,
+                    PendingSpan = pending.Metadata.Description,
                     CameFromFileId = current.Id
                 });
         }
@@ -275,8 +275,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Delete,
                 Origin = WordOrigin.FromDescription,
-                CurrentClause = current.Metadata.Description,
-                PendingClause = null!,
+                CurrentSpan = current.Metadata.Description,
+                PendingSpan = null!,
                 CameFromFileId = current.Id
             });
         }
@@ -287,7 +287,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Upsert,
                 Origin = WordOrigin.FromDescription,
-                PendingClause = pending.Metadata.Description,
+                PendingSpan = pending.Metadata.Description,
                 CameFromFileId = current.Id
             });
         }
@@ -300,8 +300,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 {
                     Action = KafkaProducerActions.Update,
                     Origin = WordOrigin.FromEvent,
-                    CurrentClause = current.Metadata.Event,
-                    PendingClause = pending.Metadata.Event,
+                    CurrentSpan = current.Metadata.Event,
+                    PendingSpan = pending.Metadata.Event,
                     CameFromFileId = current.Id
                 });
         }
@@ -312,8 +312,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Delete,
                 Origin = WordOrigin.FromEvent,
-                CurrentClause = current.Metadata.Event,
-                PendingClause = null!,
+                CurrentSpan = current.Metadata.Event,
+                PendingSpan = null!,
                 CameFromFileId = current.Id
             });
         }
@@ -324,7 +324,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Upsert,
                 Origin = WordOrigin.FromEvent,
-                PendingClause = pending.Metadata.Event,
+                PendingSpan = pending.Metadata.Event,
                 CameFromFileId = current.Id
             });
         }
@@ -337,8 +337,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 {
                     Action = KafkaProducerActions.Update,
                     Origin = WordOrigin.FromLocation,
-                    CurrentClause = current.Metadata.Location,
-                    PendingClause = pending.Metadata.Location,
+                    CurrentSpan = current.Metadata.Location,
+                    PendingSpan = pending.Metadata.Location,
                     CameFromFileId = current.Id
                 });
         }
@@ -349,8 +349,8 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Delete,
                 Origin = WordOrigin.FromLocation,
-                CurrentClause = current.Metadata.Location,
-                PendingClause = null!,
+                CurrentSpan = current.Metadata.Location,
+                PendingSpan = null!,
                 CameFromFileId = current.Id
             });
         }
@@ -361,7 +361,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
             {
                 Action = KafkaProducerActions.Upsert,
                 Origin = WordOrigin.FromLocation,
-                PendingClause = pending.Metadata.Location,
+                PendingSpan = pending.Metadata.Location,
                 CameFromFileId = current.Id
             });
         }
