@@ -2,10 +2,7 @@
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Npgsql;
-
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -13,17 +10,20 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories;
 
-public class FileRepository(IConfiguration configuration, ILogger<FileRepository> logger)
-    : BaseRepository(configuration), IFileRepository
+public class FileRepository(
+    ILogger<FileRepository> logger)
+    : BaseRepository(), IFileRepository
 {
     private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>
     {
         var className = ClassHelper.GetName();
-        logger.LogInformation("class: [{className}] initializing", className);
+        logger.LogInformation("class: [{ClassName}] initializing", className);
         return logger;
     })());
 
-    public async Task<Models.Files?> GetById(Guid id)
+    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings!.MaxBatchsize;
+
+    public async Task<Files?> GetById(Guid id)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
@@ -36,7 +36,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
         return reader.ToFile();
     }
 
-    public async Task<Models.Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
+    public async Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentBySourceMachineIdSql);
@@ -380,7 +380,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 if (previousIds.Count > 0)
                 {
                     NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                    QueryFiles.InactivateNoSql, _scyllaSettings.MaxBatchsize)!;
+                    QueryFiles.InactivateNoSql, _scyllaMaxBatchsize)!;
 
                     noSqlCommand.BeginBatch();
 
@@ -491,7 +491,7 @@ public class FileRepository(IConfiguration configuration, ILogger<FileRepository
                 var noSqlConnection = GetNoSqlConnection();
 
                 NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                    QueryFiles.DeleteNoSql, _scyllaSettings.MaxBatchsize)!;
+                    QueryFiles.DeleteNoSql, _scyllaMaxBatchsize)!;
 
                 noSqlCommand.BeginBatch();
 

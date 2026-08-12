@@ -1,7 +1,6 @@
 ﻿using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
-using Microsoft.Extensions.Configuration;
 
 #pragma warning disable CS8981 
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -9,8 +8,7 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories;
 
-public class WordRepository(IConfiguration configuration) 
-    : BaseRepository(configuration), IWordRepository
+public class WordRepository : BaseRepository, IWordRepository
 {
     public async Task<Models.Words?> GetById(int id)
     {
@@ -25,7 +23,7 @@ public class WordRepository(IConfiguration configuration)
         return reader.ToWord();
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePages(
+    public async Task<List<ViewWordFiles>> GetFilePages(
         string sql, string? word, WordOrigin? origin, Guid? fileId, 
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
@@ -42,7 +40,7 @@ public class WordRepository(IConfiguration configuration)
         return await reader.ToWordFiles();
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordOrigin(
+    public async Task<List<ViewWordFiles>> GetFilePagesByWordOrigin(
         string? word, WordOrigin? origin, Guid? fileId, 
         bool? isCurrent, bool? isProperName, 
         int? limit = 10)
@@ -50,7 +48,7 @@ public class WordRepository(IConfiguration configuration)
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByWordFileId(
+    public async Task<List<ViewWordFiles>> GetFilePagesByWordFileId(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
@@ -58,7 +56,7 @@ public class WordRepository(IConfiguration configuration)
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdOrigin(
+    public async Task<List<ViewWordFiles>> GetFilePagesByFileIdOrigin(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
@@ -66,7 +64,7 @@ public class WordRepository(IConfiguration configuration)
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
-    public async Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdWord(
+    public async Task<List<ViewWordFiles>> GetFilePagesByFileIdWord(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
