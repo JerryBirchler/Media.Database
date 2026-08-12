@@ -104,7 +104,7 @@ public class WordRepository(IConfiguration configuration)
     public async Task DeleteFile(Guid fileId)
     {
         await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.DeleteWordFileSql);
+        await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.DeleteFileSql);
         sqlCommand.Parameters.AddWithValue(pn.FileId, fileId);
         await sqlCommand.ExecuteReaderAsync();
     }
