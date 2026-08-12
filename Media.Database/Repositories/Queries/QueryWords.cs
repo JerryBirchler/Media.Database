@@ -161,6 +161,10 @@ public static class QueryWords
     public static string RefreshViewSql => $@"
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_WordFiles};";
 
+    public static string DeleteWordFileSql => $@"
+        DELETE FROM {ts.WordFiles} 
+        WHERE {cswf.FileId} = {pn.FileId}";
+
     #endregion
 
     public static async Task<List<Models.Words>> ToWords(this NpgsqlDataReader reader)
