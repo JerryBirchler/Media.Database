@@ -141,13 +141,15 @@ public static class QueryFiles
         ;";
 
     public static string ExistsSql => $@"
-        SELECT EXISTS(SELECT 1 
-            FROM {ts.Files} 
-            WHERE 
-                {csf.SourceMachineId} = {pn.SourceMachineId}
-                AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
-                AND {csf.LastFileUpdate} = {pn.LastFileUpdate}
-            ) AS Any;";
+        SELECT 
+            {csf.Id}
+        FROM 
+            {ts.Files} 
+        WHERE 
+            {csf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
+            AND {csf.LastFileUpdate} = {pn.LastFileUpdate}
+        LIMIT 1;";
 
     public static string DeleteSql => $@"
         WITH deleted_rows AS (
@@ -271,6 +273,11 @@ public static class QueryFiles
         }
 
         return ids;
+    }
+
+    public static Guid ToId(this NpgsqlDataReader reader) 
+    {
+        return reader.GetGuid(reader.GetOrdinal(os.Id));
     }
 
     public static Models.Files ToFile(this Row row)
