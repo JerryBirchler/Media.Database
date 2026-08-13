@@ -5,7 +5,7 @@ namespace Media.Database.Models;
 public record BaseWordRequest
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public virtual KafkaProducerActions Action { get; } 
+    public virtual KafkaProducerActions Action { get; set; } 
     public required string Word { get; set; }
     
     [JsonConverter(typeof(JsonStringEnumConverter))]

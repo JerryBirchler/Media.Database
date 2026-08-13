@@ -6,5 +6,5 @@ public record DeleteWordRequest : BaseWordRequest
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public override KafkaProducerActions Action { get; } = KafkaProducerActions.Delete;
+    public override KafkaProducerActions Action { get; set; } = KafkaProducerActions.Delete;
 }

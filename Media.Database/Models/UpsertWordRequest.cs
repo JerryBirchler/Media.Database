@@ -6,5 +6,5 @@ public record UpsertWordRequest : BaseWordRequest
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public override KafkaProducerActions Action { get; } = KafkaProducerActions.Upsert;
+    public override KafkaProducerActions Action { get; set; } = KafkaProducerActions.Upsert;
 }
