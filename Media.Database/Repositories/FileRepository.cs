@@ -4,6 +4,8 @@ using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
+using Serilog.Core;
+
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -12,7 +14,8 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 namespace Media.Database.Repositories;
 
 public class FileRepository(
-    ILogger<FileRepository> logger)
+    ILogger<FileRepository> logger,
+    LoggingLevelSwitch levelSwitch)
     : BaseRepository(), IFileRepository
 {
     private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>
@@ -22,10 +25,13 @@ public class FileRepository(
         return logger;
     })());
 
+    private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
     private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings!.MaxBatchsize;
 
     public async Task<Files?> GetById(Guid id)
     {
+        _levelswitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
+        logger.LogDebug(true, "testing id = [{Id}]", args: [id]);
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
         sqlCommand.Parameters.AddWithValue(pn.Id, id);
@@ -219,7 +225,7 @@ public class FileRepository(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, true, $"BackgroundUpdate task failed for FileId {file.Id}");
+                _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: [file.Id]);
             }
         });
     }
@@ -241,7 +247,7 @@ public class FileRepository(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, true, $"BackgroundUpdate task failed for FileId {file.Id}");
+                _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: [file.Id]);
             }
         });
     }
@@ -293,7 +299,7 @@ public class FileRepository(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, true, $"BackgroundDelete task failed for FileId {id}");
+                _logger.LogError(ex, true, "BackgroundDelete task failed for FileId {Id}", args: [id]);
             }
         });
     }
@@ -318,7 +324,7 @@ public class FileRepository(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, true, $"BackgroundDelete task failed");
+                _logger.LogError(ex, true, "BackgroundDelete task failed");
             }
         });
     }
