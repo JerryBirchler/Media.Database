@@ -6,7 +6,6 @@ using cswf = Media.Database.Repositories.Schemas.TablesSql.WordFilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
-#pragma warning restore CS8981 
 
 namespace Media.Database.Repositories.Queries;
 

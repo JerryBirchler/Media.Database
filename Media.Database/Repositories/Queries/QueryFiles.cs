@@ -283,7 +283,7 @@ public static class QueryFiles
         return ids;
     }
 
-    public static Guid ToId(this System.Data.Common.DbDataReader reader)
+    public static Guid ToId(this NpgsqlDataReader reader)
     {
         return reader.GetGuid(reader.GetOrdinal(os.Id));
     }

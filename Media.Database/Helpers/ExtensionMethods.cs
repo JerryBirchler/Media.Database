@@ -137,7 +137,7 @@ public static class ExtensionMethods
         if (words == null)
             return;
 
-        var resolver = isProperNameResolver ?? (s => s.IsProperName());
+        var resolver = isProperNameResolver ?? (Func<string, bool>)(s => s.IsProperName());
 
         foreach (var word in words)
         {

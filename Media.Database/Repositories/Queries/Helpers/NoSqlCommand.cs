@@ -17,7 +17,7 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
                        .Select(m => m.Groups[1].Value)];
 
     private readonly string _noSqlNativeQuery = ParamRegex.Replace(parameterizedQuery, "?");
-    private int _batchSize = batchSize;
+    private readonly int _batchSize = batchSize;
     private BatchStatement _batch = null!;
     private int _rows = 0;
 

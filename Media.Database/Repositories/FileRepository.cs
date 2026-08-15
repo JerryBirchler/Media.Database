@@ -26,7 +26,7 @@ public class FileRepository(
     })());
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
-    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings!.MaxBatchsize;
+    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings?.MaxBatchsize ?? 100;
 
     public async Task<Files?> GetById(Guid id)
     {
