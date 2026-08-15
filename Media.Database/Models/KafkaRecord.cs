@@ -3,15 +3,15 @@
 namespace Media.Database.Models;
 
 public record KafkaRecord(
-    [property: JsonPropertyName("topic")] 
+    [property: JsonPropertyName("topic")]
     string Topic,
 
     [property: JsonPropertyName("partition")]
     int Partition,
 
-    [property: JsonPropertyName("offset")] 
+    [property: JsonPropertyName("offset")]
     long Offset,
-    
-    [property: JsonPropertyName("value")] 
+
+    [property: JsonPropertyName("value")]
     CreateWordRequest Value
 );

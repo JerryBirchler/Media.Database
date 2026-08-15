@@ -1,6 +1,4 @@
 ﻿using Media.Database.Models;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Newtonsoft.Json.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -28,9 +26,9 @@ public abstract class BaseSchema<T1, T2>
             T1Value = _lookup[T1Type];
         }
 
-        T2Type = typeof(T2);       
+        T2Type = typeof(T2);
         if (T2Type == typeof(NoSubFields)) return null;
-        
+
         _lookup.TryGetValue(T2Type, out T2Value!);
 
         if (T2Value is null)
@@ -47,13 +45,13 @@ public abstract class BaseSchema<T1, T2>
 #pragma warning restore IDE1006 
     {
         if (SubFields is null) return fieldName;
-        
+
         T2Value.Names.TryGetValue(fieldName, out var name);
         if (name is not null)
             return name;
 
         GetField(T2Type, fieldName);
-    
+
         var fieldNameValue = Format(fieldName);
         T2Value.Names.Add(fieldName, fieldNameValue);
         return fieldNameValue;
@@ -75,7 +73,7 @@ public abstract class BaseSchema<T1, T2>
 
         return fieldName;
     }
-   
+
     public static string GetField(string fieldName)
     {
         return GetField(typeof(T1), fieldName);

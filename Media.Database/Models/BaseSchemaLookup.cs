@@ -3,5 +3,5 @@
 public class BaseSchemaLookup
 {
     public bool? HasFormatter { get; set; } = null;
-    public Dictionary<string, string> Names { get; set; } = [];  
+    public Dictionary<string, string> Names { get; set; } = [];
 }
