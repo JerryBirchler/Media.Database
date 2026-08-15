@@ -1,4 +1,4 @@
-using Media.Database.Models;
+using Media.Common.Models;
 using System.Net;
 
 namespace Media.Database.Helpers;
