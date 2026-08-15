@@ -1,3 +1,5 @@
 <Solution>
+  <Project Path="../Media.Common/Media.Common/Media.Common.csproj" />
   <Project Path="Media.Database/Media.Database.csproj" />
+  <Project Path="tests/Media.Database.Tests/Media.Database.Tests.csproj" />
 </Solution>
