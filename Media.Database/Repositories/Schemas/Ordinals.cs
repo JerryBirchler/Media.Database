@@ -11,7 +11,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string LastFileUpdate = x();
     public static readonly string Limit = x();
     public static readonly string Metadata = x();
-    public static readonly string Origin = x(); 
+    public static readonly string Origin = x();
     public static readonly string OriginalFilePath = x();
     public static readonly string SourceMachineId = x();
     public static readonly string UpdatedOn = x();

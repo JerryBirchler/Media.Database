@@ -11,5 +11,5 @@ public class WordFiles
     public int WordId { get; set; }
 
     [JsonPropertyName("fileId")]
-    public Guid FileId { get; set; } 
+    public Guid FileId { get; set; }
 }

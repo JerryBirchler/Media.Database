@@ -85,7 +85,7 @@ public class FileRepository(
         {
             if (await reader.ReadAsync())
             {
-                return new Files 
+                return new Files
                 {
                     Id = reader.ToId(),
                     Exists = true
@@ -101,7 +101,7 @@ public class FileRepository(
         sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
 
         await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
-        previousIds = await reader2.ToIds();
+            previousIds = await reader2.ToIds();
         await sqlCommand2.DisposeAsync();
 
         await using var sqlCommand3 = await sqlConnection.GetCommand(QueryFiles.UpsertSql);
@@ -116,7 +116,7 @@ public class FileRepository(
             return null;
 
         var file = reader3.ToFile();
-        
+
         await sqlCommand3.DisposeAsync();
         await sqlConnection.CloseAsync();
 
@@ -125,17 +125,17 @@ public class FileRepository(
     }
 
     public async Task<UpdateFileResponse> Update(
-        Guid id, 
+        Guid id,
         UpdateFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
         sqlCommand.Parameters.AddWithValue(pn.Id, id);
-        
+
         Files currentFile = null!;
-        
+
         await using (var reader = await sqlCommand.ExecuteReaderAsync())
-        { 
+        {
             if (!await reader.ReadAsync())
                 return new UpdateFileResponse { File = null };
 
@@ -152,7 +152,7 @@ public class FileRepository(
         sqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
         sqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
         sqlCommand2.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
-        
+
         await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
         {
             if (!await reader2.ReadAsync())
@@ -270,7 +270,7 @@ public class FileRepository(
         sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
         sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath);
         await using var reader = await sqlCommand.ExecuteReaderAsync();
-        
+
         var files = await reader.ToFiles();
 
         if (files.Count > 0)

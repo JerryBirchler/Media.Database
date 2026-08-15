@@ -23,5 +23,5 @@ public class Words
     public DateTimeOffset? UpdatedOn { get; set; }
 
     [JsonPropertyName("cameFromFileId")]
-    public Guid CameFromFileId { get; set; } 
+    public Guid CameFromFileId { get; set; }
 }

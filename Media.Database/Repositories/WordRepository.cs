@@ -24,7 +24,7 @@ public class WordRepository : BaseRepository, IWordRepository
     }
 
     public async Task<List<ViewWordFiles>> GetFilePages(
-        string sql, string? word, WordOrigin? origin, Guid? fileId, 
+        string sql, string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
     {
@@ -41,8 +41,8 @@ public class WordRepository : BaseRepository, IWordRepository
     }
 
     public async Task<List<ViewWordFiles>> GetFilePagesByWordOrigin(
-        string? word, WordOrigin? origin, Guid? fileId, 
-        bool? isCurrent, bool? isProperName, 
+        string? word, WordOrigin? origin, Guid? fileId,
+        bool? isCurrent, bool? isProperName,
         int? limit = 10)
     {
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);

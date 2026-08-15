@@ -1,7 +1,5 @@
-﻿using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Media.Database.Repositories.Schemas;
 
@@ -35,7 +33,7 @@ public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
 
     #region Private methods
     private static string ToSnake(string memberName)
-    {   
+    {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < memberName.Length; i++)
         {

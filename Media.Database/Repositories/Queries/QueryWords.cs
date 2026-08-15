@@ -8,7 +8,6 @@ using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
 using Media.Database.Models;
-using Microsoft.AspNetCore.Http;
 #pragma warning restore CS8981 
 
 namespace Media.Database.Repositories.Queries;
@@ -46,7 +45,7 @@ public static class QueryWords
     public static string AndFilePages => $@"
             AND ({pn.IsCurrent} IS NULL OR {pn.IsCurrent} = {csvwf.IsCurrent})
             AND ({pn.IsProperName} IS NULL OR {pn.IsProperName} = {csvwf.IsProperName})";
-    
+
     public static string GetFilePagesByWordOriginSql => $@"
         {SelectFilePages}
         WHERE 

@@ -11,7 +11,7 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
 {
     private static readonly Regex ParamRegex = new(@"@([a-zA-Z0-9_]+)", RegexOptions.Compiled);
     private readonly ISession _session = session;
-    
+
     private readonly List<string>? _parameterList = [.. ParamRegex.Matches(parameterizedQuery)
                        .Cast<Match>()
                        .Select(m => m.Groups[1].Value)];
@@ -74,7 +74,7 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
     {
         if (_rows % _batchSize != 0)
             await this.ExecuteAsync(_batch);
-            
+
         _batch = null!;
     }
 }
