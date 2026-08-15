@@ -1,5 +1,6 @@
 ﻿using Cassandra;
 using Media.Database.Repositories.Queries.Helpers;
+using Npgsql;
 
 #pragma warning disable CS8981 
 using cnf = Media.Database.Repositories.Schemas.TablesNoSql.FilesColumns;
@@ -238,7 +239,7 @@ public static class QueryFiles
         DELETE FROM {tn.Files} WHERE id = {pn.Id};";
     #endregion
 
-    public static async Task<List<Models.Files>> ToFiles(this System.Data.Common.DbDataReader reader)
+    public static async Task<List<Models.Files>> ToFiles(this NpgsqlDataReader reader)
     {
         List<Models.Files> files = [];
 
@@ -248,16 +249,7 @@ public static class QueryFiles
         return files;
     }
 
-    // Backwards-compatible overloads for NpgsqlDataReader that forward to the DbDataReader implementations
-    public static Task<List<Models.Files>> ToFiles(this Npgsql.NpgsqlDataReader reader) => ToFiles((System.Data.Common.DbDataReader)reader);
-
-    public static Models.Files ToFile(this Npgsql.NpgsqlDataReader reader) => ToFile((System.Data.Common.DbDataReader)reader);
-
-    public static Task<List<Guid>> ToIds(this Npgsql.NpgsqlDataReader reader) => ToIds((System.Data.Common.DbDataReader)reader);
-
-    public static Guid ToId(this Npgsql.NpgsqlDataReader reader) => ToId((System.Data.Common.DbDataReader)reader);
-
-    public static Models.Files ToFile(this System.Data.Common.DbDataReader reader)
+    public static Models.Files ToFile(this NpgsqlDataReader reader)
     {
         return new Models.Files
         {
@@ -272,7 +264,7 @@ public static class QueryFiles
         };
     }
 
-    public static async Task<List<Guid>> ToIds(this System.Data.Common.DbDataReader reader)
+    public static async Task<List<Guid>> ToIds(this NpgsqlDataReader reader)
     {
         var ids = new List<Guid>();
         while (await reader.ReadAsync())
