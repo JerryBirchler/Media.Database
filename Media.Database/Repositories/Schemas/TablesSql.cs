@@ -57,7 +57,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
 #pragma warning restore IDE1006 
     {
         var columnName = ColumnsSql.GetField(callerName);
-        
+
         return $@"""{columnName}""";
     }
 }

@@ -23,13 +23,13 @@ public static class ExtensionMethods
 
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Types are preserved elsewhere or not using Native AOT.")]
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Reflection deserialization is safe for this application profile.")]
-    public static T? GetValueOrDefault<T>(this Cassandra.Row row, string columnName) where T :  class
+    public static T? GetValueOrDefault<T>(this Cassandra.Row row, string columnName) where T : class
     {
         if (row.IsNull(columnName))
             return default;
 
         var value = row.GetValue<string?>(columnName);
-        
+
         if (string.IsNullOrWhiteSpace(value))
             return default;
 
@@ -60,9 +60,9 @@ public static class ExtensionMethods
         return JsonSerializer.Deserialize<T>(jsonString);
     }
 
-    public static object ToNullableValueForSql<T>(this T value) 
+    public static object ToNullableValueForSql<T>(this T value)
     {
-        if (value == null) 
+        if (value == null)
             return DBNull.Value;
 
         return value;
@@ -70,7 +70,7 @@ public static class ExtensionMethods
 
     public static DateTimeOffset? AdjustPrecision(this DateTimeOffset? timestamp)
     {
-        if (timestamp is null) 
+        if (timestamp is null)
             return null;
 
         return (DateTimeOffset?)AdjustPrecision((DateTimeOffset)timestamp);

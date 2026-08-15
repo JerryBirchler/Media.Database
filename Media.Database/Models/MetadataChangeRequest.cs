@@ -8,7 +8,7 @@ public record ChangeWordRequest
     public required string NewSpan { get; set; }
 
     public string? CurrentSpan { get; set; } = null;
-    
+
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public required WordOrigin Origin { get; set; }
     public required Guid CameFromFileId { get; set; }

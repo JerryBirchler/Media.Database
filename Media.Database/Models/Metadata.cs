@@ -12,11 +12,11 @@ public class Metadata
     [JsonPropertyName("names")]
     [FromHeader(Name = "names")]
     public SortedSet<string>? Names { get; set; } = null;
-    
+
     [JsonPropertyName("title")]
     [FromHeader(Name = "title")]
     public string? Title { get; set; }
-    
+
     [JsonPropertyName("description")]
     [FromHeader(Name = "description")]
     public string? Description { get; set; }
@@ -27,5 +27,5 @@ public class Metadata
 
     [JsonPropertyName("location")]
     [FromHeader(Name = "location")]
-    public string? Location { get; set; }        
+    public string? Location { get; set; }
 }

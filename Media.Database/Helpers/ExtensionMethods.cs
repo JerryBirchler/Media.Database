@@ -1,5 +1,4 @@
-﻿using LanguageExt.Pipes;
-using Media.Common.Helpers;
+﻿using Media.Common.Helpers;
 using Media.Database.Models;
 
 namespace Media.Database.Helpers;
@@ -138,7 +137,7 @@ public static class ExtensionMethods
         if (words == null)
             return;
 
-        var resolver = isProperNameResolver ?? (s => s.IsProperName());
+        var resolver = isProperNameResolver ?? (Func<string, bool>)(s => s.IsProperName());
 
         foreach (var word in words)
         {

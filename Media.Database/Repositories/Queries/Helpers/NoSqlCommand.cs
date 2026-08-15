@@ -11,13 +11,13 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
 {
     private static readonly Regex ParamRegex = new(@"@([a-zA-Z0-9_]+)", RegexOptions.Compiled);
     private readonly ISession _session = session;
-    
+
     private readonly List<string>? _parameterList = [.. ParamRegex.Matches(parameterizedQuery)
                        .Cast<Match>()
                        .Select(m => m.Groups[1].Value)];
 
     private readonly string _noSqlNativeQuery = ParamRegex.Replace(parameterizedQuery, "?");
-    private int _batchSize = batchSize;
+    private readonly int _batchSize = batchSize;
     private BatchStatement _batch = null!;
     private int _rows = 0;
 
@@ -74,7 +74,7 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
     {
         if (_rows % _batchSize != 0)
             await this.ExecuteAsync(_batch);
-            
+
         _batch = null!;
     }
 }
