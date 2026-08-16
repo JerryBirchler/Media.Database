@@ -1,6 +1,6 @@
 ﻿namespace Media.Database.Models;
 
-public class SourceMachine
+internal class SourceMachine
 {
     public int Id { get; set; }
 

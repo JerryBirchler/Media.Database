@@ -2,7 +2,7 @@
 
 namespace Media.Database.Models;
 
-public class WordFiles
+internal class WordFiles
 {
     [JsonPropertyName("origin")]
     public WordOrigin Origin { get; set; }

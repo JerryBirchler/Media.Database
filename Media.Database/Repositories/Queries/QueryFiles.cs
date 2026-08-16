@@ -13,7 +13,7 @@ using ts = Media.Database.Repositories.Schemas.TablesSql;
 
 namespace Media.Database.Repositories.Queries;
 
-public static class QueryFiles
+internal static class QueryFiles
 {
     #region SQL Queries
     public static string GetByIdSql => $@"
