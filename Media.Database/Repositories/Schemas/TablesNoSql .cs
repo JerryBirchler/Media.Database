@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Media.Database.Repositories.Schemas;
 
-public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
+internal class TablesNoSql : BaseSchema<TablesNoSql, Tables>
 {
     public static readonly string Files = x();
 
@@ -34,7 +34,7 @@ public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
     #region Private methods
     private static string ToSnake(string memberName)
     {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
         for (int i = 0; i < memberName.Length; i++)
         {
             var value = memberName[i] + "";
@@ -51,12 +51,6 @@ public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
         }
 
         return sb.ToString();
-    }
-    private static string ToLowerFirst(string str)
-    {
-        if (string.IsNullOrEmpty(str)) return str;
-
-        return char.ToLowerInvariant(str[0]) + str.Substring(1);
     }
     #endregion
 }

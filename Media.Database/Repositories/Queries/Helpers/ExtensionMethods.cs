@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Media.Database.Repositories.Queries.Helpers;
 
-public static class ExtensionMethods
+internal static class ExtensionMethods
 {
     public static async Task<NpgsqlCommand> GetCommand(this NpgsqlConnection connection, string query)
     {

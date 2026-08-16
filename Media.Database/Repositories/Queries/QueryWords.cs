@@ -9,7 +9,7 @@ using ts = Media.Database.Repositories.Schemas.TablesSql;
 
 namespace Media.Database.Repositories.Queries;
 
-public static class QueryWords
+internal static class QueryWords
 {
     #region SQL Queries
     public static string GetByIdSql => $@"

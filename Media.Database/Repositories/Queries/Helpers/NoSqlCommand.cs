@@ -7,7 +7,7 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories.Queries.Helpers;
 
-public class NoSqlCommand(ISession session, string parameterizedQuery, int batchSize = 100)
+internal class NoSqlCommand(ISession session, string parameterizedQuery, int batchSize = 100)
 {
     private static readonly Regex ParamRegex = new(@"@([a-zA-Z0-9_]+)", RegexOptions.Compiled);
     private readonly ISession _session = session;

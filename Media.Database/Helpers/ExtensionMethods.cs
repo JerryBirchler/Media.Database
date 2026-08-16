@@ -3,7 +3,7 @@ using Media.Database.Models;
 
 namespace Media.Database.Helpers;
 
-public static class ExtensionMethods
+internal static class ExtensionMethods
 {
     public static void ProcessList(
         this List<ChangeWordRequest> updates,

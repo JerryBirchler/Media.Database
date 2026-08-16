@@ -1,6 +1,6 @@
 ﻿namespace Media.Database.Repositories.Schemas;
 
-public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
+internal class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
 {
     public static readonly string CameFromFileId = x();
     public static readonly string FileId = x();
