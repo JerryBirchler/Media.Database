@@ -2,7 +2,7 @@
 
 namespace Media.Database.Repositories.Schemas;
 
-internal class TablesSql : BaseSchema<TablesSql, Tables>
+public class TablesSql : BaseSchema<TablesSql, Tables>
 {
     public static readonly string Files = x();
     public static readonly string Words = x();

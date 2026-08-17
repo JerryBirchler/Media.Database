@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Media.Database.Repositories.Schemas;
 
-internal class TablesNoSql : BaseSchema<TablesNoSql, Tables>
+public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
 {
     public static readonly string Files = x();
 
@@ -35,10 +35,12 @@ internal class TablesNoSql : BaseSchema<TablesNoSql, Tables>
     private static string ToSnake(string memberName)
     {
         StringBuilder sb = new();
+
         for (int i = 0; i < memberName.Length; i++)
         {
             var value = memberName[i] + "";
             var lower = value.ToLowerInvariant();
+
             if (lower != value)
             {
                 if (i > 0) sb.Append("_");

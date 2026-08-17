@@ -1,3 +1,3 @@
 ﻿namespace Media.Database.Repositories.Schemas;
 
-internal sealed class NoSubFields : ISchema { }
+public sealed class NoSubFields : ISchema { }

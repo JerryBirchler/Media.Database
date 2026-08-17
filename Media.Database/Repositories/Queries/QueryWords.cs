@@ -1,15 +1,19 @@
-﻿#pragma warning disable CS8981 
-using Media.Database.Models;
-using csvwf = Media.Database.Repositories.Schemas.TablesSql.View_WordFilesColumns;
+﻿using Npgsql;
+
+#pragma warning disable CS8981 
 using csw = Media.Database.Repositories.Schemas.TablesSql.WordsColumns;
 using cswf = Media.Database.Repositories.Schemas.TablesSql.WordFilesColumns;
+using csvwf = Media.Database.Repositories.Schemas.TablesSql.View_WordFilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
+using Media.Database.Models;
+using Microsoft.AspNetCore.Http;
+#pragma warning restore CS8981 
 
 namespace Media.Database.Repositories.Queries;
 
-internal static class QueryWords
+public static class QueryWords
 {
     #region SQL Queries
     public static string GetByIdSql => $@"
@@ -42,7 +46,7 @@ internal static class QueryWords
     public static string AndFilePages => $@"
             AND ({pn.IsCurrent} IS NULL OR {pn.IsCurrent} = {csvwf.IsCurrent})
             AND ({pn.IsProperName} IS NULL OR {pn.IsProperName} = {csvwf.IsProperName})";
-
+    
     public static string GetFilePagesByWordOriginSql => $@"
         {SelectFilePages}
         WHERE 
@@ -163,7 +167,7 @@ internal static class QueryWords
 
     #endregion
 
-    public static async Task<List<Models.Words>> ToWords(this System.Data.Common.DbDataReader reader)
+    public static async Task<List<Models.Words>> ToWords(this NpgsqlDataReader reader)
     {
         List<Models.Words> words = [];
 
@@ -173,13 +177,7 @@ internal static class QueryWords
         return words;
     }
 
-    // Backwards-compatible overloads for NpgsqlDataReader
-    public static Task<List<Models.Words>> ToWords(this Npgsql.NpgsqlDataReader reader) => ToWords((System.Data.Common.DbDataReader)reader);
-    public static Models.Words ToWord(this Npgsql.NpgsqlDataReader reader) => ToWord((System.Data.Common.DbDataReader)reader);
-    public static Task<List<Models.ViewWordFiles>> ToWordFiles(this Npgsql.NpgsqlDataReader reader) => ToWordFiles((System.Data.Common.DbDataReader)reader);
-    public static Models.ViewWordFiles ToWordFile(this Npgsql.NpgsqlDataReader reader) => ToWordFile((System.Data.Common.DbDataReader)reader);
-
-    public static Models.Words ToWord(this System.Data.Common.DbDataReader reader)
+    public static Models.Words ToWord(this NpgsqlDataReader reader)
     {
         return new Models.Words
         {
@@ -193,7 +191,7 @@ internal static class QueryWords
         };
     }
 
-    public static async Task<List<Models.ViewWordFiles>> ToWordFiles(this System.Data.Common.DbDataReader reader)
+    public static async Task<List<Models.ViewWordFiles>> ToWordFiles(this NpgsqlDataReader reader)
     {
         List<Models.ViewWordFiles> wordFiles = [];
 
@@ -203,7 +201,7 @@ internal static class QueryWords
         return wordFiles;
     }
 
-    public static Models.ViewWordFiles ToWordFile(this System.Data.Common.DbDataReader reader)
+    public static Models.ViewWordFiles ToWordFile(this NpgsqlDataReader reader)
     {
         return new Models.ViewWordFiles
         {

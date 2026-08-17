@@ -1,3 +1,3 @@
 ﻿namespace Media.Database.Repositories.Schemas;
 
-internal interface ISchema;
+public interface ISchema;

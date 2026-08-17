@@ -1,6 +1,6 @@
 ﻿namespace Media.Database.Repositories.Schemas;
 
-internal class ColumnsNoSql : BaseSchema<ColumnsNoSql, OrdinalsSql>
+public class ColumnsNoSql : BaseSchema<ColumnsNoSql, OrdinalsNoSql>
 {
     public static readonly string Id = x();
     public static readonly string InsertedOn = x();

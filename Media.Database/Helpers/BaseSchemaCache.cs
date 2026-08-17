@@ -7,7 +7,7 @@ internal static class BaseSchemaCache
 {
     public static readonly Dictionary<Type, BaseSchemaLookup> Lookup = [];
     public static readonly Dictionary<string, FieldInfo> FieldCache = [];
-    public static readonly Dictionary<Type, SchemaMetadata> MetadataCache = [];
+    public static readonly Dictionary<Type, SchemaMetadata> Metadata = [];
 
     public static string GetField(Type derivedType, string fieldName)
     {

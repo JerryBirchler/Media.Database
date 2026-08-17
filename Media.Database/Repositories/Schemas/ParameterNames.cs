@@ -1,6 +1,6 @@
 ﻿namespace Media.Database.Repositories.Schemas;
 
-internal class ParameterNames : BaseSchema<ParameterNames, Ordinals>
+public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
 {
     public static readonly string CameFromFileId = x();
     public static readonly string FileId = x();

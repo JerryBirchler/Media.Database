@@ -1,6 +1,6 @@
 ﻿namespace Media.Database.Repositories.Schemas;
 
-internal class Tables : BaseSchema<Tables, NoSubFields>
+public class Tables : BaseSchema<Tables, NoSubFields>
 {
     public static readonly string Files = x();
     public static readonly string WordFiles = x();

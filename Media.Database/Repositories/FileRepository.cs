@@ -26,12 +26,10 @@ public class FileRepository(
     })());
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
-    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings?.MaxBatchsize ?? 100;
+    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings!.MaxBatchsize;
 
     public async Task<Files?> GetById(Guid id)
     {
-        _levelswitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
-        logger.LogDebug(true, "testing id = [{Id}]", args: [id]);
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
         sqlCommand.Parameters.AddWithValue(pn.Id, id);
@@ -57,7 +55,7 @@ public class FileRepository(
         return reader.ToFile();
     }
 
-    public async Task<List<Models.Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
+    public async Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentPagesBySourceMachineIdSql);
@@ -68,7 +66,7 @@ public class FileRepository(
         return await reader.ToFiles();
     }
 
-    public async Task<List<Models.Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
+    public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetHistoryPagesBySourceMachineIdSql);
@@ -79,7 +77,7 @@ public class FileRepository(
         return await reader.ToFiles();
     }
 
-    public async Task<Models.Files?> Upsert(UploadFileRequest request)
+    public async Task<Files?> Upsert(UploadFileRequest request)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.ExistsSql);
