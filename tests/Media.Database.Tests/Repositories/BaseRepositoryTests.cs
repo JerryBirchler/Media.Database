@@ -1,3 +1,4 @@
+using Media.Database.Mappers;
 using Moq;
 using NUnit.Framework;
 using Serilog.Core;
@@ -14,7 +15,10 @@ public class BaseRepositoryTests
         var logger = Mock.Of<Microsoft.Extensions.Logging.ILogger<Media.Database.Repositories.FileRepository>>();
         var levelSwitch = new LoggingLevelSwitch();
 
-        var repo = new Media.Database.Repositories.FileRepository(logger, levelSwitch);
+        var repo = new Media.Database.Repositories.FileRepository(
+            Mock.Of<IMapChangeWordRequests>(),
+            logger, 
+            levelSwitch);
 
         repo.ShouldNotBeNull();
     }

@@ -1,3 +1,4 @@
+using Media.Database.Mappers;
 using Media.Database.Repositories;
 using Microsoft.Extensions.Configuration;
 using Moq;
@@ -26,7 +27,10 @@ public class FileRepositoryTests
             .AddInMemoryCollection(inMemory)
             .Build();
 
-        var repo = new FileRepository(Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(), new Serilog.Core.LoggingLevelSwitch());
+        var repo = new FileRepository(
+            Mock.Of<IMapChangeWordRequests>(),
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(), 
+            new Serilog.Core.LoggingLevelSwitch());
 
         repo.ShouldNotBeNull();
     }

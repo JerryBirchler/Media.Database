@@ -1,5 +1,6 @@
 ﻿using Media.Common.Helpers;
 using Media.Database.Helpers;
+using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
@@ -14,10 +15,12 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 namespace Media.Database.Repositories;
 
 public class FileRepository(
+    IMapChangeWordRequests changeWordMapper,
     ILogger<FileRepository> logger,
     LoggingLevelSwitch levelSwitch)
     : BaseRepository(), IFileRepository
 {
+    private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
     private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>
     {
         var className = ClassHelper.GetName();
@@ -26,7 +29,7 @@ public class FileRepository(
     })());
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
-    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings!.MaxBatchsize;
+    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings?.MaxBatchsize ?? 100;
 
     public async Task<Files?> GetById(Guid id)
     {
@@ -169,7 +172,7 @@ public class FileRepository(
         return response;
     }
 
-    private static List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest request)
+    private List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest request)
     {
         var updates = new List<ChangeWordRequest>();
         var curMeta = current.Metadata;
@@ -178,13 +181,13 @@ public class FileRepository(
         if (curMeta is null && newMeta is null)
             return updates;
 
-        updates.ProcessList(curMeta?.Names, newMeta?.Names, current, WordOrigin.Name);
-        updates.ProcessList(curMeta?.KeyWords, newMeta?.KeyWords, current, WordOrigin.Keyword);
+        updates.ProcessList(curMeta?.Names, newMeta?.Names, current, WordOrigin.Name, _changeWordMapper);
+        updates.ProcessList(curMeta?.KeyWords, newMeta?.KeyWords, current, WordOrigin.Keyword, _changeWordMapper);
 
-        updates.ProcessScalar(curMeta?.Title, newMeta?.Title, current, WordOrigin.FromTitle);
-        updates.ProcessScalar(curMeta?.Description, newMeta?.Description, current, WordOrigin.FromDescription);
-        updates.ProcessScalar(curMeta?.Event, newMeta?.Event, current, WordOrigin.FromEvent);
-        updates.ProcessScalar(curMeta?.Location, newMeta?.Location, current, WordOrigin.FromLocation);
+        updates.ProcessScalar(curMeta?.Title, newMeta?.Title, current, WordOrigin.FromTitle, _changeWordMapper);
+        updates.ProcessScalar(curMeta?.Description, newMeta?.Description, current, WordOrigin.FromDescription, _changeWordMapper);
+        updates.ProcessScalar(curMeta?.Event, newMeta?.Event, current, WordOrigin.FromEvent, _changeWordMapper);
+        updates.ProcessScalar(curMeta?.Location, newMeta?.Location, current, WordOrigin.FromLocation, _changeWordMapper);
 
         return updates;
     }
