@@ -3,7 +3,7 @@ using Media.Database.Models;
 
 namespace Media.Database.Mappers;
 
-internal class MapChangeWordRequests : IMapChangeWordRequests
+public class MapChangeWordRequests : IMapChangeWordRequests
 {
     public void ProcessList(
         List<ChangeWordRequest> updates,
