@@ -1,5 +1,4 @@
-﻿using Media.Common.Helpers;
-using Media.Database.Models;
+﻿using Media.Database.Models;
 
 namespace Media.Database.Mappers;
 
@@ -12,8 +11,8 @@ public class MapChangeWordRequests : IMapChangeWordRequests
         Files current,
         WordOrigin origin)
     {
-        var curSet = new HashSet<string>(curList ?? Enumerable.Empty<string>());
-        var newSet = new HashSet<string>(newList ?? Enumerable.Empty<string>());
+        var curSet = new HashSet<string>(curList ?? []);
+        var newSet = new HashSet<string>(newList ?? []);
 
         foreach (var item in curSet.Except(newSet))
         {
@@ -81,66 +80,6 @@ public class MapChangeWordRequests : IMapChangeWordRequests
                 Origin = origin,
                 NewSpan = newValue!,
                 CameFromFileId = current.Id
-            });
-        }
-    }
-
-    public void AddUpsert(List<BaseWordRequest> list, WordOrigin origin, string word, bool isProperName, Guid cameFromFileId)
-    {
-        list.Add(new UpsertWordRequest
-        {
-            Origin = origin,
-            Word = word,
-            IsProperName = isProperName,
-            CameFromFileId = cameFromFileId
-        });
-    }
-
-    public void AddDelete(List<BaseWordRequest> list, WordOrigin origin, string word, bool isProperName, Guid cameFromFileId)
-    {
-        list.Add(new DeleteWordRequest
-        {
-            Origin = origin,
-            Word = word,
-            IsProperName = isProperName,
-            CameFromFileId = cameFromFileId
-        });
-    }
-
-    public void AddUpsertRange(List<BaseWordRequest> list, WordOrigin origin, IEnumerable<string> words, Func<string, bool>? isProperNameResolver, Guid cameFromFileId)
-    {
-        if (words == null)
-            return;
-
-        var resolver = isProperNameResolver ?? (s => s.IsProperName());
-
-        foreach (var word in words)
-        {
-            list.Add(new UpsertWordRequest
-            {
-                Origin = origin,
-                Word = word,
-                IsProperName = resolver(word),
-                CameFromFileId = cameFromFileId
-            });
-        }
-    }
-
-    public void AddDeleteRange(List<BaseWordRequest> list, WordOrigin origin, IEnumerable<string> words, Func<string, bool>? isProperNameResolver, Guid cameFromFileId)
-    {
-        if (words == null)
-            return;
-
-        var resolver = isProperNameResolver ?? (s => s.IsProperName());
-
-        foreach (var word in words)
-        {
-            list.Add(new DeleteWordRequest
-            {
-                Origin = origin,
-                Word = word,
-                IsProperName = resolver(word),
-                CameFromFileId = cameFromFileId
             });
         }
     }
