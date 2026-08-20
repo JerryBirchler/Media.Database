@@ -1,8 +1,8 @@
-using System;
 using AutoFixture.NUnit3;
 using Media.Database.Models;
 using NUnit.Framework;
 using Shouldly;
+using System;
 
 namespace Media.Database.Tests.Models;
 

@@ -1,7 +1,7 @@
-using System.Linq;
 using Media.Database.Repositories.Schemas;
 using NUnit.Framework;
 using Shouldly;
+using System.Linq;
 
 namespace Media.Database.Tests.Repositories.Schemas;
 

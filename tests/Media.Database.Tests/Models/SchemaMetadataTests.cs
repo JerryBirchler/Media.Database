@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
 using AutoFixture.NUnit3;
 using Media.Database.Models;
 using NUnit.Framework;
 using Shouldly;
+using System;
+using System.Collections.Generic;
 
 namespace Media.Database.Tests.Models;
 

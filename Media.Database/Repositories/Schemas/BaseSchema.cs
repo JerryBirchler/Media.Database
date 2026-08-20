@@ -1,5 +1,5 @@
-﻿using Media.Database.Models;
-using Media.Database.Helpers;
+﻿using Media.Database.Helpers;
+using Media.Database.Models;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 

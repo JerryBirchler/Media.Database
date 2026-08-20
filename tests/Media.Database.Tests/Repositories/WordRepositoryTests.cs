@@ -1,4 +1,3 @@
-using AutoFixture.NUnit3;
 using Media.Database.Models;
 using Media.Database.Repositories;
 using Microsoft.Extensions.Configuration;

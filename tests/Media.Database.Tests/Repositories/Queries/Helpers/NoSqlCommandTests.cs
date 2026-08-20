@@ -1,10 +1,10 @@
-using System;
-using System.Collections.Generic;
 using Cassandra;
 using Media.Database.Repositories.Queries.Helpers;
 using Moq;
 using NUnit.Framework;
 using Shouldly;
+using System;
+using System.Collections.Generic;
 
 namespace Media.Database.Tests.Repositories.Queries.Helpers;
 

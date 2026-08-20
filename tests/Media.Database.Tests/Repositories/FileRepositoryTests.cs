@@ -29,7 +29,7 @@ public class FileRepositoryTests
 
         var repo = new FileRepository(
             Mock.Of<IMapChangeWordRequests>(),
-            Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(), 
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(),
             new Serilog.Core.LoggingLevelSwitch());
 
         repo.ShouldNotBeNull();

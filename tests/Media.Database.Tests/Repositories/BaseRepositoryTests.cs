@@ -17,7 +17,7 @@ public class BaseRepositoryTests
 
         var repo = new Media.Database.Repositories.FileRepository(
             Mock.Of<IMapChangeWordRequests>(),
-            logger, 
+            logger,
             levelSwitch);
 
         repo.ShouldNotBeNull();

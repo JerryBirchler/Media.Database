@@ -10,7 +10,7 @@ public static class ExtensionMethods
         IEnumerable<string>? curList,
         IEnumerable<string>? newList,
         Files current,
-        WordOrigin origin, 
+        WordOrigin origin,
         IMapChangeWordRequests mapper)
     {
         mapper.ProcessList(updates, curList, newList, current, origin);
