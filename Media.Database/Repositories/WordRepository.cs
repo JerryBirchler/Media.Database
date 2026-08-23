@@ -1,4 +1,5 @@
 ﻿using Media.Database.Models;
+using Media.Database.Providers;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
 
@@ -8,7 +9,10 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories;
 
-public class WordRepository : BaseRepository, IWordRepository
+public class WordRepository(
+    IPostgresConnectionProvider postgresProvider,
+    IScyllaSessionProvider scyllaProvider)
+    : BaseRepository(postgresProvider, scyllaProvider), IWordRepository
 {
     public async Task<Models.Words?> GetById(int id)
     {

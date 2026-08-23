@@ -2,6 +2,7 @@
 using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
+using Media.Database.Providers;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
@@ -15,10 +16,12 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 namespace Media.Database.Repositories;
 
 public class FileRepository(
+    IPostgresConnectionProvider postgresProvider,
+    IScyllaSessionProvider scyllaProvider,
     IMapChangeWordRequests changeWordMapper,
     ILogger<FileRepository> logger,
     LoggingLevelSwitch levelSwitch)
-    : BaseRepository(), IFileRepository
+    : BaseRepository(postgresProvider, scyllaProvider), IFileRepository
 {
     private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
     private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>

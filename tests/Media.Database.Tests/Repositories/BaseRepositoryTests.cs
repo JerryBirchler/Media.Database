@@ -1,4 +1,5 @@
 using Media.Database.Mappers;
+using Media.Database.Providers;
 using Moq;
 using NUnit.Framework;
 using Serilog.Core;
@@ -16,6 +17,8 @@ public class BaseRepositoryTests
         var levelSwitch = new LoggingLevelSwitch();
 
         var repo = new Media.Database.Repositories.FileRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>(),
             Mock.Of<IMapChangeWordRequests>(),
             logger,
             levelSwitch);

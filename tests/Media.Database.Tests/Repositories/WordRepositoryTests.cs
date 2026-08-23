@@ -1,4 +1,5 @@
 using Media.Database.Models;
+using Media.Database.Providers;
 using Media.Database.Repositories;
 using Microsoft.Extensions.Configuration;
 using Moq;
@@ -20,7 +21,9 @@ public class WordRepositoryTests
         var logger = Mock.Of<Microsoft.Extensions.Logging.ILogger<WordRepository>>();
         var levelSwitch = new Serilog.Core.LoggingLevelSwitch();
 
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
 
         repo.ShouldNotBeNull();
     }
@@ -41,7 +44,9 @@ public class WordRepositoryTests
             .AddInMemoryCollection(inMemory)
             .Build();
 
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
 
         repo.ShouldNotBeNull();
     }
@@ -49,21 +54,27 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Implement_IWordRepository()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         repo.ShouldBeAssignableTo<IWordRepository>();
     }
 
     [Test]
     public void This_Should_Inherit_From_BaseRepository()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         repo.ShouldBeAssignableTo<BaseRepository>();
     }
 
     [Test]
     public void This_Should_Have_GetById_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetById", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -76,7 +87,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_GetFilePages_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePages", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -95,7 +108,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_GetFilePagesByWordOrigin_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByWordOrigin", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -107,7 +122,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_GetFilePagesByWordFileId_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByWordFileId", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -119,7 +136,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_GetFilePagesByFileIdOrigin_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByFileIdOrigin", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -131,7 +150,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_GetFilePagesByFileIdWord_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByFileIdWord", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -143,7 +164,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_Upsert_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("Upsert", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -156,7 +179,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_RefreshView_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("RefreshView", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -168,7 +193,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_Delete_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("Delete", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -181,7 +208,9 @@ public class WordRepositoryTests
     [Test]
     public void This_Should_Have_DeleteFile_Method()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("DeleteFile", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
@@ -194,7 +223,9 @@ public class WordRepositoryTests
     [Test]
     public void GetFilePagesByWordOrigin_Should_Have_Default_Limit_Parameter()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByWordOrigin", BindingFlags.Public | BindingFlags.Instance);
 
         var parameters = method.GetParameters();
@@ -207,7 +238,9 @@ public class WordRepositoryTests
     [Test]
     public void GetFilePagesByWordFileId_Should_Have_Default_Limit_Parameter()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByWordFileId", BindingFlags.Public | BindingFlags.Instance);
 
         var parameters = method.GetParameters();
@@ -220,7 +253,9 @@ public class WordRepositoryTests
     [Test]
     public void GetFilePagesByFileIdOrigin_Should_Have_Default_Limit_Parameter()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByFileIdOrigin", BindingFlags.Public | BindingFlags.Instance);
 
         var parameters = method.GetParameters();
@@ -233,7 +268,9 @@ public class WordRepositoryTests
     [Test]
     public void GetFilePagesByFileIdWord_Should_Have_Default_Limit_Parameter()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var method = repo.GetType().GetMethod("GetFilePagesByFileIdWord", BindingFlags.Public | BindingFlags.Instance);
 
         var parameters = method.GetParameters();
@@ -246,7 +283,9 @@ public class WordRepositoryTests
     [Test]
     public void All_GetFilePages_Methods_Should_Have_Same_Signature()
     {
-        var repo = new WordRepository();
+        var repo = new WordRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>());
         var methods = new[]
         {
             repo.GetType().GetMethod("GetFilePagesByWordOrigin"),

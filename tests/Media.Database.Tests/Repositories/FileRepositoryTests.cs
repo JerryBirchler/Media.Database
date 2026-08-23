@@ -1,4 +1,5 @@
 using Media.Database.Mappers;
+using Media.Database.Providers;
 using Media.Database.Repositories;
 using Microsoft.Extensions.Configuration;
 using Moq;
@@ -28,6 +29,8 @@ public class FileRepositoryTests
             .Build();
 
         var repo = new FileRepository(
+            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<IScyllaSessionProvider>(),
             Mock.Of<IMapChangeWordRequests>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(),
             new Serilog.Core.LoggingLevelSwitch());
