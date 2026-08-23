@@ -1,5 +1,5 @@
 ﻿using Cassandra;
-using Media.Database.Providers;
+using Media.Common.Providers;
 using Npgsql;
 
 namespace Media.Database.Repositories

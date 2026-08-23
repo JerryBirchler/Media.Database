@@ -1,5 +1,7 @@
+using Media.Common.Providers;
+using Media.Database.BackgroundJobs;
 using Media.Database.Mappers;
-using Media.Database.Providers;
+using Media.Database.Transactions;
 using Moq;
 using NUnit.Framework;
 using Serilog.Core;
@@ -19,7 +21,9 @@ public class BaseRepositoryTests
         var repo = new Media.Database.Repositories.FileRepository(
             Mock.Of<IPostgresConnectionProvider>(),
             Mock.Of<IScyllaSessionProvider>(),
+            () => Mock.Of<IUnitOfWork>(),
             Mock.Of<IMapChangeWordRequests>(),
+            Mock.Of<IBackgroundTaskQueue>(),
             logger,
             levelSwitch);
 

@@ -1,5 +1,5 @@
 using Media.Database.Models;
-using Media.Database.Providers;
+using Media.Common.Providers;
 using Media.Database.Repositories;
 using Microsoft.Extensions.Configuration;
 using Moq;

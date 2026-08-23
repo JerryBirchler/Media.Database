@@ -1,5 +1,5 @@
-﻿using Media.Database.Models;
-using Media.Database.Providers;
+﻿using Media.Common.Providers;
+using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
 

@@ -1,10 +1,13 @@
-﻿using Media.Common.Helpers;
+﻿using Cassandra;
+using Media.Common.Helpers;
+using Media.Common.Providers;
+using Media.Database.BackgroundJobs;
 using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
-using Media.Database.Providers;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
+using Media.Database.Transactions;
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
 
@@ -18,21 +21,25 @@ namespace Media.Database.Repositories;
 public class FileRepository(
     IPostgresConnectionProvider postgresProvider,
     IScyllaSessionProvider scyllaProvider,
+    Func<IUnitOfWork> unitOfWorkFactory,
     IMapChangeWordRequests changeWordMapper,
+    IBackgroundTaskQueue backgroundTaskQueue,
     ILogger<FileRepository> logger,
     LoggingLevelSwitch levelSwitch)
     : BaseRepository(postgresProvider, scyllaProvider), IFileRepository
 {
     private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
+    private readonly IBackgroundTaskQueue _backgroundTaskQueue = backgroundTaskQueue;
+    private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>
     {
         var className = ClassHelper.GetName();
-        logger.LogInformation("class: [{ClassName}] initializing", className);
+        logger.LogInformation(true, ClassHelper.Initializing, args: className);
         return logger;
     })());
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
-    private readonly int _scyllaMaxBatchsize = BaseStartup.ScyllaSettings?.MaxBatchsize ?? 100;
+    private readonly int _scyllaMaxBatchsize = scyllaProvider.MaxBatchSize;
 
     public async Task<Files?> GetById(Guid id)
     {
@@ -85,94 +92,139 @@ public class FileRepository(
 
     public async Task<Files?> Upsert(UploadFileRequest request)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.ExistsSql);
-        sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-        sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-        sqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate! ?? DBNull.Value);
+        await using var uow = _unitOfWorkFactory();
 
-        await using (var reader = await sqlCommand.ExecuteReaderAsync())
+        try
         {
-            if (await reader.ReadAsync())
+            await uow.BeginTransactionAsync();
+
+            await using var sqlCommand = await uow.Connection.GetCommand(QueryFiles.ExistsSql);
+            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+            sqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate! ?? DBNull.Value);
+
+            await using (var reader = await sqlCommand.ExecuteReaderAsync())
             {
-                return new Files
+                if (await reader.ReadAsync())
                 {
-                    Id = reader.ToId(),
-                    Exists = true
-                };
+                    await uow.RollbackAsync();
+                    return new Files
+                    {
+                        Id = reader.ToId(),
+                        Exists = true
+                    };
+                }
             }
+
+            await sqlCommand.DisposeAsync();
+
+#pragma warning disable S1854
+            List<Guid> previousIds = [];
+#pragma warning restore S1854
+            await using var sqlCommand2 = await uow.Connection.GetCommand(QueryFiles.GetPreviousIdsSql);
+            sqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+            sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+
+            await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
+                previousIds = await reader2.ToIds();
+
+            await sqlCommand2.DisposeAsync();
+
+            await using var sqlCommand3 = await uow.Connection.GetCommand(QueryFiles.UpsertSql);
+            sqlCommand3.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+            sqlCommand3.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+            sqlCommand3.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
+            sqlCommand3.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
+            sqlCommand3.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+            await using var reader3 = await sqlCommand3.ExecuteReaderAsync();
+
+            if (!await reader3.ReadAsync())
+            {
+                await uow.RollbackAsync();
+                return null;
+            }
+
+            var file = reader3.ToFile();
+
+            await uow.CommitAsync();
+
+            _ = QueueBackgroundUpdateAsync(file, previousIds);
+            return file;
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}", 
+                args: [request.SourceMachineId, request.OriginalFilePath]);
 
-        await sqlCommand.DisposeAsync();
+            if (uow.CurrentTransaction != null)
+                await uow.RollbackAsync();
 
-        List<Guid> previousIds = [];
-        await using var sqlCommand2 = await sqlConnection.GetCommand(QueryFiles.GetPreviousIdsSql);
-        sqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-        sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-
-        await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
-            previousIds = await reader2.ToIds();
-        await sqlCommand2.DisposeAsync();
-
-        await using var sqlCommand3 = await sqlConnection.GetCommand(QueryFiles.UpsertSql);
-        sqlCommand3.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-        sqlCommand3.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-        sqlCommand3.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
-        sqlCommand3.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
-        sqlCommand3.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
-        await using var reader3 = await sqlCommand3.ExecuteReaderAsync();
-
-        if (!await reader3.ReadAsync())
-            return null;
-
-        var file = reader3.ToFile();
-
-        await sqlCommand3.DisposeAsync();
-        await sqlConnection.CloseAsync();
-
-        BackgroundUpdate(file, previousIds);
-        return file;
+            throw;
+        }
     }
 
     public async Task<UpdateFileResponse> Update(
         Guid id,
         UpdateFileRequest request)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
-        sqlCommand.Parameters.AddWithValue(pn.Id, id);
+        await using var uow = _unitOfWorkFactory();
 
-        Files currentFile = null!;
-
-        await using (var reader = await sqlCommand.ExecuteReaderAsync())
+        try
         {
-            if (!await reader.ReadAsync())
-                return new UpdateFileResponse { File = null };
+            await uow.BeginTransactionAsync();
 
-            currentFile = reader.ToFile();
+            await using var sqlCommand = await uow.Connection.GetCommand(QueryFiles.GetByIdSql);
+            sqlCommand.Parameters.AddWithValue(pn.Id, id);
+
+            Files currentFile = null!;
+
+            await using (var reader = await sqlCommand.ExecuteReaderAsync())
+            {
+                if (!await reader.ReadAsync())
+                {
+                    await uow.RollbackAsync();
+                    return new UpdateFileResponse { File = null };
+                }
+
+                currentFile = reader.ToFile();
+            }
+
+            UpdateFileResponse response = new()
+            {
+                Updates = GetUpdates(currentFile, request)
+            };
+
+            await using var sqlCommand2 = await uow.Connection.GetCommand(QueryFiles.UpdateSql);
+            sqlCommand2.Parameters.AddWithValue(pn.Id, id);
+            sqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
+            sqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
+            sqlCommand2.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+
+            await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
+            {
+                if (!await reader2.ReadAsync())
+                {
+                    await uow.RollbackAsync();
+                    return response;
+                }
+
+                response.File = reader2.ToFile();
+            }
+
+            await uow.CommitAsync();
+
+            _ = QueueBackgroundUpdateMetadataAsync(response.File);
+            return response;
         }
-
-        UpdateFileResponse response = new()
+        catch (Exception ex)
         {
-            Updates = GetUpdates(currentFile, request)
-        };
+            _logger.LogError(ex, true, "Update transaction failed for FileId {Id}", args: id);
 
-        await using var sqlCommand2 = await sqlConnection.GetCommand(QueryFiles.UpdateSql);
-        sqlCommand2.Parameters.AddWithValue(pn.Id, id);
-        sqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
-        sqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
-        sqlCommand2.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+            if (uow.CurrentTransaction != null)
+                await uow.RollbackAsync();
 
-        await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
-        {
-            if (!await reader2.ReadAsync())
-                return response;
-
-            response.File = reader2.ToFile();
+            throw;
         }
-
-        BackgroundUpdate(response.File);
-        return response;
     }
 
     private List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest request)
@@ -195,69 +247,97 @@ public class FileRepository(
         return updates;
     }
 
-    private void BackgroundUpdate(Files file, List<Guid> previousIds)
+    private async Task QueueBackgroundUpdateAsync(Files file, List<Guid> previousIds)
     {
-        _ = Task.Run(async () =>
+        await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
         {
-            try
-            {
-                var noSqlConnection = GetNoSqlConnection();
-
-                if (previousIds.Count > 0)
-                {
-                    NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                    QueryFiles.InactivateNoSql, _scyllaMaxBatchsize)!;
-
-                    noSqlCommand.BeginBatch();
-
-                    var tasks = previousIds.Select(previousId => noSqlCommand.AddQuery(previousId));
-
-                    await Task.WhenAll(tasks);
-                    await noSqlCommand.EndBatch();
-                }
-
-                var noSqlCommand2 = noSqlConnection.GetNoSqlCommand(QueryFiles.UpsertNoSql);
-                noSqlCommand2.Parameters.AddWithValue(pn.Id, file.Id);
-                noSqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, file.SourceMachineId);
-                noSqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, file.OriginalFilePath);
-                noSqlCommand2.Parameters.AddWithValue(pn.InsertedOn, file.InsertedOn);
-                noSqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
-                noSqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
-                noSqlCommand2.Parameters.AddWithValue(pn.IsCurrent, file.IsCurrent);
-                noSqlCommand2.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
-                await noSqlCommand2.ExecuteRowSet();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: [file.Id]);
-            }
+            await UpdateNoSqlAsync(file, previousIds);
         });
     }
 
-    private void BackgroundUpdate(Files file)
+    private async Task UpdateNoSqlAsync(Files file, List<Guid> previousIds)
     {
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                var noSqlConnection = GetNoSqlConnection();
-                var noSqlCommand = noSqlConnection.GetNoSqlCommand(QueryFiles.UpdateNoSql);
+            var noSqlConnection = GetNoSqlConnection();
 
-                noSqlCommand.Parameters.AddWithValue(pn.Id, file.Id);
-                noSqlCommand.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
-                noSqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
-                noSqlCommand.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
-                await noSqlCommand.ExecuteRowSet();
-            }
-            catch (Exception ex)
+            if (previousIds.Count > 0)
             {
-                _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: [file.Id]);
+                NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
+                QueryFiles.InactivateNoSql, _scyllaMaxBatchsize)!;
+
+                noSqlCommand.BeginBatch();
+
+                var tasks = previousIds.Select(previousId => noSqlCommand.AddQuery(previousId));
+
+                await Task.WhenAll(tasks);
+                await noSqlCommand.EndBatch();
             }
+
+            var noSqlCommand2 = noSqlConnection.GetNoSqlCommand(QueryFiles.UpsertNoSql);
+            noSqlCommand2.Parameters.AddWithValue(pn.Id, file.Id);
+            noSqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, file.SourceMachineId);
+            noSqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, file.OriginalFilePath);
+            noSqlCommand2.Parameters.AddWithValue(pn.InsertedOn, file.InsertedOn);
+            noSqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
+            noSqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
+            noSqlCommand2.Parameters.AddWithValue(pn.IsCurrent, file.IsCurrent);
+            noSqlCommand2.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
+            await noSqlCommand2.ExecuteRowSet();
+
+            _logger.LogInformation(true, "Background NoSQL upsert completed for FileId {Id}", args: file.Id);
+        }
+        catch (NoHostAvailableException ex)
+        {
+            _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
+            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateNoSqlAsync));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: file.Id);
+            throw;
+        }
+    }
+
+    private async Task QueueBackgroundUpdateMetadataAsync(Files file)
+    {
+        await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
+        {
+            await UpdateMetadataNoSqlAsync(file);
         });
     }
 
+    private async Task UpdateMetadataNoSqlAsync(Files file)
+    {
+        try
+        {
+            var noSqlConnection = GetNoSqlConnection();
+            var noSqlCommand = noSqlConnection.GetNoSqlCommand(QueryFiles.UpdateNoSql);
 
-    public async Task<Models.Files?> Delete(Guid id)
+            noSqlCommand.Parameters.AddWithValue(pn.Id, file.Id);
+            noSqlCommand.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
+            noSqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
+            noSqlCommand.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
+            await noSqlCommand.ExecuteRowSet();
+
+            _logger.LogInformation(true, "Background NoSQL metadata update completed for FileId {Id}", args: file.Id);
+        }
+        catch (Cassandra.NoHostAvailableException ex)
+        {
+            _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
+            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateMetadataNoSqlAsync));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: file.Id);
+            throw;
+        }
+    }
+
+
+    public async Task<Files?> Delete(Guid id)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteSql);
@@ -269,11 +349,11 @@ public class FileRepository(
 
         var file = reader.ToFile();
 
-        BackgroundDelete(id);
+        _ = QueueBackgroundDeleteAsync(id);
         return file;
     }
 
-    public async Task<List<Models.Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
+    public async Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
     {
         await using var sqlConnection = GetSqlConnection();
         await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteHistorySql);
@@ -284,52 +364,80 @@ public class FileRepository(
         var files = await reader.ToFiles();
 
         if (files.Count > 0)
-            BackgroundDelete(files);
+            _ = QueueBackgroundDeleteAsync(files);
 
         return files;
     }
 
-    private void BackgroundDelete(Guid id)
+    private async Task QueueBackgroundDeleteAsync(Guid id)
     {
-        _ = Task.Run(async () =>
+        await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
         {
-            try
-            {
-                var noSqlConnection = GetNoSqlConnection();
-                var noSqlCommand = noSqlConnection.GetNoSqlCommand(QueryFiles.DeleteNoSql);
-
-                noSqlCommand.Parameters.AddWithValue(pn.Id, id);
-                await noSqlCommand.ExecuteRowSet();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, true, "BackgroundDelete task failed for FileId {Id}", args: [id]);
-            }
+            await DeleteNoSqlAsync(id);
         });
     }
 
-    private void BackgroundDelete(List<Files> files)
+    private async Task DeleteNoSqlAsync(Guid id)
     {
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                var noSqlConnection = GetNoSqlConnection();
+            var noSqlConnection = GetNoSqlConnection();
+            var noSqlCommand = noSqlConnection.GetNoSqlCommand(QueryFiles.DeleteNoSql);
 
-                NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                    QueryFiles.DeleteNoSql, _scyllaMaxBatchsize)!;
+            noSqlCommand.Parameters.AddWithValue(pn.Id, id);
+            await noSqlCommand.ExecuteRowSet();
 
-                noSqlCommand.BeginBatch();
+            _logger.LogInformation(true, "Background NoSQL delete completed for FileId {Id}", args: id);
+        }
+        catch (NoHostAvailableException ex)
+        {
+            _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: id);
+            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlAsync));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "BackgroundDelete task failed for FileId {Id}", args: id);
+            throw;
+        }
+    }
 
-                var tasks = files.Select(file => noSqlCommand.AddQuery(file.Id));
-
-                await Task.WhenAll(tasks);
-                await noSqlCommand.EndBatch();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, true, "BackgroundDelete task failed");
-            }
+    private async Task QueueBackgroundDeleteAsync(List<Files> files)
+    {
+        await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
+        {
+            await DeleteNoSqlBatchAsync(files);
         });
+    }
+
+    private async Task DeleteNoSqlBatchAsync(List<Files> files)
+    {
+        try
+        {
+            var noSqlConnection = GetNoSqlConnection();
+
+            NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
+                QueryFiles.DeleteNoSql, _scyllaMaxBatchsize)!;
+
+            noSqlCommand.BeginBatch();
+
+            var tasks = files.Select(file => noSqlCommand.AddQuery(file.Id));
+
+            await Task.WhenAll(tasks);
+            await noSqlCommand.EndBatch();
+
+            _logger.LogInformation(true, "Background NoSQL batch delete completed for {Count} files", args: files.Count);
+        }
+        catch (NoHostAvailableException ex)
+        {
+            _logger.LogError(ex, true, "Scylla cluster unavailable during batch delete");
+            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlBatchAsync));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "BackgroundDelete batch task failed");
+            throw;
+        }
     }
 }
