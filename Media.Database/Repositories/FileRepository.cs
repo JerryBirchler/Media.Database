@@ -103,17 +103,23 @@ public class FileRepository(
             sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
             sqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate! ?? DBNull.Value);
 
+            Guid? existingId = null;
             await using (var reader = await sqlCommand.ExecuteReaderAsync())
             {
                 if (await reader.ReadAsync())
                 {
-                    await uow.RollbackAsync();
-                    return new Files
-                    {
-                        Id = reader.ToId(),
-                        Exists = true
-                    };
+                    existingId = reader.ToId();
                 }
+            }
+
+            if (existingId.HasValue)
+            {
+                await uow.RollbackAsync();
+                return new Files
+                {
+                    Id = existingId.Value,
+                    Exists = true
+                };
             }
 
             await sqlCommand.DisposeAsync();
@@ -136,15 +142,21 @@ public class FileRepository(
             sqlCommand3.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
             sqlCommand3.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
             sqlCommand3.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
-            await using var reader3 = await sqlCommand3.ExecuteReaderAsync();
 
-            if (!await reader3.ReadAsync())
+            Files? file = null;
+            await using (var reader3 = await sqlCommand3.ExecuteReaderAsync())
+            {
+                if (await reader3.ReadAsync())
+                {
+                    file = reader3.ToFile();
+                }
+            }
+
+            if (file == null)
             {
                 await uow.RollbackAsync();
                 return null;
             }
-
-            var file = reader3.ToFile();
 
             await uow.CommitAsync();
 
