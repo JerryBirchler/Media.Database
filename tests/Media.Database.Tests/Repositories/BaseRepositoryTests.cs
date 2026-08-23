@@ -1,7 +1,7 @@
 using Media.Common.Providers;
+using Media.Common.Transactions;
 using Media.Database.BackgroundJobs;
 using Media.Database.Mappers;
-using Media.Database.Transactions;
 using Moq;
 using NUnit.Framework;
 using Serilog.Core;

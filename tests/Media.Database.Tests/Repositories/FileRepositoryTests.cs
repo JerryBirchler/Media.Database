@@ -1,8 +1,8 @@
+using Media.Common.Providers;
+using Media.Common.Transactions;
 using Media.Database.BackgroundJobs;
 using Media.Database.Mappers;
-using Media.Common.Providers;
 using Media.Database.Repositories;
-using Media.Database.Transactions;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using NUnit.Framework;
