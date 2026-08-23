@@ -1,6 +1,6 @@
+using Media.Common.BackgroundJobs;
 using Media.Common.Providers;
 using Media.Common.Transactions;
-using Media.Database.BackgroundJobs;
 using Media.Database.Mappers;
 using Media.Database.Repositories;
 using Microsoft.Extensions.Configuration;
