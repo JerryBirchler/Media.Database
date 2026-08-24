@@ -19,3 +19,7 @@
 /.vs/CopilotSnapshots/286FEC69DDCD2F438CEAED89DEC4A077
 /.vs/CopilotSnapshots/41D6475742395047BBA34BAFFCF70AC4
 /.vs/CopilotSnapshots
+
+# Code coverage
+TestResults/
+/CoverageReport
