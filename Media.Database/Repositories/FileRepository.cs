@@ -38,7 +38,9 @@ public class FileRepository(
         return logger;
     })());
 
+#pragma warning disable S1144
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
+#pragma warning restore S1144
     private readonly int _scyllaMaxBatchsize = scyllaProvider.MaxBatchSize;
 
     public async Task<Files?> GetById(Guid id)
@@ -276,7 +278,7 @@ public class FileRepository(
             if (previousIds.Count > 0)
             {
                 NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                QueryFiles.InactivateNoSql, _scyllaMaxBatchsize)!;
+                QueryFiles.InactivateNoSql, _scyllaMaxBatchsize);
 
                 noSqlCommand.BeginBatch();
 
@@ -302,7 +304,7 @@ public class FileRepository(
         catch (NoHostAvailableException ex)
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateNoSqlAsync));
+            await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateNoSqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -338,7 +340,7 @@ public class FileRepository(
         catch (Cassandra.NoHostAvailableException ex)
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateMetadataNoSqlAsync));
+            await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateMetadataNoSqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -404,7 +406,7 @@ public class FileRepository(
         catch (NoHostAvailableException ex)
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: id);
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlAsync));
+            await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -443,7 +445,7 @@ public class FileRepository(
         catch (NoHostAvailableException ex)
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable during batch delete");
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlBatchAsync));
+            await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlBatchAsync));
             throw;
         }
         catch (Exception ex)
