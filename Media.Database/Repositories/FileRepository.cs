@@ -34,7 +34,7 @@ public class FileRepository(
     private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>
     {
         var className = ClassHelper.GetName();
-        logger.LogInformation(true, ClassHelper.Initializing, args: className);
+        logger.LogInformation(ClassHelper.Initializing, className);
         return logger;
     })());
 
