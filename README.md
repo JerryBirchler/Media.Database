@@ -67,16 +67,46 @@ Add a reference to this library in your project:
 
 ### Configuration
 
-Configure the database connection in your application settings:
+Configure settings using `IOptions` pattern with validation:
 
 ```csharp
-// For PostgreSQL
+using Media.Common.Helpers;
+using Media.Common.Providers;
+
+// In Program.cs or Startup.cs
+var configuration = BaseStartup.GetConfiguration("Development");
+
+// Configure settings with validation (PostgresSettings, LocalMachineSettings, ScyllaSettings)
+BaseStartup.ConfigureSettings(services);
+
+// Register providers
+services.AddSingleton<IPostgresConnectionProvider, PostgresConnectionProvider>();
+services.AddSingleton<IScyllaSessionProvider, ScyllaSessionProvider>();
+
+// Register repositories
 services.AddScoped<IFileRepository, FileRepository>();
 services.AddScoped<IWordRepository, WordRepository>();
 
-// Configure connection strings
-services.Configure<LocalMachineSettings>(configuration.GetSection("LocalMachineSettings"));
-services.Configure<ScyllaSettings>(configuration.GetSection("ScyllaSettings"));
+// Optional: Check ScyllaDB health on startup
+BaseStartup.CheckScyllaHealth(services);
+```
+
+Configuration file (`appsettings.json`):
+
+```json
+{
+  "ConnectionStrings": {
+    "PostgresConnection": "Host=localhost;Database=media;Username=user;Password=pass"
+  },
+  "LocalMachineSettings": {
+    "UploadDirectory": "C:\\uploads"
+  },
+  "ScyllaDB": {
+    "ContactPoints": ["localhost"],
+    "Port": 9042,
+    "Keyspace": "media_keyspace"
+  }
+}
 ```
 
 ### Basic Usage
@@ -165,17 +195,74 @@ Built-in support for Kafka messaging:
 This project depends on:
 
 - **Media.Common**: Shared utilities, helpers, and base classes
+  - `IOptions<>` configuration pattern
+  - Database providers (IPostgresConnectionProvider, IScyllaSessionProvider)
+  - Settings validators (PostgresSettingsValidator, LocalMachineSettingsValidator)
   - BaseStartup for application initialization
   - Logging extensions
   - Docker port translation
-  - Common models (LocalMachineSettings, ScyllaSettings, SerilogSettings)
+  - Common models (LocalMachineSettings, PostgresSettings, ScyllaSettings, SerilogSettings)
 
 ## Testing
 
-Run the test suite:
+The test suite uses **NUnit**, **AutoFixture**, **Moq**, and **Shouldly** for comprehensive unit testing coverage.
+
+### Running Tests
+
+Run the complete test suite:
 
 ```bash
 dotnet test tests/Media.Database.Tests/Media.Database.Tests.csproj
+```
+
+Run specific test classes:
+
+```bash
+dotnet test --filter "FullyQualifiedName~Media.Database.Tests.Repositories.WordRepositoryTests"
+```
+
+### Test Coverage
+
+The test suite includes:
+
+- **Repository Tests**: Constructor validation, interface implementation, method availability
+- **Model Tests**: Property assignment, deconstruction, AutoFixture compatibility
+- **Schema Tests**: Column definitions, field caching, query builders
+- **Validator Tests**: Settings validation for PostgresSettings and LocalMachineSettings
+  - Null/empty/whitespace checks
+  - Path qualification validation
+  - Platform-specific path handling
+- **Provider Tests**: Connection string retrieval, options injection
+- **Request Mapping Tests**: Word request mapping and change detection
+
+### Test Technologies
+
+- **NUnit 3.13.3** - Test framework
+- **AutoFixture 4.18.1** - Auto-mocking and test data generation
+- **Moq 4.18.4** - Mocking framework
+- **Shouldly 4.0.0** - Assertion library
+
+### Example Test
+
+```csharp
+using AutoFixture.NUnit3;
+using Moq;
+using NUnit.Framework;
+using Shouldly;
+
+[Test, AutoData]
+public void Should_Process_Word_Request(string word, WordOrigin origin)
+{
+    // Arrange
+    var mockProvider = new Mock<IPostgresConnectionProvider>();
+    mockProvider.Setup(p => p.GetConnectionString())
+        .Returns("Host=localhost;Database=test");
+
+    var repository = new WordRepository(mockProvider.Object);
+
+    // Act & Assert
+    repository.ShouldNotBeNull();
+}
 ```
 
 ## Contributing

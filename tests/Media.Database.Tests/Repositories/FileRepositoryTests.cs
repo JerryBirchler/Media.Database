@@ -15,7 +15,7 @@ namespace Media.Database.Tests.Repositories;
 public class FileRepositoryTests
 {
     [Test]
-    public void This_Should_Construct_FileRepository_With_Configuration()
+    public void FileRepository_Constructor_Should_Accept_Configuration()
     {
         var inMemory = new Dictionary<string, string>
         {

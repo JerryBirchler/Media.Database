@@ -9,7 +9,7 @@ namespace Media.Database.Tests.Models;
 public class UpdateFileRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(UpdateFileRequest r)
+    public void UpdateFileRequest_Should_Allow_PropertyAssignment(UpdateFileRequest r)
     {
         r.ShouldNotBeNull();
         // Properties may be null depending on AutoFixture customization; ensure access does not throw

@@ -8,7 +8,7 @@ namespace Media.Database.Tests.Models;
 public class WordOriginTests
 {
     [Test]
-    public void This_Should_Contain_Expected_EnumValues()
+    public void WordOrigin_Should_Contain_Expected_EnumValues()
     {
         var names = System.Enum.GetNames(typeof(WordOrigin));
 

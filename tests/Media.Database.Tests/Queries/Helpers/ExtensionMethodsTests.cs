@@ -11,7 +11,7 @@ namespace Media.Database.Tests.Queries.Helpers;
 public class ExtensionMethodsTests
 {
     [Test, AutoData]
-    public void This_Should_AdjustPrecision_To_Millisecond_Precision(DateTimeOffset dt)
+    public void AdjustPrecision_Should_Adjust_To_Millisecond_Precision(DateTimeOffset dt)
     {
         var adjusted = ExtensionMethods.AdjustPrecision(dt);
 
@@ -19,7 +19,7 @@ public class ExtensionMethodsTests
     }
 
     [Test]
-    public void This_Should_Return_EmptyString_When_Model_Is_Null()
+    public void GetRequestString_Should_Return_EmptyString_When_Model_Is_Null()
     {
         object model = null;
         var result = ExtensionMethods.ToJsonString(model);
@@ -28,7 +28,7 @@ public class ExtensionMethodsTests
     }
 
     [Test, AutoData]
-    public void This_Should_Return_DBNull_For_Null(string s)
+    public void ToDbNull_Should_Return_DBNull_For_Null(string s)
     {
         s = null;
         var result = ExtensionMethods.ToNullableValueForSql(s);
@@ -36,7 +36,7 @@ public class ExtensionMethodsTests
     }
 
     [Test, AutoData]
-    public void This_Should_Add_Key_In_Uppercase(string key, int value)
+    public void AddWithKeyUpper_Should_Add_Key_In_Uppercase(string key, int value)
     {
         var dict = new SortedDictionary<string, object>();
         dict.AddWithValue(key, value);

@@ -10,7 +10,7 @@ namespace Media.Database.Tests.Models;
 public class CreateWordRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(CreateWordRequest req)
+    public void CreateWordRequest_Should_Allow_PropertyAssignment(CreateWordRequest req)
     {
         req.ShouldNotBeNull();
         req.Word.ShouldNotBeNullOrEmpty();

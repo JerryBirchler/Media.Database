@@ -9,7 +9,7 @@ namespace Media.Database.Tests.Models;
 public class MetadataTests
 {
     [Test]
-    public void This_Should_Have_NullOrEmpty_Defaults()
+    public void Metadata_Should_Have_NullOrEmpty_Defaults()
     {
         var m = new Metadata();
 
@@ -19,7 +19,7 @@ public class MetadataTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Setting_Collections(Metadata m)
+    public void Metadata_Should_Allow_Setting_Collections(Metadata m)
     {
         // AutoFixture will provide a populated Metadata instance
         m.KeyWords.ShouldBe(m.KeyWords);

@@ -10,7 +10,7 @@ namespace Media.Database.Tests.Models;
 public class BaseSchemaLookupTests
 {
     [Test]
-    public void This_Should_Initialize_With_Default_Values()
+    public void BaseSchemaLookup_Should_Initialize_With_Default_Values()
     {
         // Act
         var lookup = new BaseSchemaLookup();
@@ -22,7 +22,7 @@ public class BaseSchemaLookupTests
     }
 
     [Test]
-    public void This_Should_Allow_Setting_HasFormatter()
+    public void BaseSchemaLookup_Should_Allow_Setting_HasFormatter()
     {
         // Arrange
         var lookup = new BaseSchemaLookup();
@@ -35,7 +35,7 @@ public class BaseSchemaLookupTests
     }
 
     [Test]
-    public void This_Should_Allow_Adding_To_Names_Dictionary()
+    public void BaseSchemaLookup_Should_Allow_Adding_To_Names_Dictionary()
     {
         // Arrange
         var lookup = new BaseSchemaLookup();
@@ -55,7 +55,7 @@ public class BaseSchemaLookupTests
 public class BaseWordRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(
+    public void BaseWordRequest_Should_Allow_PropertyAssignment(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -80,7 +80,7 @@ public class BaseWordRequestTests
     }
 
     [Test]
-    public void This_Should_Have_Required_Properties()
+    public void BaseWordRequest_Should_Have_Required_Properties()
     {
         // Arrange & Act
         var request = new BaseWordRequest
@@ -97,7 +97,7 @@ public class BaseWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Support_All_WordOrigin_Values(Guid fileId)
+    public void BaseWordRequest_Should_Support_All_WordOrigin_Values(Guid fileId)
     {
         // Act & Assert
         foreach (WordOrigin origin in Enum.GetValues(typeof(WordOrigin)))
@@ -119,7 +119,7 @@ public class BaseWordRequestTests
 public class DeleteWordRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Inherit_From_BaseWordRequest(
+    public void DeleteWordRequest_Should_Inherit_From_BaseWordRequest(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -139,7 +139,7 @@ public class DeleteWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Default_Action_To_Delete(
+    public void DeleteWordRequest_Should_Default_Action_To_Delete(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -159,7 +159,7 @@ public class DeleteWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Property_Assignment(
+    public void DeleteWordRequest_Should_Allow_Property_Assignment(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -182,7 +182,7 @@ public class DeleteWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Overriding_Action(
+    public void DeleteWordRequest_Should_Allow_Overriding_Action(
         string word,
         WordOrigin origin,
         bool isProperName,

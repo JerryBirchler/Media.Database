@@ -9,7 +9,7 @@ namespace Media.Database.Tests.Models;
 public class KafkaSettingsTests
 {
     [Test, AutoData]
-    public void This_Should_Be_Constructible_With_RequiredProperties(KafkaSettings settings)
+    public void KafkaSettings_Should_Be_Constructible_With_RequiredProperties(KafkaSettings settings)
     {
         settings.BaseUrl.ShouldNotBeNull();
         settings.Port.ShouldBeGreaterThan(0);

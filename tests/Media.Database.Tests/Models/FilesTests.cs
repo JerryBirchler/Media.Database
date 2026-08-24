@@ -10,7 +10,7 @@ namespace Media.Database.Tests.Models;
 public class FilesTests
 {
     [Test]
-    public void This_Should_Have_DefaultValues()
+    public void Files_Should_Have_DefaultValues()
     {
         var file = new Files();
 
@@ -20,7 +20,7 @@ public class FilesTests
     }
 
     [Test, AutoData]
-    public void This_Should_CreateFile_With_AutoFixtureValues(Files file)
+    public void Files_Should_CreateFile_With_AutoFixtureValues(Files file)
     {
         file.Id.ShouldNotBe(Guid.Empty);
         file.OriginalFilePath.ShouldNotBeNull();

@@ -11,7 +11,7 @@ namespace Media.Database.Tests.Models;
 public class SchemaMetadataTests
 {
     [Test]
-    public void This_Should_Initialize_With_Null_Values()
+    public void SchemaMetadata_Should_Initialize_With_Null_Values()
     {
         // Act
         var metadata = new SchemaMetadata();
@@ -22,7 +22,7 @@ public class SchemaMetadataTests
     }
 
     [Test]
-    public void This_Should_Allow_Setting_FormatDelegate()
+    public void SchemaMetadata_Should_Allow_Setting_FormatDelegate()
     {
         // Arrange
         var metadata = new SchemaMetadata();
@@ -37,7 +37,7 @@ public class SchemaMetadataTests
     }
 
     [Test]
-    public void This_Should_Allow_Setting_Types_And_Values()
+    public void SchemaMetadata_Should_Allow_Setting_Types_And_Values()
     {
         // Arrange
         var metadata = new SchemaMetadata();
@@ -58,7 +58,7 @@ public class SchemaMetadataTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Setting_SubFields(object subFields)
+    public void SchemaMetadata_Should_Allow_Setting_SubFields(object subFields)
     {
         // Arrange
         var metadata = new SchemaMetadata();
@@ -71,7 +71,7 @@ public class SchemaMetadataTests
     }
 
     [Test]
-    public void This_Should_Store_BaseSchemaLookup_References()
+    public void SchemaMetadata_Should_Store_BaseSchemaLookup_References()
     {
         // Arrange
         var metadata = new SchemaMetadata();
@@ -92,7 +92,7 @@ public class SchemaMetadataTests
 public class UpdateFileResponseTests
 {
     [Test]
-    public void This_Should_Initialize_With_Empty_Updates()
+    public void UpdateFileResponse_Should_Initialize_With_Empty_Updates()
     {
         // Act
         var response = new UpdateFileResponse();
@@ -104,7 +104,7 @@ public class UpdateFileResponseTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Setting_File(Files file)
+    public void UpdateFileResponse_Should_Allow_Setting_File(Files file)
     {
         // Act
         var response = new UpdateFileResponse { File = file };
@@ -114,7 +114,7 @@ public class UpdateFileResponseTests
     }
 
     [Test]
-    public void This_Should_Allow_Adding_Updates()
+    public void UpdateFileResponse_Should_Allow_Adding_Updates()
     {
         // Arrange
         var response = new UpdateFileResponse();
@@ -142,7 +142,7 @@ public class UpdateFileResponseTests
     }
 
     [Test]
-    public void This_Should_Support_Null_File_With_Updates()
+    public void UpdateFileResponse_Should_Support_Null_File_With_Updates()
     {
         // Arrange
         var update = new ChangeWordRequest
@@ -169,7 +169,7 @@ public class UpdateFileResponseTests
 public class UploadFileRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(
+    public void UploadFileRequest_Should_Allow_PropertyAssignment(
         int sourceMachineId,
         string originalFilePath,
         DateTimeOffset lastFileUpdate,
@@ -192,7 +192,7 @@ public class UploadFileRequestTests
     }
 
     [Test]
-    public void This_Should_Allow_Null_LastFileUpdate()
+    public void UploadFileRequest_Should_Allow_Null_LastFileUpdate()
     {
         // Act
         var request = new UploadFileRequest
@@ -208,7 +208,7 @@ public class UploadFileRequestTests
     }
 
     [Test]
-    public void This_Should_Allow_Null_Metadata()
+    public void UploadFileRequest_Should_Allow_Null_Metadata()
     {
         // Act
         var request = new UploadFileRequest
@@ -223,7 +223,7 @@ public class UploadFileRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Have_Required_Properties(
+    public void UploadFileRequest_Should_Have_Required_Properties(
         int sourceMachineId,
         string originalFilePath)
     {
@@ -240,7 +240,7 @@ public class UploadFileRequestTests
     }
 
     [Test]
-    public void This_Should_Support_DateTimeOffset_Values()
+    public void UploadFileRequest_Should_Support_DateTimeOffset_Values()
     {
         // Arrange
         var now = DateTimeOffset.UtcNow;
@@ -259,7 +259,7 @@ public class UploadFileRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Store_Metadata_Object(Metadata metadata)
+    public void UploadFileRequest_Should_Store_Metadata_Object(Metadata metadata)
     {
         // Act
         var request = new UploadFileRequest

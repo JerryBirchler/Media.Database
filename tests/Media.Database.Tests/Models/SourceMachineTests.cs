@@ -9,7 +9,7 @@ namespace Media.Database.Tests.Models;
 public class SourceMachineTests
 {
     [Test]
-    public void This_Should_Have_DefaultValues()
+    public void SourceMachine_Should_Have_DefaultValues()
     {
         var s = new SourceMachine();
 
@@ -18,7 +18,7 @@ public class SourceMachineTests
     }
 
     [Test, AutoData]
-    public void This_Should_Be_Populatable_By_AutoFixture(SourceMachine s)
+    public void SourceMachine_Should_Be_Populatable_By_AutoFixture(SourceMachine s)
     {
         s.ShouldNotBeNull();
         s.Id.ShouldBeGreaterThanOrEqualTo(0);
@@ -26,7 +26,7 @@ public class SourceMachineTests
     }
 
     [Test, AutoData]
-    public void This_Should_Be_Created_By_AutoFixture(SourceMachine s)
+    public void SourceMachine_Should_Be_Created_By_AutoFixture(SourceMachine s)
     {
         s.ShouldNotBeNull();
         s.Name.ShouldNotBeNullOrEmpty();

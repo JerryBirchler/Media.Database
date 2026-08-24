@@ -9,7 +9,7 @@ namespace Media.Database.Tests.Models;
 public class CreateFileRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(CreateFileRequest req)
+    public void CreateFileRequest_Should_Allow_PropertyAssignment(CreateFileRequest req)
     {
         // AutoFixture will populate the request; just assert properties roundtrip
         req.ShouldNotBeNull();

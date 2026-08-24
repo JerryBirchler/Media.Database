@@ -20,7 +20,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Be_Constructible_With_Session_And_Query()
+    public void NoSqlCommand_Should_Be_Constructible_With_Session_And_Query()
     {
         // Arrange & Act
         var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
@@ -30,7 +30,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Be_Constructible_With_BatchSize()
+    public void NoSqlCommand_Should_Be_Constructible_With_BatchSize()
     {
         // Arrange & Act
         var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id", 50);
@@ -40,7 +40,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Initialize_Parameters_Dictionary()
+    public void NoSqlCommand_Should_Initialize_Parameters_Dictionary()
     {
         // Arrange & Act
         var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table");
@@ -51,7 +51,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Allow_Adding_Parameters()
+    public void NoSqlCommand_Should_Allow_Adding_Parameters()
     {
         // Arrange
         var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
@@ -65,7 +65,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Support_Multiple_Parameters()
+    public void NoSqlCommand_Should_Support_Multiple_Parameters()
     {
         // Arrange
         var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id AND name = @Name");
@@ -93,7 +93,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Parse_Query_Parameters()
+    public void NoSqlCommand_Should_Parse_Query_Parameters()
     {
         // Arrange & Act - Constructor should extract parameters from query
         var command = new NoSqlCommand(
@@ -116,7 +116,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Convert_Parameterized_Query_To_Native()
+    public void NoSqlCommand_Should_Convert_Parameterized_Query_To_Native()
     {
         // Arrange - Query with @parameters should be converted to ? placeholders internally
         var mockPreparedStatement = new Mock<PreparedStatement>();
@@ -146,7 +146,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Support_Default_BatchSize_Of_100()
+    public void NoSqlCommand_Should_Support_Default_BatchSize_Of_100()
     {
         // Arrange & Act - Constructor without batchSize parameter
         var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
@@ -156,7 +156,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Support_Custom_BatchSize()
+    public void NoSqlCommand_Should_Support_Custom_BatchSize()
     {
         // Arrange & Act
         var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", 250);
@@ -176,7 +176,7 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void This_Should_Accept_Complex_Query_With_Multiple_Parameters()
+    public void NoSqlCommand_Should_Accept_Complex_Query_With_Multiple_Parameters()
     {
         // Arrange & Act
         var command = new NoSqlCommand(

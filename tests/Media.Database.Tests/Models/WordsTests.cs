@@ -10,7 +10,7 @@ namespace Media.Database.Tests.Models;
 public class UpsertWordRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Inherit_From_BaseWordRequest(
+    public void UpsertWordRequest_Should_Inherit_From_BaseWordRequest(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -30,7 +30,7 @@ public class UpsertWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Default_Action_To_Upsert(
+    public void UpsertWordRequest_Should_Default_Action_To_Upsert(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -50,7 +50,7 @@ public class UpsertWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Property_Assignment(
+    public void UpsertWordRequest_Should_Allow_Property_Assignment(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -73,7 +73,7 @@ public class UpsertWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Overriding_Action(
+    public void UpsertWordRequest_Should_Allow_Overriding_Action(
         string word,
         WordOrigin origin,
         bool isProperName,
@@ -98,7 +98,7 @@ public class UpsertWordRequestTests
 public class ViewWordFilesTests
 {
     [Test]
-    public void This_Should_Initialize_With_Default_Values()
+    public void ViewWordFiles_Should_Initialize_With_Default_Values()
     {
         // Act
         var view = new ViewWordFiles();
@@ -112,7 +112,7 @@ public class ViewWordFilesTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(
+    public void ViewWordFiles_Should_Allow_PropertyAssignment(
         string word,
         int wordId,
         Guid fileId,
@@ -141,7 +141,7 @@ public class ViewWordFilesTests
     }
 
     [Test]
-    public void This_Should_Support_Nullable_Boolean_Properties()
+    public void Words_Should_Support_Nullable_Boolean_Properties()
     {
         // Act
         var view = new ViewWordFiles
@@ -160,7 +160,7 @@ public class ViewWordFilesTests
     }
 
     [Test, AutoData]
-    public void This_Should_Support_All_WordOrigin_Values(
+    public void ViewWordFiles_Should_Support_All_WordOrigin_Values(
         string word,
         int wordId,
         Guid fileId)
@@ -185,7 +185,7 @@ public class ViewWordFilesTests
 public class WordFilesTests
 {
     [Test]
-    public void This_Should_Initialize_With_Default_Values()
+    public void WordFiles_Should_Initialize_With_Default_Values()
     {
         // Act
         var wordFile = new WordFiles();
@@ -197,7 +197,7 @@ public class WordFilesTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(
+    public void WordFiles_Should_Allow_PropertyAssignment(
         int wordId,
         Guid fileId,
         WordOrigin origin)
@@ -217,7 +217,7 @@ public class WordFilesTests
     }
 
     [Test]
-    public void This_Should_Support_All_WordOrigin_Values()
+    public void WordFiles_Should_Support_All_WordOrigin_Values()
     {
         // Act & Assert
         foreach (WordOrigin origin in Enum.GetValues(typeof(WordOrigin)))
@@ -234,7 +234,7 @@ public class WordFilesTests
     }
 
     [Test, AutoData]
-    public void This_Should_Link_Word_And_File(int wordId, Guid fileId)
+    public void WordFiles_Should_Link_Word_And_File(int wordId, Guid fileId)
     {
         // Act
         var wordFile = new WordFiles
@@ -254,7 +254,7 @@ public class WordFilesTests
 public class WordsTests
 {
     [Test]
-    public void This_Should_Initialize_With_Default_Values()
+    public void Words_Should_Initialize_With_Default_Values()
     {
         // Act
         var words = new Words();
@@ -301,7 +301,7 @@ public class WordsTests
     }
 
     [Test, AutoData]
-    public void This_Should_Support_Nullable_UpdatedOn(
+    public void ViewWordFiles_Should_Support_Nullable_UpdatedOn(
         int id,
         string word,
         Guid fileId)
@@ -321,7 +321,7 @@ public class WordsTests
     }
 
     [Test, AutoData]
-    public void This_Should_Support_All_WordOrigin_Values(
+    public void Words_Should_Support_All_WordOrigin_Values(
         int id,
         string word,
         Guid fileId)
@@ -342,7 +342,7 @@ public class WordsTests
     }
 
     [Test]
-    public void This_Should_Track_Timestamps()
+    public void ViewWordFiles_Should_Track_Timestamps()
     {
         // Arrange
         var insertedOn = DateTimeOffset.UtcNow.AddDays(-1);
@@ -365,7 +365,7 @@ public class WordsTests
     }
 
     [Test, AutoData]
-    public void This_Should_Reference_Source_File(Guid fileId)
+    public void ViewWordFiles_Should_Reference_Source_File(Guid fileId)
     {
         // Act
         var words = new Words

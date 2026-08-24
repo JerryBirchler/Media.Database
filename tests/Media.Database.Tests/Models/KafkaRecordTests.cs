@@ -10,7 +10,7 @@ namespace Media.Database.Tests.Models;
 public class KafkaRecordTests
 {
     [Test, AutoData]
-    public void This_Should_Be_Created_With_All_Properties(
+    public void KafkaRecord_Should_Be_Created_With_All_Properties(
         string topic,
         int partition,
         long offset,
@@ -27,7 +27,7 @@ public class KafkaRecordTests
     }
 
     [Test]
-    public void This_Should_Be_A_Record_Type()
+    public void KafkaRecord_Should_Be_A_Record_Type()
     {
         // Arrange
         var value = new CreateWordRequest
@@ -46,7 +46,7 @@ public class KafkaRecordTests
     }
 
     [Test, AutoData]
-    public void This_Should_Support_Deconstruction(
+    public void KafkaRecord_Should_Support_Deconstruction(
         string topic,
         int partition,
         long offset,
@@ -66,7 +66,7 @@ public class KafkaRecordTests
     }
 
     [Test]
-    public void This_Should_Store_Partition_And_Offset()
+    public void KafkaRecord_Should_Store_Partition_And_Offset()
     {
         // Arrange
         var value = new CreateWordRequest
@@ -90,7 +90,7 @@ public class KafkaRecordTests
 public class KafkaRecordWrapperTests
 {
     [Test, AutoData]
-    public void This_Should_Be_Created_With_Value(BaseWordRequest value)
+    public void KafkaRecordWrapper_Should_Be_Created_With_Value(BaseWordRequest value)
     {
         // Act
         var wrapper = new KafkaRecordWrapper(value);
@@ -100,7 +100,7 @@ public class KafkaRecordWrapperTests
     }
 
     [Test]
-    public void This_Should_Be_A_Record_Type()
+    public void KafkaRecordWrapper_Should_Be_A_Record_Type()
     {
         // Arrange
         var value = new BaseWordRequest
@@ -119,7 +119,7 @@ public class KafkaRecordWrapperTests
     }
 
     [Test]
-    public void This_Should_Wrap_BaseWordRequest()
+    public void KafkaRecordWrapper_Should_Wrap_BaseWordRequest()
     {
         // Arrange
         var baseRequest = new BaseWordRequest
@@ -139,7 +139,7 @@ public class KafkaRecordWrapperTests
     }
 
     [Test]
-    public void This_Should_Wrap_DeleteWordRequest()
+    public void KafkaRecordWrapper_Should_Wrap_DeleteWordRequest()
     {
         // Arrange
         var deleteRequest = new DeleteWordRequest
@@ -163,7 +163,7 @@ public class KafkaRecordWrapperTests
 public class ChangeWordRequestTests
 {
     [Test, AutoData]
-    public void This_Should_Allow_PropertyAssignment(
+    public void ChangeWordRequest_Should_Allow_PropertyAssignment(
         string newSpan,
         WordOrigin origin,
         Guid fileId)
@@ -185,7 +185,7 @@ public class ChangeWordRequestTests
     }
 
     [Test]
-    public void This_Should_Have_Null_CurrentSpan_By_Default()
+    public void ChangeWordRequest_Should_Have_Null_CurrentSpan_By_Default()
     {
         // Act
         var request = new ChangeWordRequest
@@ -200,7 +200,7 @@ public class ChangeWordRequestTests
     }
 
     [Test, AutoData]
-    public void This_Should_Allow_Setting_CurrentSpan(
+    public void ChangeWordRequest_Should_Allow_Setting_CurrentSpan(
         string newSpan,
         string currentSpan,
         WordOrigin origin,
@@ -221,7 +221,7 @@ public class ChangeWordRequestTests
     }
 
     [Test]
-    public void This_Should_Support_All_WordOrigin_Values()
+    public void ChangeWordRequest_Should_Support_All_WordOrigin_Values()
     {
         // Act & Assert
         foreach (WordOrigin origin in Enum.GetValues(typeof(WordOrigin)))
@@ -238,7 +238,7 @@ public class ChangeWordRequestTests
     }
 
     [Test]
-    public void This_Should_Support_All_KafkaProducerActions()
+    public void ChangeWordRequest_Should_Support_All_KafkaProducerActions()
     {
         // Act & Assert
         foreach (KafkaProducerActions action in Enum.GetValues(typeof(KafkaProducerActions)))
