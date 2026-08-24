@@ -165,7 +165,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}", 
+            _logger.LogError(ex, true, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
                 args: [request.SourceMachineId, request.OriginalFilePath]);
 
             if (uow.CurrentTransaction != null)
