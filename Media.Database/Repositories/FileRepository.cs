@@ -43,51 +43,86 @@ public class FileRepository(
 
     public async Task<Files?> GetById(Guid id)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
-        sqlCommand.Parameters.AddWithValue(pn.Id, id);
-        await using var reader = await sqlCommand.ExecuteReaderAsync();
+        try
+        {
+            await using var sqlConnection = GetSqlConnection();
+            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
+            sqlCommand.Parameters.AddWithValue(pn.Id, id);
+            await using var reader = await sqlCommand.ExecuteReaderAsync();
 
-        if (!await reader.ReadAsync())
-            return null;
+            if (!await reader.ReadAsync())
+                return null;
 
-        return reader.ToFile();
+            return reader.ToFile();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "GetById failed for FileId {Id}", args: id);
+            throw;
+        }
     }
 
     public async Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentBySourceMachineIdSql);
-        sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-        sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
-        await using var reader = await sqlCommand.ExecuteReaderAsync();
+        try
+        {
+            await using var sqlConnection = GetSqlConnection();
+            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentBySourceMachineIdSql);
+            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
+            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
+            await using var reader = await sqlCommand.ExecuteReaderAsync();
 
-        if (!await reader.ReadAsync())
-            return null;
+            if (!await reader.ReadAsync())
+                return null;
 
-        return reader.ToFile();
+            return reader.ToFile();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "GetCurrentBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                args: [sourceMachineId, originalFilePath!]);
+            throw;
+        }
     }
 
     public async Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentPagesBySourceMachineIdSql);
-        sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-        sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
-        sqlCommand.Parameters.AddWithValue(pn.Limit, limit);
-        await using var reader = await sqlCommand.ExecuteReaderAsync();
-        return await reader.ToFiles();
+        try
+        {
+            await using var sqlConnection = GetSqlConnection();
+            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentPagesBySourceMachineIdSql);
+            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
+            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
+            sqlCommand.Parameters.AddWithValue(pn.Limit, limit);
+            await using var reader = await sqlCommand.ExecuteReaderAsync();
+            return await reader.ToFiles();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "GetCurrentPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                args: [sourceMachineId, originalFilePath!]);
+            throw;
+        }
     }
 
     public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetHistoryPagesBySourceMachineIdSql);
-        sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-        sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath);
-        sqlCommand.Parameters.AddWithValue(pn.Limit, limit);
-        await using var reader = await sqlCommand.ExecuteReaderAsync();
-        return await reader.ToFiles();
+        try
+        {
+            await using var sqlConnection = GetSqlConnection();
+            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetHistoryPagesBySourceMachineIdSql);
+            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
+            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath);
+            sqlCommand.Parameters.AddWithValue(pn.Limit, limit);
+            await using var reader = await sqlCommand.ExecuteReaderAsync();
+            return await reader.ToFiles();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "GetHistoryPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                args: [sourceMachineId, originalFilePath]);
+            throw;
+        }
     }
 
     public async Task<Files?> Upsert(UploadFileRequest request)
@@ -299,10 +334,10 @@ public class FileRepository(
 
             _logger.LogInformation(true, "Background NoSQL upsert completed for FileId {Id}", args: file.Id);
         }
-        catch (NoHostAvailableException ex)
+        catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateNoSqlAsync));
+            await TryHealScyllaSessionAsync(nameof(UpdateNoSqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -335,10 +370,10 @@ public class FileRepository(
 
             _logger.LogInformation(true, "Background NoSQL metadata update completed for FileId {Id}", args: file.Id);
         }
-        catch (Cassandra.NoHostAvailableException ex)
+        catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(UpdateMetadataNoSqlAsync));
+            await TryHealScyllaSessionAsync(nameof(UpdateMetadataNoSqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -351,34 +386,51 @@ public class FileRepository(
 
     public async Task<Files?> Delete(Guid id)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteSql);
-        sqlCommand.Parameters.AddWithValue(pn.Id, id);
-        await using var reader = await sqlCommand.ExecuteReaderAsync();
+        try
+        {
+            await using var sqlConnection = GetSqlConnection();
+            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteSql);
+            sqlCommand.Parameters.AddWithValue(pn.Id, id);
+            await using var reader = await sqlCommand.ExecuteReaderAsync();
 
-        if (!await reader.ReadAsync())
-            return null;
+            if (!await reader.ReadAsync())
+                return null;
 
-        var file = reader.ToFile();
+            var file = reader.ToFile();
 
-        _ = QueueBackgroundDeleteAsync(id);
-        return file;
+            _ = QueueBackgroundDeleteAsync(id);
+            return file;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "Delete failed for FileId {Id}", args: id);
+            throw;
+        }
     }
 
     public async Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
     {
-        await using var sqlConnection = GetSqlConnection();
-        await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteHistorySql);
-        sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-        sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath);
-        await using var reader = await sqlCommand.ExecuteReaderAsync();
+        try
+        {
+            await using var sqlConnection = GetSqlConnection();
+            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteHistorySql);
+            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
+            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath);
+            await using var reader = await sqlCommand.ExecuteReaderAsync();
 
-        var files = await reader.ToFiles();
+            var files = await reader.ToFiles();
 
-        if (files.Count > 0)
-            _ = QueueBackgroundDeleteAsync(files);
+            if (files.Count > 0)
+                _ = QueueBackgroundDeleteAsync(files);
 
-        return files;
+            return files;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, true, "DeleteHistoryBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                args: [sourceMachineId, originalFilePath]);
+            throw;
+        }
     }
 
     private async Task QueueBackgroundDeleteAsync(Guid id)
@@ -401,10 +453,10 @@ public class FileRepository(
 
             _logger.LogInformation(true, "Background NoSQL delete completed for FileId {Id}", args: id);
         }
-        catch (NoHostAvailableException ex)
+        catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: id);
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlAsync));
+            await TryHealScyllaSessionAsync(nameof(DeleteNoSqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -440,16 +492,39 @@ public class FileRepository(
 
             _logger.LogInformation(true, "Background NoSQL batch delete completed for {Count} files", args: files.Count);
         }
-        catch (NoHostAvailableException ex)
+        catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             _logger.LogError(ex, true, "Scylla cluster unavailable during batch delete");
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), nameof(DeleteNoSqlBatchAsync));
+            await TryHealScyllaSessionAsync(nameof(DeleteNoSqlBatchAsync));
             throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, true, "BackgroundDelete batch task failed");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Cassandra driver exceptions that indicate the cluster/session is unreachable, as opposed to a single
+    /// query timing out against an otherwise healthy cluster. Only these warrant rebuilding the session.
+    /// </summary>
+    private static bool IsScyllaConnectivityException(Exception ex) =>
+        ex is NoHostAvailableException or UnavailableException or OperationTimedOutException;
+
+    /// <summary>
+    /// Attempts to heal the Scylla session without letting a healing failure (e.g. a busy self-heal lock)
+    /// mask the original exception that triggered the heal attempt.
+    /// </summary>
+    private async Task TryHealScyllaSessionAsync(string methodName)
+    {
+        try
+        {
+            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), methodName);
+        }
+        catch (Exception healEx)
+        {
+            _logger.LogError(healEx, true, "Scylla session heal attempt failed in {MethodName}", args: methodName);
         }
     }
 }
