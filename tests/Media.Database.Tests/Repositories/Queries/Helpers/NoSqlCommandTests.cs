@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Shouldly;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Media.Database.Tests.Repositories.Queries.Helpers;
 
@@ -181,11 +182,127 @@ public class NoSqlCommandTests
         // Arrange & Act
         var command = new NoSqlCommand(
             _mockSession.Object,
-            @"INSERT INTO table (id, name, created, updated, status) 
+            @"INSERT INTO table (id, name, created, updated, status)
               VALUES (@Id, @Name, @CreatedOn, @UpdatedOn, @Status)");
 
         // Assert
         command.ShouldNotBeNull();
         command.Parameters.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void Bind_Should_ReturnBoundStatement_When_AllParametersPresent()
+    {
+        var mockPreparedStatement = new Mock<PreparedStatement>();
+        var mockBoundStatement = new Mock<BoundStatement>();
+        mockPreparedStatement.Setup(ps => ps.Bind(It.IsAny<object[]>())).Returns(mockBoundStatement.Object);
+        _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
+
+        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        command.Parameters.Add("@ID", Guid.NewGuid());
+
+        var result = command.Bind();
+
+        result.ShouldBe(mockBoundStatement.Object);
+    }
+
+    [Test]
+    public async Task ExecuteRowSet_Should_Return_RowSet_From_Session()
+    {
+        var mockPreparedStatement = new Mock<PreparedStatement>();
+        var mockBoundStatement = new Mock<BoundStatement>();
+        var mockRowSet = new Mock<RowSet>();
+        mockPreparedStatement.Setup(ps => ps.Bind(It.IsAny<object[]>())).Returns(mockBoundStatement.Object);
+        _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
+        _mockSession.Setup(s => s.ExecuteAsync(mockBoundStatement.Object)).ReturnsAsync(mockRowSet.Object);
+
+        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        command.Parameters.Add("@ID", Guid.NewGuid());
+
+        var result = await command.ExecuteRowSet();
+
+        result.ShouldBe(mockRowSet.Object);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_Execute_Batch_On_Session()
+    {
+        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
+        var batch = new BatchStatement();
+
+        await command.ExecuteAsync(batch);
+
+        _mockSession.Verify(s => s.ExecuteAsync(batch), Times.Once);
+    }
+
+    [Test]
+    public async Task AddQuery_Should_FlushBatch_When_RowCountReachesBatchSize()
+    {
+        var mockPreparedStatement = new Mock<PreparedStatement>();
+        var mockBoundStatement = new Mock<BoundStatement>();
+        mockPreparedStatement.Setup(ps => ps.Bind(It.IsAny<object[]>())).Returns(mockBoundStatement.Object);
+        _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
+        _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
+
+        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 1);
+        command.BeginBatch();
+
+        await command.AddQuery(Guid.NewGuid());
+
+        _mockSession.Verify(s => s.ExecuteAsync(It.IsAny<BatchStatement>()), Times.Once);
+    }
+
+    [Test]
+    public async Task AddQuery_Should_Not_FlushBatch_Before_BatchSize_Is_Reached()
+    {
+        var mockPreparedStatement = new Mock<PreparedStatement>();
+        var mockBoundStatement = new Mock<BoundStatement>();
+        mockPreparedStatement.Setup(ps => ps.Bind(It.IsAny<object[]>())).Returns(mockBoundStatement.Object);
+        _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
+        _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
+
+        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 5);
+        command.BeginBatch();
+
+        await command.AddQuery(Guid.NewGuid());
+
+        _mockSession.Verify(s => s.ExecuteAsync(It.IsAny<BatchStatement>()), Times.Never);
+    }
+
+    [Test]
+    public async Task EndBatch_Should_FlushRemainingRows_When_NotAlignedToBatchSize()
+    {
+        var mockPreparedStatement = new Mock<PreparedStatement>();
+        var mockBoundStatement = new Mock<BoundStatement>();
+        mockPreparedStatement.Setup(ps => ps.Bind(It.IsAny<object[]>())).Returns(mockBoundStatement.Object);
+        _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
+        _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
+
+        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 5);
+        command.BeginBatch();
+        await command.AddQuery(Guid.NewGuid());
+
+        await command.EndBatch();
+
+        _mockSession.Verify(s => s.ExecuteAsync(It.IsAny<BatchStatement>()), Times.Once);
+    }
+
+    [Test]
+    public async Task EndBatch_Should_Not_Execute_When_RowCountIsAlignedToBatchSize()
+    {
+        var mockPreparedStatement = new Mock<PreparedStatement>();
+        var mockBoundStatement = new Mock<BoundStatement>();
+        mockPreparedStatement.Setup(ps => ps.Bind(It.IsAny<object[]>())).Returns(mockBoundStatement.Object);
+        _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
+        _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
+
+        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 1);
+        command.BeginBatch();
+        await command.AddQuery(Guid.NewGuid());
+        _mockSession.Invocations.Clear();
+
+        await command.EndBatch();
+
+        _mockSession.Verify(s => s.ExecuteAsync(It.IsAny<BatchStatement>()), Times.Never);
     }
 }

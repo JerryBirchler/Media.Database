@@ -5,6 +5,21 @@ using System.Runtime.CompilerServices;
 
 namespace Media.Database.Repositories.Schemas;
 
+/// <summary>
+/// Base class for the schema field-name registries (<see cref="Ordinals"/>, <see cref="ColumnsSql"/>,
+/// <see cref="TablesSql"/>, etc.). Each derived, closed generic type declares a set of
+/// <c>public static readonly string</c> fields initialized via <see cref="x"/>, which resolves each
+/// field's value from the caller's own member name: verified against the corresponding field on
+/// <typeparamref name="TChild"/> (when one is required), then optionally reformatted via a
+/// <c>public static string Format(string)</c> method on <typeparamref name="TParent"/>, if present.
+/// This lets column/table/parameter name typos be caught at process start via reflection instead
+/// of surfacing as runtime SQL errors.
+/// </summary>
+/// <typeparam name="TParent">The concrete derived schema type declaring the fields.</typeparam>
+/// <typeparam name="TChild">
+/// The schema type whose field names <typeparamref name="TParent"/>'s fields must match, or
+/// <see cref="NoSubFields"/> if no such check/lookup should be performed.
+/// </typeparam>
 public abstract class BaseSchema<TParent, TChild> : ISchema
     where TParent : BaseSchema<TParent, TChild>, ISchema, new()
     where TChild : class, ISchema, new()
@@ -64,9 +79,15 @@ public abstract class BaseSchema<TParent, TChild> : ISchema
 
     private static SchemaMetadata GetMetadata() => BaseSchemaCache.Metadata[typeof(BaseSchema<TParent, TChild>)];
 
-#pragma warning disable IDE1006 
+    /// <summary>
+    /// Resolves the value of a field declared on <typeparamref name="TParent"/>, keyed by the
+    /// field's own name via <see cref="CallerMemberNameAttribute"/>. Do not pass <paramref name="fieldName"/> explicitly.
+    /// </summary>
+    /// <param name="fieldName">The declaring field's name; supplied automatically by the compiler.</param>
+    /// <returns>The resolved (and, if applicable, formatted) field value.</returns>
+#pragma warning disable IDE1006
     public static string x([CallerMemberName] string fieldName = "")
-#pragma warning restore IDE1006 
+#pragma warning restore IDE1006
     {
         var meta = GetMetadata();
 
@@ -93,6 +114,12 @@ public abstract class BaseSchema<TParent, TChild> : ISchema
         return fieldName;
     }
 
+    /// <summary>
+    /// Looks up the value of a named field declared on <typeparamref name="TParent"/>, via reflection with caching.
+    /// </summary>
+    /// <param name="fieldName">The name of the field to retrieve.</param>
+    /// <returns>The field's string value.</returns>
+    /// <exception cref="ArgumentException">Thrown when no such field is declared on <typeparamref name="TParent"/>.</exception>
     public static string GetField(string fieldName)
     {
         var meta = GetMetadata();

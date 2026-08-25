@@ -40,7 +40,9 @@ Media.Database/
 │   ├── KafkaRecord.cs              # Kafka message models
 │   └── ...                         # Additional models and requests
 ├── Repositories/
-│   ├── BaseRepository.cs           # Base repository implementation
+│   ├── BaseRepository.cs           # Scylla session access shared by repositories that need it
+│   ├── ISqlQueryExecutor.cs        # Mockable seam for hand-written SQL execution
+│   ├── SqlQueryExecutor.cs         # The only class that opens a real Npgsql connection
 │   ├── FileRepository.cs           # File data access
 │   ├── WordRepository.cs           # Word data access
 │   ├── Queries/
@@ -82,6 +84,10 @@ BaseStartup.ConfigureSettings(services);
 // Register providers
 services.AddSingleton<IPostgresConnectionProvider, PostgresConnectionProvider>();
 services.AddSingleton<IScyllaSessionProvider, ScyllaSessionProvider>();
+
+// Register the SQL executor (the only class that opens a real Npgsql connection;
+// repositories depend on ISqlQueryExecutor so they stay unit-testable)
+services.AddScoped<ISqlQueryExecutor, SqlQueryExecutor>();
 
 // Register repositories
 services.AddScoped<IFileRepository, FileRepository>();
@@ -245,23 +251,27 @@ The test suite includes:
 ### Example Test
 
 ```csharp
-using AutoFixture.NUnit3;
 using Moq;
 using NUnit.Framework;
 using Shouldly;
 
-[Test, AutoData]
-public void Should_Process_Word_Request(string word, WordOrigin origin)
+[Test]
+public async Task GetById_Should_ReturnWord_When_ExecutorFindsMatch()
 {
-    // Arrange
-    var mockProvider = new Mock<IPostgresConnectionProvider>();
-    mockProvider.Setup(p => p.GetConnectionString())
-        .Returns("Host=localhost;Database=test");
+    // Arrange - ISqlQueryExecutor is the only seam repositories depend on for Postgres access,
+    // so no real connection is ever opened in a unit test.
+    var expected = new Words { Id = 1, Word = "example", Origin = WordOrigin.Name, IsProperName = false, CameFromFileId = Guid.NewGuid() };
+    var sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+    sqlExecutorMock
+        .Setup(e => e.QuerySingleAsync(QueryWords.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Words>>()))
+        .ReturnsAsync(expected);
+    var repository = new WordRepository(sqlExecutorMock.Object, Mock.Of<ILogger<WordRepository>>(), new LoggingLevelSwitch());
 
-    var repository = new WordRepository(mockProvider.Object);
+    // Act
+    var result = await repository.GetById(1);
 
-    // Act & Assert
-    repository.ShouldNotBeNull();
+    // Assert
+    result.ShouldBe(expected);
 }
 ```
 

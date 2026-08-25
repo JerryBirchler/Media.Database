@@ -13,9 +13,13 @@ using ts = Media.Database.Repositories.Schemas.TablesSql;
 
 namespace Media.Database.Repositories.Queries;
 
+/// <summary>
+/// SQL and CQL query text, and reader/row mapping extensions, for file records.
+/// </summary>
 public static class QueryFiles
 {
     #region SQL Queries
+    /// <summary>SQL to select a file by its unique identifier.</summary>
     public static string GetByIdSql => $@"
         SELECT 
             {csf.Id}, 
@@ -33,6 +37,7 @@ public static class QueryFiles
         LIMIT 1
         ;";
 
+    /// <summary>SQL to select a page of historical (superseded) files for a source machine and path, newest first.</summary>
     public static string GetHistoryPagesBySourceMachineIdSql => $@"
         SELECT 
             {csf.Id}, 
@@ -53,6 +58,7 @@ public static class QueryFiles
         LIMIT @Limit
         ;";
 
+    /// <summary>SQL to select the current file for a source machine and path from the current-files view.</summary>
     public static string GetCurrentBySourceMachineIdSql => $@"
         SELECT 
             {csf.Id}, 
@@ -71,6 +77,7 @@ public static class QueryFiles
         LIMIT 1
         ;";
 
+    /// <summary>SQL to select a keyset-paged page of current files, ordered by source machine and path.</summary>
     public static string GetCurrentPagesBySourceMachineIdSql => $@"
         SELECT 
             {csf.Id}, 
@@ -95,6 +102,7 @@ public static class QueryFiles
         LIMIT @Limit
         ;";
 
+    /// <summary>SQL to mark all prior current rows for a source machine and path as no longer current, returning their identifiers.</summary>
     public static string GetPreviousIdsSql => $@"
         UPDATE {ts.Files} SET
             {csf.IsCurrent} = false
@@ -106,6 +114,7 @@ public static class QueryFiles
             {csf.Id}
         ;";
 
+    /// <summary>SQL to insert a new file row (or update it on conflict) and refresh the current-files view.</summary>
     public static string UpsertSql => $@"
         INSERT INTO {ts.Files} 
         (
@@ -129,7 +138,8 @@ public static class QueryFiles
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
 
-    public static string UpdateSql => $@"        
+    /// <summary>SQL to update a file's metadata and timestamps by id, and refresh the current-files view.</summary>
+    public static string UpdateSql => $@"
         UPDATE {ts.Files} SET
             {csf.UpdatedOn} = {pn.UpdatedOn},
             {csf.LastFileUpdate} = {pn.LastFileUpdate},
@@ -140,6 +150,7 @@ public static class QueryFiles
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
 
+    /// <summary>SQL to check whether a file with the given source machine, path, and last-update timestamp already exists.</summary>
     public static string ExistsSql => $@"
         SELECT 
             {csf.Id}
@@ -151,6 +162,7 @@ public static class QueryFiles
             AND {csf.LastFileUpdate} = {pn.LastFileUpdate}
         LIMIT 1;";
 
+    /// <summary>SQL to delete a file by id and refresh the current-files view.</summary>
     public static string DeleteSql => $@"
         WITH deleted_rows AS (
             DELETE FROM {ts.Files} 
@@ -161,6 +173,7 @@ public static class QueryFiles
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
 
+    /// <summary>SQL to delete all files for a source machine and path, returning the deleted rows, and refresh the current-files view.</summary>
     public static string DeleteHistorySql => $@"
         WITH deleted_rows AS (            
             DELETE FROM {ts.Files} 
@@ -176,7 +189,8 @@ public static class QueryFiles
         ;";
     #endregion
 
-    #region NoSQL Queries           
+    #region NoSQL Queries
+    /// <summary>CQL to select a file by its unique identifier.</summary>
     public static string GetByIdNoSql => $@"
         SELECT 
             {cnf.Id}, 
@@ -194,6 +208,7 @@ public static class QueryFiles
         LIMIT 1
         ;";
 
+    /// <summary>CQL to mark a file row as no longer current.</summary>
     public static string InactivateNoSql => $@"
         UPDATE {tn.Files} SET
             {cnf.IsCurrent} = false
@@ -201,6 +216,7 @@ public static class QueryFiles
             {cnf.Id} = {pn.Id}
         ;";
 
+    /// <summary>CQL to insert a file row.</summary>
     public static string UpsertNoSql => $@"
         INSERT INTO {tn.Files} 
         (
@@ -226,6 +242,7 @@ public static class QueryFiles
         )
         ;";
 
+    /// <summary>CQL to update a file row's metadata and timestamps by id.</summary>
     public static string UpdateNoSql => $@"
         UPDATE {tn.Files} SET 
             {cnf.UpdatedOn} = {pn.UpdatedOn},
@@ -235,10 +252,12 @@ public static class QueryFiles
             {cnf.Id} = {pn.Id}
         ;";
 
+    /// <summary>CQL to delete a file row by id.</summary>
     public static string DeleteNoSql => $@"
         DELETE FROM {tn.Files} WHERE id = {pn.Id};";
     #endregion
 
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.Files"/>.</summary>
     public static async Task<List<Models.Files>> ToFiles(this NpgsqlDataReader reader)
     {
         List<Models.Files> files = [];
@@ -249,6 +268,7 @@ public static class QueryFiles
         return files;
     }
 
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.Files"/>.</summary>
     public static Models.Files ToFile(this NpgsqlDataReader reader)
     {
         return new Models.Files
@@ -264,6 +284,7 @@ public static class QueryFiles
         };
     }
 
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and collects the id column of each.</summary>
     public static async Task<List<Guid>> ToIds(this NpgsqlDataReader reader)
     {
         var ids = new List<Guid>();
@@ -275,11 +296,13 @@ public static class QueryFiles
         return ids;
     }
 
+    /// <summary>Reads the id column of the current row of <paramref name="reader"/>.</summary>
     public static Guid ToId(this NpgsqlDataReader reader)
     {
         return reader.GetGuid(reader.GetOrdinal(os.Id));
     }
 
+    /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Models.Files"/>.</summary>
     public static Models.Files ToFile(this Row row)
     {
         return new Models.Files

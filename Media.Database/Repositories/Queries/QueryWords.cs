@@ -12,9 +12,13 @@ using Media.Database.Models;
 
 namespace Media.Database.Repositories.Queries;
 
+/// <summary>
+/// SQL query text, and reader mapping extensions, for word and word/file records.
+/// </summary>
 public static class QueryWords
 {
     #region SQL Queries
+    /// <summary>SQL to select a word by its unique identifier.</summary>
     public static string GetByIdSql => $@"
         SELECT 
             {csw.Id}, 
@@ -31,6 +35,7 @@ public static class QueryWords
         LIMIT 1
         ;";
 
+    /// <summary>Shared SELECT clause for the word/file materialized view, reused by the keyset page queries below.</summary>
     public static string SelectFilePages => $@"
         SELECT 
             {csvwf.Origin}, 
@@ -42,10 +47,12 @@ public static class QueryWords
         FROM 
             {ts.View_WordFiles}";
 
+    /// <summary>Shared WHERE-clause fragment for filtering the word/file view by current-ness and proper-name status.</summary>
     public static string AndFilePages => $@"
             AND ({pn.IsCurrent} IS NULL OR {pn.IsCurrent} = {csvwf.IsCurrent})
             AND ({pn.IsProperName} IS NULL OR {pn.IsProperName} = {csvwf.IsProperName})";
 
+    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by word, origin, then file.</summary>
     public static string GetFilePagesByWordOriginSql => $@"
         {SelectFilePages}
         WHERE 
@@ -64,6 +71,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by word, file, then origin.</summary>
     public static string GetFilePagesByWordFileIdSql => $@"
         {SelectFilePages}
         WHERE 
@@ -82,6 +90,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file, word, then origin.</summary>
     public static string GetFilePagesByFileIdWordSql => $@"
         {SelectFilePages}
         WHERE 
@@ -100,6 +109,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file, origin, then word.</summary>
     public static string GetFilePagesByFileIdOriginSql => $@"
         {SelectFilePages}
         WHERE 
@@ -118,6 +128,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>SQL to insert a word (or update it on conflict) and link it to the originating file.</summary>
     public static string UpsertWordSql => $@"
         WITH inserted_rows AS (            
             INSERT INTO {ts.Words} 
@@ -157,15 +168,18 @@ public static class QueryWords
         ON CONFLICT ({cswf.WordId}, {cswf.FileId})
         DO NOTHING;";
 
+    /// <summary>SQL to refresh the word/file materialized view.</summary>
     public static string RefreshViewSql => $@"
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_WordFiles};";
 
+    /// <summary>SQL to delete all word/file links for a given file.</summary>
     public static string DeleteFileSql => $@"
-        DELETE FROM {ts.WordFiles} 
+        DELETE FROM {ts.WordFiles}
         WHERE {cswf.FileId} = {pn.FileId}";
 
     #endregion
 
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.Words"/>.</summary>
     public static async Task<List<Models.Words>> ToWords(this NpgsqlDataReader reader)
     {
         List<Models.Words> words = [];
@@ -176,6 +190,7 @@ public static class QueryWords
         return words;
     }
 
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.Words"/>.</summary>
     public static Models.Words ToWord(this NpgsqlDataReader reader)
     {
         return new Models.Words
@@ -190,6 +205,7 @@ public static class QueryWords
         };
     }
 
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.ViewWordFiles"/>.</summary>
     public static async Task<List<Models.ViewWordFiles>> ToWordFiles(this NpgsqlDataReader reader)
     {
         List<Models.ViewWordFiles> wordFiles = [];
@@ -200,6 +216,7 @@ public static class QueryWords
         return wordFiles;
     }
 
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.ViewWordFiles"/>.</summary>
     public static Models.ViewWordFiles ToWordFile(this NpgsqlDataReader reader)
     {
         return new Models.ViewWordFiles

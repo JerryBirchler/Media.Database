@@ -1,7 +1,5 @@
-using Media.Common.Providers;
 using Media.Database.Models;
 using Media.Database.Repositories;
-using Microsoft.Extensions.Configuration;
 using Moq;
 using NUnit.Framework;
 using Shouldly;
@@ -18,7 +16,7 @@ public class WordRepositoryTests
     private static WordRepository CreateRepository()
     {
         return new WordRepository(
-            Mock.Of<IPostgresConnectionProvider>(),
+            Mock.Of<ISqlQueryExecutor>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<WordRepository>>(),
             new Serilog.Core.LoggingLevelSwitch());
     }
@@ -26,27 +24,6 @@ public class WordRepositoryTests
     [Test]
     public void WordRepository_Constructor_Should_Accept_Logger_And_LevelSwitch()
     {
-        var repo = CreateRepository();
-
-        repo.ShouldNotBeNull();
-    }
-
-    [Test]
-    public void WordRepository_Constructor_Should_Accept_Configuration()
-    {
-        var inMemory = new Dictionary<string, string>
-        {
-            { "ConnectionStrings:PostgresConnection", "Host=localhost;Username=test;Password=pass" },
-            { "ScyllaDB:ContactPoints:0", "http://127.0.0.1" },
-            { "ScyllaDB:ExternalContactPoints:0", "http://10.0.0.1" },
-            { "ScyllaDB:Port", "9042" },
-            { "ScyllaDB:Keyspace", "ks" }
-        };
-
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(inMemory)
-            .Build();
-
         var repo = CreateRepository();
 
         repo.ShouldNotBeNull();

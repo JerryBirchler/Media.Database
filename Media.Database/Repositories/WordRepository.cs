@@ -1,5 +1,4 @@
 using Media.Common.Helpers;
-using Media.Common.Providers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
@@ -12,12 +11,17 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories;
 
+/// <summary>
+/// PostgreSQL-backed implementation of <see cref="IWordRepository"/>.
+/// </summary>
 public class WordRepository(
-    IPostgresConnectionProvider postgresProvider,
+    ISqlQueryExecutor sqlExecutor,
     ILogger<WordRepository> logger,
     LoggingLevelSwitch levelSwitch)
-    : BaseRepository(postgresProvider), IWordRepository
+    : BaseRepository, IWordRepository
 {
+    private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+
     private readonly ILogger<WordRepository> _logger = (new Func<ILogger<WordRepository>>(() =>
     {
         var className = ClassHelper.GetName();
@@ -29,19 +33,15 @@ public class WordRepository(
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
 #pragma warning restore S1144
 
+    /// <inheritdoc/>
     public async Task<Models.Words?> GetById(int id)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.GetByIdSql);
-            sqlCommand.Parameters.AddWithValue(pn.Id, id);
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
-
-            if (!await reader.ReadAsync())
-                return null;
-
-            return reader.ToWord();
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryWords.GetByIdSql,
+                p => p.AddWithValue(pn.Id, id),
+                reader => reader.ToWord());
         }
         catch (Exception ex)
         {
@@ -50,6 +50,17 @@ public class WordRepository(
         }
     }
 
+    /// <summary>
+    /// Retrieves a page of word/file rows for the given hand-selected keyset query.
+    /// </summary>
+    /// <param name="sql">The keyset-paged SQL query to execute; determines the sort order.</param>
+    /// <param name="word">The word to search for, or null to match any word.</param>
+    /// <param name="origin">The word origin to filter by, or null to match any origin.</param>
+    /// <param name="fileId">The file identifier to filter by, or null to match any file.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching word/file rows.</returns>
     public async Task<List<ViewWordFiles>> GetFilePages(
         string sql, string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
@@ -57,16 +68,18 @@ public class WordRepository(
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(sql);
-            sqlCommand.Parameters.AddWithValue(pn.Word, (object)word! ?? DBNull.Value);
-            sqlCommand.Parameters.AddWithValue(pn.Origin, (object)origin! ?? DBNull.Value);
-            sqlCommand.Parameters.AddWithValue(pn.FileId, (object)fileId! ?? DBNull.Value);
-            sqlCommand.Parameters.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent! ?? DBNull.Value);
-            sqlCommand.Parameters.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName! ?? DBNull.Value);
-            sqlCommand.Parameters.AddWithValue(pn.Limit, limit ?? 10);
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
-            return await reader.ToWordFiles();
+            return await _sqlExecutor.QueryManyAsync(
+                sql,
+                p =>
+                {
+                    p.AddWithValue(pn.Word, (object)word! ?? DBNull.Value);
+                    p.AddWithValue(pn.Origin, (object)origin! ?? DBNull.Value);
+                    p.AddWithValue(pn.FileId, (object)fileId! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName! ?? DBNull.Value);
+                    p.AddWithValue(pn.Limit, limit ?? 10);
+                },
+                reader => reader.ToWordFile());
         }
         catch (Exception ex)
         {
@@ -75,6 +88,7 @@ public class WordRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task<List<ViewWordFiles>> GetFilePagesByWordOrigin(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
@@ -83,6 +97,7 @@ public class WordRepository(
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
+    /// <inheritdoc/>
     public async Task<List<ViewWordFiles>> GetFilePagesByWordFileId(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
@@ -91,6 +106,7 @@ public class WordRepository(
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
+    /// <inheritdoc/>
     public async Task<List<ViewWordFiles>> GetFilePagesByFileIdOrigin(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
@@ -99,6 +115,7 @@ public class WordRepository(
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
+    /// <inheritdoc/>
     public async Task<List<ViewWordFiles>> GetFilePagesByFileIdWord(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
@@ -107,18 +124,21 @@ public class WordRepository(
         return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
+    /// <inheritdoc/>
     public async Task Upsert(UpsertWordRequest request)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.UpsertWordSql);
-            sqlCommand.Parameters.AddWithValue(pn.Word, request.Word);
-            sqlCommand.Parameters.AddWithValue(pn.Origin, (int)request.Origin);
-            sqlCommand.Parameters.AddWithValue(pn.IsProperName, request.IsProperName);
-            sqlCommand.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
-            sqlCommand.Parameters.AddWithValue(pn.CameFromFileId, request.CameFromFileId);
-            await sqlCommand.ExecuteNonQueryAsync();
+            await _sqlExecutor.ExecuteAsync(
+                QueryWords.UpsertWordSql,
+                p =>
+                {
+                    p.AddWithValue(pn.Word, request.Word);
+                    p.AddWithValue(pn.Origin, (int)request.Origin);
+                    p.AddWithValue(pn.IsProperName, request.IsProperName);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
+                    p.AddWithValue(pn.CameFromFileId, request.CameFromFileId);
+                });
         }
         catch (Exception ex)
         {
@@ -127,13 +147,12 @@ public class WordRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task RefreshView()
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.RefreshViewSql);
-            await sqlCommand.ExecuteNonQueryAsync();
+            await _sqlExecutor.ExecuteAsync(QueryWords.RefreshViewSql, static _ => { });
         }
         catch (Exception ex)
         {
@@ -142,14 +161,14 @@ public class WordRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task Delete(int id)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteSql);
-            sqlCommand.Parameters.AddWithValue(pn.Id, id);
-            await sqlCommand.ExecuteReaderAsync();
+            await _sqlExecutor.ExecuteAsync(
+                QueryFiles.DeleteSql,
+                p => p.AddWithValue(pn.Id, id));
         }
         catch (Exception ex)
         {
@@ -158,14 +177,14 @@ public class WordRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task DeleteFile(Guid fileId)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryWords.DeleteFileSql);
-            sqlCommand.Parameters.AddWithValue(pn.FileId, fileId);
-            await sqlCommand.ExecuteReaderAsync();
+            await _sqlExecutor.ExecuteAsync(
+                QueryWords.DeleteFileSql,
+                p => p.AddWithValue(pn.FileId, fileId));
         }
         catch (Exception ex)
         {

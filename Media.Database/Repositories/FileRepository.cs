@@ -1,4 +1,4 @@
-﻿using Cassandra;
+using Cassandra;
 using Media.Common.BackgroundJobs;
 using Media.Common.Helpers;
 using Media.Common.Providers;
@@ -14,20 +14,26 @@ using Serilog.Core;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
-#pragma warning restore CS8981 
+#pragma warning restore CS8981
 
 namespace Media.Database.Repositories;
 
+/// <summary>
+/// PostgreSQL-backed implementation of <see cref="IFileRepository"/>. Writes go to PostgreSQL
+/// synchronously within a transaction; the equivalent Scylla/Cassandra rows are then updated
+/// on a background task queue, with self-healing if the Scylla session becomes unreachable.
+/// </summary>
 public class FileRepository(
-    IPostgresConnectionProvider postgresProvider,
+    ISqlQueryExecutor sqlExecutor,
     IScyllaSessionProvider scyllaProvider,
     Func<IUnitOfWork> unitOfWorkFactory,
     IMapChangeWordRequests changeWordMapper,
     IBackgroundTaskQueue backgroundTaskQueue,
     ILogger<FileRepository> logger,
     LoggingLevelSwitch levelSwitch)
-    : BaseRepository(postgresProvider, scyllaProvider), IFileRepository
+    : BaseRepository(scyllaProvider), IFileRepository
 {
+    private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
     private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
     private readonly IBackgroundTaskQueue _backgroundTaskQueue = backgroundTaskQueue;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
@@ -41,19 +47,15 @@ public class FileRepository(
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
     private readonly int _scyllaMaxBatchsize = scyllaProvider.MaxBatchSize;
 
+    /// <inheritdoc/>
     public async Task<Files?> GetById(Guid id)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetByIdSql);
-            sqlCommand.Parameters.AddWithValue(pn.Id, id);
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
-
-            if (!await reader.ReadAsync())
-                return null;
-
-            return reader.ToFile();
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryFiles.GetByIdSql,
+                p => p.AddWithValue(pn.Id, id),
+                reader => reader.ToFile());
         }
         catch (Exception ex)
         {
@@ -62,20 +64,19 @@ public class FileRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentBySourceMachineIdSql);
-            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
-
-            if (!await reader.ReadAsync())
-                return null;
-
-            return reader.ToFile();
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryFiles.GetCurrentBySourceMachineIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
+                },
+                reader => reader.ToFile());
         }
         catch (Exception ex)
         {
@@ -85,17 +86,20 @@ public class FileRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetCurrentPagesBySourceMachineIdSql);
-            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
-            sqlCommand.Parameters.AddWithValue(pn.Limit, limit);
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
-            return await reader.ToFiles();
+            return await _sqlExecutor.QueryManyAsync(
+                QueryFiles.GetCurrentPagesBySourceMachineIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToFile());
         }
         catch (Exception ex)
         {
@@ -105,17 +109,20 @@ public class FileRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.GetHistoryPagesBySourceMachineIdSql);
-            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath);
-            sqlCommand.Parameters.AddWithValue(pn.Limit, limit);
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
-            return await reader.ToFiles();
+            return await _sqlExecutor.QueryManyAsync(
+                QueryFiles.GetHistoryPagesBySourceMachineIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.OriginalFilePath, originalFilePath);
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToFile());
         }
         catch (Exception ex)
         {
@@ -125,6 +132,7 @@ public class FileRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task<Files?> Upsert(UploadFileRequest request)
     {
         await using var uow = _unitOfWorkFactory();
@@ -133,19 +141,16 @@ public class FileRepository(
         {
             await uow.BeginTransactionAsync();
 
-            await using var sqlCommand = await uow.Connection.GetCommand(QueryFiles.ExistsSql);
-            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-            sqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate! ?? DBNull.Value);
-
-            Guid? existingId = null;
-            await using (var reader = await sqlCommand.ExecuteReaderAsync())
-            {
-                if (await reader.ReadAsync())
+            var existingId = await _sqlExecutor.QuerySingleValueAsync(
+                uow,
+                QueryFiles.ExistsSql,
+                p =>
                 {
-                    existingId = reader.ToId();
-                }
-            }
+                    p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+                    p.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+                    p.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate! ?? DBNull.Value);
+                },
+                reader => reader.ToId());
 
             if (existingId.HasValue)
             {
@@ -157,35 +162,28 @@ public class FileRepository(
                 };
             }
 
-            await sqlCommand.DisposeAsync();
-
-#pragma warning disable S1854
-            List<Guid> previousIds = [];
-#pragma warning restore S1854
-            await using var sqlCommand2 = await uow.Connection.GetCommand(QueryFiles.GetPreviousIdsSql);
-            sqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-            sqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-
-            await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
-                previousIds = await reader2.ToIds();
-
-            await sqlCommand2.DisposeAsync();
-
-            await using var sqlCommand3 = await uow.Connection.GetCommand(QueryFiles.UpsertSql);
-            sqlCommand3.Parameters.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-            sqlCommand3.Parameters.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
-            sqlCommand3.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
-            sqlCommand3.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
-            sqlCommand3.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
-
-            Files? file = null;
-            await using (var reader3 = await sqlCommand3.ExecuteReaderAsync())
-            {
-                if (await reader3.ReadAsync())
+            var previousIds = await _sqlExecutor.QueryManyAsync(
+                uow,
+                QueryFiles.GetPreviousIdsSql,
+                p =>
                 {
-                    file = reader3.ToFile();
-                }
-            }
+                    p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+                    p.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+                },
+                reader => reader.ToId());
+
+            var file = await _sqlExecutor.QuerySingleAsync(
+                uow,
+                QueryFiles.UpsertSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+                    p.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
+                    p.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
+                    p.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+                },
+                reader => reader.ToFile());
 
             if (file == null)
             {
@@ -210,6 +208,7 @@ public class FileRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task<UpdateFileResponse> Update(
         Guid id,
         UpdateFileRequest request)
@@ -220,20 +219,16 @@ public class FileRepository(
         {
             await uow.BeginTransactionAsync();
 
-            await using var sqlCommand = await uow.Connection.GetCommand(QueryFiles.GetByIdSql);
-            sqlCommand.Parameters.AddWithValue(pn.Id, id);
+            var currentFile = await _sqlExecutor.QuerySingleAsync(
+                uow,
+                QueryFiles.GetByIdSql,
+                p => p.AddWithValue(pn.Id, id),
+                reader => reader.ToFile());
 
-            Files currentFile = null!;
-
-            await using (var reader = await sqlCommand.ExecuteReaderAsync())
+            if (currentFile == null)
             {
-                if (!await reader.ReadAsync())
-                {
-                    await uow.RollbackAsync();
-                    return new UpdateFileResponse { File = null };
-                }
-
-                currentFile = reader.ToFile();
+                await uow.RollbackAsync();
+                return new UpdateFileResponse { File = null };
             }
 
             UpdateFileResponse response = new()
@@ -241,21 +236,22 @@ public class FileRepository(
                 Updates = GetUpdates(currentFile, request)
             };
 
-            await using var sqlCommand2 = await uow.Connection.GetCommand(QueryFiles.UpdateSql);
-            sqlCommand2.Parameters.AddWithValue(pn.Id, id);
-            sqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
-            sqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
-            sqlCommand2.Parameters.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
-
-            await using (var reader2 = await sqlCommand2.ExecuteReaderAsync())
-            {
-                if (!await reader2.ReadAsync())
+            response.File = await _sqlExecutor.QuerySingleAsync(
+                uow,
+                QueryFiles.UpdateSql,
+                p =>
                 {
-                    await uow.RollbackAsync();
-                    return response;
-                }
+                    p.AddWithValue(pn.Id, id);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
+                    p.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
+                    p.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+                },
+                reader => reader.ToFile());
 
-                response.File = reader2.ToFile();
+            if (response.File == null)
+            {
+                await uow.RollbackAsync();
+                return response;
             }
 
             await uow.CommitAsync();
@@ -384,21 +380,19 @@ public class FileRepository(
     }
 
 
+    /// <inheritdoc/>
     public async Task<Files?> Delete(Guid id)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteSql);
-            sqlCommand.Parameters.AddWithValue(pn.Id, id);
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
+            var file = await _sqlExecutor.QuerySingleAsync(
+                QueryFiles.DeleteSql,
+                p => p.AddWithValue(pn.Id, id),
+                reader => reader.ToFile());
 
-            if (!await reader.ReadAsync())
-                return null;
+            if (file != null)
+                _ = QueueBackgroundDeleteAsync(id);
 
-            var file = reader.ToFile();
-
-            _ = QueueBackgroundDeleteAsync(id);
             return file;
         }
         catch (Exception ex)
@@ -408,17 +402,19 @@ public class FileRepository(
         }
     }
 
+    /// <inheritdoc/>
     public async Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
     {
         try
         {
-            await using var sqlConnection = GetSqlConnection();
-            await using var sqlCommand = await sqlConnection.GetCommand(QueryFiles.DeleteHistorySql);
-            sqlCommand.Parameters.AddWithValue(pn.SourceMachineId, sourceMachineId);
-            sqlCommand.Parameters.AddWithValue(pn.OriginalFilePath, originalFilePath);
-            await using var reader = await sqlCommand.ExecuteReaderAsync();
-
-            var files = await reader.ToFiles();
+            var files = await _sqlExecutor.QueryManyAsync(
+                QueryFiles.DeleteHistorySql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.OriginalFilePath, originalFilePath);
+                },
+                reader => reader.ToFile());
 
             if (files.Count > 0)
                 _ = QueueBackgroundDeleteAsync(files);
