@@ -37,7 +37,7 @@ public class FileRepository(
     private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
     private readonly IBackgroundTaskQueue _backgroundTaskQueue = backgroundTaskQueue;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
-    private readonly ILogger<FileRepository> _logger = logger.LogInitializing();
+    private readonly FluentLogger<FileRepository> _logger = logger.Initializer();
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
     private readonly int _scyllaMaxBatchsize = scyllaProvider.MaxBatchSize;
@@ -54,7 +54,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "GetById failed for FileId {Id}", id);
+            _logger.LogError(ex, "GetById failed for FileId {Id}", id);
             throw;
         }
     }
@@ -75,7 +75,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "GetCurrentBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "GetCurrentBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
                 sourceMachineId, originalFilePath!);
             throw;
         }
@@ -98,7 +98,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "GetCurrentPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "GetCurrentPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
                 sourceMachineId, originalFilePath!);
             throw;
         }
@@ -121,7 +121,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "GetHistoryPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "GetHistoryPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
                 sourceMachineId, originalFilePath);
             throw;
         }
@@ -193,7 +193,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
                 request.SourceMachineId, request.OriginalFilePath);
 
             if (uow.CurrentTransaction != null)
@@ -256,7 +256,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "Update transaction failed for FileId {Id}", id);
+            _logger.LogError(ex, "Update transaction failed for FileId {Id}", id);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -396,7 +396,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "Delete failed for FileId {Id}", id);
+            _logger.LogError(ex, "Delete failed for FileId {Id}", id);
             throw;
         }
     }
@@ -422,7 +422,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "DeleteHistoryBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "DeleteHistoryBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
                 sourceMachineId, originalFilePath);
             throw;
         }

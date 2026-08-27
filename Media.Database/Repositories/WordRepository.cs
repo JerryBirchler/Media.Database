@@ -22,7 +22,7 @@ public class WordRepository(
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
 
-    private readonly ILogger<WordRepository> _logger = logger.LogInitializing();
+    private readonly FluentLogger<WordRepository> _logger = logger.Initializer();
 
 #pragma warning disable S1144
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
@@ -40,7 +40,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "GetById failed for WordId: [{Id}]", id);
+            _logger.LogError(ex, "GetById failed for WordId: [{Id}]", id);
             throw;
         }
     }
@@ -137,7 +137,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "Upsert failed for Word: [{Word}]: ", request.Word);
+            _logger.LogError(ex, "Upsert failed for Word: [{Word}]: ", request.Word);
             throw;
         }
     }
@@ -151,7 +151,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "RefreshView failed: ");
+            _logger.LogError(ex, "RefreshView failed: ");
             throw;
         }
     }
@@ -167,7 +167,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "Delete failed for WordId: [{Id}]:", id);
+            _logger.LogError(ex, "Delete failed for WordId: [{Id}]:", id);
             throw;
         }
     }
@@ -183,7 +183,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "DeleteFile failed for FileId: [{FileId}]", fileId);
+            _logger.LogError(ex, "DeleteFile failed for FileId: [{FileId}]", fileId);
             throw;
         }
     }
