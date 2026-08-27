@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Media.Database.Tests.Repositories.Queries.Helpers;
 
 [TestFixture]
-public class NoSqlCommandTests
+public class CqlCommandTests
 {
     private Mock<ISession> _mockSession = null!;
 
@@ -21,30 +21,30 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void NoSqlCommand_Should_Be_Constructible_With_Session_And_Query()
+    public void CqlCommand_Should_Be_Constructible_With_Session_And_Query()
     {
         // Arrange & Act
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
 
         // Assert
         command.ShouldNotBeNull();
     }
 
     [Test]
-    public void NoSqlCommand_Should_Be_Constructible_With_BatchSize()
+    public void CqlCommand_Should_Be_Constructible_With_BatchSize()
     {
         // Arrange & Act
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id", 50);
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id", 50);
 
         // Assert
         command.ShouldNotBeNull();
     }
 
     [Test]
-    public void NoSqlCommand_Should_Initialize_Parameters_Dictionary()
+    public void CqlCommand_Should_Initialize_Parameters_Dictionary()
     {
         // Arrange & Act
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table");
 
         // Assert
         command.Parameters.ShouldNotBeNull();
@@ -52,10 +52,10 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void NoSqlCommand_Should_Allow_Adding_Parameters()
+    public void CqlCommand_Should_Allow_Adding_Parameters()
     {
         // Arrange
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
 
         // Act
         command.Parameters.Add("@ID", Guid.NewGuid());
@@ -66,10 +66,10 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void NoSqlCommand_Should_Support_Multiple_Parameters()
+    public void CqlCommand_Should_Support_Multiple_Parameters()
     {
         // Arrange
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id AND name = @Name");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id AND name = @Name");
 
         // Act
         command.Parameters.Add("@ID", Guid.NewGuid());
@@ -86,7 +86,7 @@ public class NoSqlCommandTests
         var mockPreparedStatement = new Mock<PreparedStatement>();
         _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
 
         // Act & Assert
         Should.Throw<ArgumentException>(() => command.Bind())
@@ -94,10 +94,10 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void NoSqlCommand_Should_Parse_Query_Parameters()
+    public void CqlCommand_Should_Parse_Query_Parameters()
     {
         // Arrange & Act - Constructor should extract parameters from query
-        var command = new NoSqlCommand(
+        var command = new CqlCommand(
             _mockSession.Object,
             "UPDATE table SET name = @Name WHERE id = @Id AND status = @Status");
 
@@ -110,14 +110,14 @@ public class NoSqlCommandTests
     public void BeginBatch_Should_Not_Throw()
     {
         // Arrange
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
 
         // Act & Assert
         Should.NotThrow(() => command.BeginBatch());
     }
 
     [Test]
-    public void NoSqlCommand_Should_Convert_Parameterized_Query_To_Native()
+    public void CqlCommand_Should_Convert_Parameterized_Query_To_Native()
     {
         // Arrange - Query with @parameters should be converted to ? placeholders internally
         var mockPreparedStatement = new Mock<PreparedStatement>();
@@ -127,7 +127,7 @@ public class NoSqlCommandTests
             .Callback<string>(q => capturedQuery = q)
             .Returns(mockPreparedStatement.Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
         command.Parameters.Add("@ID", Guid.NewGuid());
 
         // Act
@@ -147,20 +147,20 @@ public class NoSqlCommandTests
     }
 
     [Test]
-    public void NoSqlCommand_Should_Support_Default_BatchSize_Of_100()
+    public void CqlCommand_Should_Support_Default_BatchSize_Of_100()
     {
         // Arrange & Act - Constructor without batchSize parameter
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
 
         // Assert - Should use default of 100 (we can't directly test this, but constructor should succeed)
         command.ShouldNotBeNull();
     }
 
     [Test]
-    public void NoSqlCommand_Should_Support_Custom_BatchSize()
+    public void CqlCommand_Should_Support_Custom_BatchSize()
     {
         // Arrange & Act
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", 250);
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", 250);
 
         // Assert
         command.ShouldNotBeNull();
@@ -170,17 +170,17 @@ public class NoSqlCommandTests
     public void Parameters_Should_Be_SortedDictionary()
     {
         // Arrange
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table");
 
         // Assert
         command.Parameters.ShouldBeOfType<SortedDictionary<string, object>>();
     }
 
     [Test]
-    public void NoSqlCommand_Should_Accept_Complex_Query_With_Multiple_Parameters()
+    public void CqlCommand_Should_Accept_Complex_Query_With_Multiple_Parameters()
     {
         // Arrange & Act
-        var command = new NoSqlCommand(
+        var command = new CqlCommand(
             _mockSession.Object,
             @"INSERT INTO table (id, name, created, updated, status)
               VALUES (@Id, @Name, @CreatedOn, @UpdatedOn, @Status)");
@@ -198,7 +198,7 @@ public class NoSqlCommandTests
         mockPreparedStatement.Setup(ps => ps.Bind(It.IsAny<object[]>())).Returns(mockBoundStatement.Object);
         _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
         command.Parameters.Add("@ID", Guid.NewGuid());
 
         var result = command.Bind();
@@ -216,7 +216,7 @@ public class NoSqlCommandTests
         _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
         _mockSession.Setup(s => s.ExecuteAsync(mockBoundStatement.Object)).ReturnsAsync(mockRowSet.Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table WHERE id = @Id");
         command.Parameters.Add("@ID", Guid.NewGuid());
 
         var result = await command.ExecuteRowSet();
@@ -227,7 +227,7 @@ public class NoSqlCommandTests
     [Test]
     public async Task ExecuteAsync_Should_Execute_Batch_On_Session()
     {
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id");
         var batch = new BatchStatement();
 
         await command.ExecuteAsync(batch);
@@ -244,7 +244,7 @@ public class NoSqlCommandTests
         _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
         _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 1);
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 1);
         command.BeginBatch();
 
         await command.AddQuery(Guid.NewGuid());
@@ -261,7 +261,7 @@ public class NoSqlCommandTests
         _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
         _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 5);
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 5);
         command.BeginBatch();
 
         await command.AddQuery(Guid.NewGuid());
@@ -278,7 +278,7 @@ public class NoSqlCommandTests
         _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
         _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 5);
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 5);
         command.BeginBatch();
         await command.AddQuery(Guid.NewGuid());
 
@@ -296,7 +296,7 @@ public class NoSqlCommandTests
         _mockSession.Setup(s => s.Prepare(It.IsAny<string>())).Returns(mockPreparedStatement.Object);
         _mockSession.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ReturnsAsync(new Mock<RowSet>().Object);
 
-        var command = new NoSqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 1);
+        var command = new CqlCommand(_mockSession.Object, "DELETE FROM table WHERE id = @Id", batchSize: 1);
         command.BeginBatch();
         await command.AddQuery(Guid.NewGuid());
         _mockSession.Invocations.Clear();

@@ -22,10 +22,10 @@ public class ISchemaTests
     }
 
     [Test]
-    public void ISchema_Should_Be_Implemented_By_ColumnsNoSql()
+    public void ISchema_Should_Be_Implemented_By_ColumnsCql()
     {
         // Assert
-        typeof(ColumnsNoSql).GetInterfaces().ShouldContain(typeof(ISchema));
+        typeof(ColumnsCql).GetInterfaces().ShouldContain(typeof(ISchema));
     }
 }
 
@@ -147,77 +147,77 @@ public class ColumnsSqlTests
 }
 
 [TestFixture]
-public class ColumnsNoSqlTests
+public class ColumnsCqlTests
 {
     [Test]
-    public void ColumnsNoSql_Should_Inherit_From_BaseSchema()
+    public void ColumnsCql_Should_Inherit_From_BaseSchema()
     {
         // Assert
-        typeof(ColumnsNoSql).BaseType.ShouldNotBeNull();
-        typeof(ColumnsNoSql).BaseType!.Name.ShouldStartWith("BaseSchema");
+        typeof(ColumnsCql).BaseType.ShouldNotBeNull();
+        typeof(ColumnsCql).BaseType!.Name.ShouldStartWith("BaseSchema");
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Implement_ISchema()
+    public void ColumnsCql_Should_Implement_ISchema()
     {
         // Assert
-        typeof(ColumnsNoSql).GetInterfaces().ShouldContain(typeof(ISchema));
+        typeof(ColumnsCql).GetInterfaces().ShouldContain(typeof(ISchema));
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_Id_Column()
+    public void ColumnsCql_Should_Have_Id_Column()
     {
         // Assert
-        ColumnsNoSql.Id.ShouldNotBeNullOrEmpty();
+        ColumnsCql.Id.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_InsertedOn_Column()
+    public void ColumnsCql_Should_Have_InsertedOn_Column()
     {
         // Assert
-        ColumnsNoSql.InsertedOn.ShouldNotBeNullOrEmpty();
+        ColumnsCql.InsertedOn.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_IsCurrent_Column()
+    public void ColumnsCql_Should_Have_IsCurrent_Column()
     {
         // Assert
-        ColumnsNoSql.IsCurrent.ShouldNotBeNullOrEmpty();
+        ColumnsCql.IsCurrent.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_LastFileUpdate_Column()
+    public void ColumnsCql_Should_Have_LastFileUpdate_Column()
     {
         // Assert
-        ColumnsNoSql.LastFileUpdate.ShouldNotBeNullOrEmpty();
+        ColumnsCql.LastFileUpdate.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_Metadata_Column()
+    public void ColumnsCql_Should_Have_Metadata_Column()
     {
         // Assert
-        ColumnsNoSql.Metadata.ShouldNotBeNullOrEmpty();
+        ColumnsCql.Metadata.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_OriginalFilePath_Column()
+    public void ColumnsCql_Should_Have_OriginalFilePath_Column()
     {
         // Assert
-        ColumnsNoSql.OriginalFilePath.ShouldNotBeNullOrEmpty();
+        ColumnsCql.OriginalFilePath.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_SourceMachineId_Column()
+    public void ColumnsCql_Should_Have_SourceMachineId_Column()
     {
         // Assert
-        ColumnsNoSql.SourceMachineId.ShouldNotBeNullOrEmpty();
+        ColumnsCql.SourceMachineId.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void ColumnsNoSql_Should_Have_UpdatedOn_Column()
+    public void ColumnsCql_Should_Have_UpdatedOn_Column()
     {
         // Assert
-        ColumnsNoSql.UpdatedOn.ShouldNotBeNullOrEmpty();
+        ColumnsCql.UpdatedOn.ShouldNotBeNullOrEmpty();
     }
 }
 
@@ -282,14 +282,14 @@ public class BaseSchemaTests
     }
 
     [Test]
-    public void BaseSchema_Should_Support_ColumnsNoSql_Inheritance()
+    public void BaseSchema_Should_Support_ColumnsCql_Inheritance()
     {
         // Arrange
-        var columnsNoSql = new ColumnsNoSql();
+        var columnsCql = new ColumnsCql();
 
         // Assert
-        columnsNoSql.ShouldNotBeNull();
-        columnsNoSql.ShouldBeAssignableTo<ISchema>();
+        columnsCql.ShouldNotBeNull();
+        columnsCql.ShouldBeAssignableTo<ISchema>();
     }
 }
 

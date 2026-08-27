@@ -289,48 +289,48 @@ public class FileRepository(
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
         {
-            await UpdateNoSqlAsync(file, previousIds);
+            await UpdateCqlAsync(file, previousIds);
         });
     }
 
-    private async Task UpdateNoSqlAsync(Files file, List<Guid> previousIds)
+    private async Task UpdateCqlAsync(Files file, List<Guid> previousIds)
     {
         var log = _logger.WithCaller();
 
         try
         {
-            var noSqlConnection = GetNoSqlConnection();
+            var cqlConnection = GetCqlConnection();
 
             if (previousIds.Count > 0)
             {
-                NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                QueryFiles.InactivateNoSql, _scyllaMaxBatchsize)!;
+                CqlCommand cqlCommand = cqlConnection.GetCqlCommand(
+                QueryFiles.InactivateCql, _scyllaMaxBatchsize)!;
 
-                noSqlCommand.BeginBatch();
+                cqlCommand.BeginBatch();
 
-                var tasks = previousIds.Select(previousId => noSqlCommand.AddQuery(previousId));
+                var tasks = previousIds.Select(previousId => cqlCommand.AddQuery(previousId));
 
                 await Task.WhenAll(tasks);
-                await noSqlCommand.EndBatch();
+                await cqlCommand.EndBatch();
             }
 
-            var noSqlCommand2 = noSqlConnection.GetNoSqlCommand(QueryFiles.UpsertNoSql);
-            noSqlCommand2.Parameters.AddWithValue(pn.Id, file.Id);
-            noSqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, file.SourceMachineId);
-            noSqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, file.OriginalFilePath);
-            noSqlCommand2.Parameters.AddWithValue(pn.InsertedOn, file.InsertedOn);
-            noSqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
-            noSqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
-            noSqlCommand2.Parameters.AddWithValue(pn.IsCurrent, file.IsCurrent);
-            noSqlCommand2.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
-            await noSqlCommand2.ExecuteRowSet();
+            var cqlCommand2 = cqlConnection.GetCqlCommand(QueryFiles.UpsertCql);
+            cqlCommand2.Parameters.AddWithValue(pn.Id, file.Id);
+            cqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, file.SourceMachineId);
+            cqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, file.OriginalFilePath);
+            cqlCommand2.Parameters.AddWithValue(pn.InsertedOn, file.InsertedOn);
+            cqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
+            cqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
+            cqlCommand2.Parameters.AddWithValue(pn.IsCurrent, file.IsCurrent);
+            cqlCommand2.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
+            await cqlCommand2.ExecuteRowSet();
 
             log.LogInformation("Background NoSQL upsert completed for FileId {Id}", file.Id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", file.Id);
-            await TryHealScyllaSessionAsync(nameof(UpdateNoSqlAsync));
+            await TryHealScyllaSessionAsync(nameof(UpdateCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -344,31 +344,31 @@ public class FileRepository(
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
         {
-            await UpdateMetadataNoSqlAsync(file);
+            await UpdateMetadataCqlAsync(file);
         });
     }
 
-    private async Task UpdateMetadataNoSqlAsync(Files file)
+    private async Task UpdateMetadataCqlAsync(Files file)
     {
         var log = _logger.WithCaller();
 
         try
         {
-            var noSqlConnection = GetNoSqlConnection();
-            var noSqlCommand = noSqlConnection.GetNoSqlCommand(QueryFiles.UpdateNoSql);
+            var cqlConnection = GetCqlConnection();
+            var cqlCommand = cqlConnection.GetCqlCommand(QueryFiles.UpdateCql);
 
-            noSqlCommand.Parameters.AddWithValue(pn.Id, file.Id);
-            noSqlCommand.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
-            noSqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
-            noSqlCommand.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
-            await noSqlCommand.ExecuteRowSet();
+            cqlCommand.Parameters.AddWithValue(pn.Id, file.Id);
+            cqlCommand.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
+            cqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
+            cqlCommand.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
+            await cqlCommand.ExecuteRowSet();
 
             log.LogInformation("Background NoSQL metadata update completed for FileId {Id}", file.Id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", file.Id);
-            await TryHealScyllaSessionAsync(nameof(UpdateMetadataNoSqlAsync));
+            await TryHealScyllaSessionAsync(nameof(UpdateMetadataCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -432,28 +432,28 @@ public class FileRepository(
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
         {
-            await DeleteNoSqlAsync(id);
+            await DeleteCqlAsync(id);
         });
     }
 
-    private async Task DeleteNoSqlAsync(Guid id)
+    private async Task DeleteCqlAsync(Guid id)
     {
         var log = _logger.WithCaller();
 
         try
         {
-            var noSqlConnection = GetNoSqlConnection();
-            var noSqlCommand = noSqlConnection.GetNoSqlCommand(QueryFiles.DeleteNoSql);
+            var cqlConnection = GetCqlConnection();
+            var cqlCommand = cqlConnection.GetCqlCommand(QueryFiles.DeleteCql);
 
-            noSqlCommand.Parameters.AddWithValue(pn.Id, id);
-            await noSqlCommand.ExecuteRowSet();
+            cqlCommand.Parameters.AddWithValue(pn.Id, id);
+            await cqlCommand.ExecuteRowSet();
 
             log.LogInformation("Background NoSQL delete completed for FileId {Id}", id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", id);
-            await TryHealScyllaSessionAsync(nameof(DeleteNoSqlAsync));
+            await TryHealScyllaSessionAsync(nameof(DeleteCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -467,34 +467,34 @@ public class FileRepository(
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
         {
-            await DeleteNoSqlBatchAsync(files);
+            await DeleteCqlBatchAsync(files);
         });
     }
 
-    private async Task DeleteNoSqlBatchAsync(List<Files> files)
+    private async Task DeleteCqlBatchAsync(List<Files> files)
     {
         var log = _logger.WithCaller();
 
         try
         {
-            var noSqlConnection = GetNoSqlConnection();
+            var cqlConnection = GetCqlConnection();
 
-            NoSqlCommand noSqlCommand = noSqlConnection.GetNoSqlCommand(
-                QueryFiles.DeleteNoSql, _scyllaMaxBatchsize)!;
+            CqlCommand cqlCommand = cqlConnection.GetCqlCommand(
+                QueryFiles.DeleteCql, _scyllaMaxBatchsize)!;
 
-            noSqlCommand.BeginBatch();
+            cqlCommand.BeginBatch();
 
-            var tasks = files.Select(file => noSqlCommand.AddQuery(file.Id));
+            var tasks = files.Select(file => cqlCommand.AddQuery(file.Id));
 
             await Task.WhenAll(tasks);
-            await noSqlCommand.EndBatch();
+            await cqlCommand.EndBatch();
 
             log.LogInformation("Background NoSQL batch delete completed for {Count} files", files.Count);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable during batch delete");
-            await TryHealScyllaSessionAsync(nameof(DeleteNoSqlBatchAsync));
+            await TryHealScyllaSessionAsync(nameof(DeleteCqlBatchAsync));
             throw;
         }
         catch (Exception ex)

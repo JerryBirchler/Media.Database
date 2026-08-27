@@ -182,28 +182,28 @@ public class OrdinalsTests
 }
 
 [TestFixture]
-public class OrdinalsNoSqlTests
+public class OrdinalsCqlTests
 {
     [Test]
-    public void OrdinalsNoSql_Should_Inherit_From_BaseSchema()
+    public void OrdinalsCql_Should_Inherit_From_BaseSchema()
     {
         // Assert
-        typeof(OrdinalsNoSql).BaseType.ShouldNotBeNull();
-        typeof(OrdinalsNoSql).BaseType!.Name.ShouldStartWith("BaseSchema");
+        typeof(OrdinalsCql).BaseType.ShouldNotBeNull();
+        typeof(OrdinalsCql).BaseType!.Name.ShouldStartWith("BaseSchema");
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Implement_ISchema()
+    public void OrdinalsCql_Should_Implement_ISchema()
     {
         // Assert
-        typeof(OrdinalsNoSql).GetInterfaces().ShouldContain(typeof(ISchema));
+        typeof(OrdinalsCql).GetInterfaces().ShouldContain(typeof(ISchema));
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Use_Ordinals_As_Child_Type()
+    public void OrdinalsCql_Should_Use_Ordinals_As_Child_Type()
     {
         // Arrange
-        var baseType = typeof(OrdinalsNoSql).BaseType;
+        var baseType = typeof(OrdinalsCql).BaseType;
 
         // Assert
         baseType.ShouldNotBeNull();
@@ -213,59 +213,59 @@ public class OrdinalsNoSqlTests
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_Id_Field()
+    public void OrdinalsCql_Should_Have_Id_Field()
     {
         // Assert
-        OrdinalsNoSql.Id.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.Id.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_InsertedOn_Field()
+    public void OrdinalsCql_Should_Have_InsertedOn_Field()
     {
         // Assert
-        OrdinalsNoSql.InsertedOn.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.InsertedOn.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_IsCurrent_Field()
+    public void OrdinalsCql_Should_Have_IsCurrent_Field()
     {
         // Assert
-        OrdinalsNoSql.IsCurrent.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.IsCurrent.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_LastFileUpdate_Field()
+    public void OrdinalsCql_Should_Have_LastFileUpdate_Field()
     {
         // Assert
-        OrdinalsNoSql.LastFileUpdate.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.LastFileUpdate.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_Metadata_Field()
+    public void OrdinalsCql_Should_Have_Metadata_Field()
     {
         // Assert
-        OrdinalsNoSql.Metadata.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.Metadata.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_OriginalFilePath_Field()
+    public void OrdinalsCql_Should_Have_OriginalFilePath_Field()
     {
         // Assert
-        OrdinalsNoSql.OriginalFilePath.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.OriginalFilePath.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_SourceMachineId_Field()
+    public void OrdinalsCql_Should_Have_SourceMachineId_Field()
     {
         // Assert
-        OrdinalsNoSql.SourceMachineId.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.SourceMachineId.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
-    public void OrdinalsNoSql_Should_Have_UpdatedOn_Field()
+    public void OrdinalsCql_Should_Have_UpdatedOn_Field()
     {
         // Assert
-        OrdinalsNoSql.UpdatedOn.ShouldNotBeNullOrEmpty();
+        OrdinalsCql.UpdatedOn.ShouldNotBeNullOrEmpty();
     }
 }
 

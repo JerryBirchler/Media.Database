@@ -34,7 +34,7 @@ public class BaseRepositoryTests
     }
 
     [Test]
-    public void GetNoSqlConnection_Should_ReturnSession_When_ScyllaProviderConfigured()
+    public void GetCqlConnection_Should_ReturnSession_When_ScyllaProviderConfigured()
     {
         var fixture = AutoMoqFixture.Create();
         var session = Mock.Of<ISession>();
@@ -43,15 +43,15 @@ public class BaseRepositoryTests
 
         var repository = new TestableRepository(scyllaProviderMock.Object);
 
-        repository.GetNoSqlConnection().ShouldBe(session);
+        repository.GetCqlConnection().ShouldBe(session);
     }
 
     [Test]
-    public void GetNoSqlConnection_Should_ThrowInvalidOperationException_When_ScyllaProviderNotInitialized()
+    public void GetCqlConnection_Should_ThrowInvalidOperationException_When_ScyllaProviderNotInitialized()
     {
         var repository = new TestableRepository();
 
-        Should.Throw<InvalidOperationException>(() => repository.GetNoSqlConnection())
+        Should.Throw<InvalidOperationException>(() => repository.GetCqlConnection())
             .Message.ShouldBe("Scylla provider not initialized");
     }
 }

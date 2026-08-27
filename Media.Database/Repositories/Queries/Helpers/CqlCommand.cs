@@ -14,7 +14,7 @@ namespace Media.Database.Repositories.Queries.Helpers;
 /// <param name="session">The Cassandra/Scylla session to execute against.</param>
 /// <param name="parameterizedQuery">The CQL query text, with named (<c>@name</c>) parameters.</param>
 /// <param name="batchSize">The number of statements to accumulate before flushing a batch.</param>
-public class NoSqlCommand(ISession session, string parameterizedQuery, int batchSize = 100)
+public class CqlCommand(ISession session, string parameterizedQuery, int batchSize = 100)
 {
     private static readonly Regex ParamRegex = new(@"@([a-zA-Z0-9_]+)", RegexOptions.Compiled);
     private readonly ISession _session = session;
@@ -23,7 +23,7 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
                        .Cast<Match>()
                        .Select(m => m.Groups[1].Value)];
 
-    private readonly string _noSqlNativeQuery = ParamRegex.Replace(parameterizedQuery, "?");
+    private readonly string _cqlNativeQuery = ParamRegex.Replace(parameterizedQuery, "?");
     private readonly int _batchSize = batchSize;
     private BatchStatement _batch = null!;
     private int _rows = 0;
@@ -50,7 +50,7 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
     /// <exception cref="ArgumentException">Thrown when a placeholder in the query has no matching entry in <see cref="Parameters"/>.</exception>
     public BoundStatement Bind()
     {
-        var ps = _session.Prepare(_noSqlNativeQuery);
+        var ps = _session.Prepare(_cqlNativeQuery);
         List<object> values = [];
         foreach (var param in _parameterList ?? [])
         {
@@ -61,14 +61,14 @@ public class NoSqlCommand(ISession session, string parameterizedQuery, int batch
                 throw new ArgumentException($"Parameter '{param}' is missing in the Parameters dictionary.");
         }
 
-        return ps.Bind(values.ToArray());
+        return ps.Bind([.. values]);
     }
 
     /// <summary>
     /// Executes a previously assembled batch statement.
     /// </summary>
     /// <param name="batch">The batch statement to execute.</param>
-    public async Task ExecuteAsync(Cassandra.BatchStatement batch)
+    public async Task ExecuteAsync(BatchStatement batch)
     {
         await _session.ExecuteAsync(batch);
     }

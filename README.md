@@ -52,7 +52,7 @@ Media.Database/
 │   └── Schemas/
 │       ├── BaseSchema.cs           # Schema abstraction
 │       ├── ColumnsSql.cs           # SQL schema definitions
-│       ├── ColumnsNoSql.cs         # NoSQL schema definitions
+│       ├── ColumnsCql.cs         # NoSQL schema definitions
 │       └── ...                     # Additional schema components
 └── tests/
 	└── Media.Database.Tests/        # Unit tests

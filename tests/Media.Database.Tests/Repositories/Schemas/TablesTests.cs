@@ -166,28 +166,28 @@ public class TablesTests
 }
 
 [TestFixture]
-public class TablesNoSqlTests
+public class TablesCqlTests
 {
     [Test]
     public void This_Should_Inherit_From_BaseSchema()
     {
         // Assert
-        typeof(TablesNoSql).BaseType.ShouldNotBeNull();
-        typeof(TablesNoSql).BaseType!.Name.ShouldStartWith("BaseSchema");
+        typeof(TablesCql).BaseType.ShouldNotBeNull();
+        typeof(TablesCql).BaseType!.Name.ShouldStartWith("BaseSchema");
     }
 
     [Test]
     public void This_Should_Implement_ISchema()
     {
         // Assert
-        typeof(TablesNoSql).GetInterfaces().ShouldContain(typeof(ISchema));
+        typeof(TablesCql).GetInterfaces().ShouldContain(typeof(ISchema));
     }
 
     [Test]
     public void This_Should_Use_Tables_As_Child_Type()
     {
         // Arrange
-        var baseType = typeof(TablesNoSql).BaseType;
+        var baseType = typeof(TablesCql).BaseType;
 
         // Assert
         baseType.ShouldNotBeNull();
@@ -199,14 +199,14 @@ public class TablesNoSqlTests
     public void This_Should_Have_Files_Table()
     {
         // Assert
-        TablesNoSql.Files.ShouldNotBeNullOrEmpty();
+        TablesCql.Files.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
     public void Format_Should_Convert_To_Snake_Case()
     {
         // Act
-        var result = TablesNoSql.Format("MyTableName");
+        var result = TablesCql.Format("MyTableName");
 
         // Assert
         result.ShouldBe("my_table_name");
@@ -216,7 +216,7 @@ public class TablesNoSqlTests
     public void Format_Should_Handle_Single_Word()
     {
         // Act
-        var result = TablesNoSql.Format("files");
+        var result = TablesCql.Format("files");
 
         // Assert
         result.ShouldBe("files");
@@ -226,21 +226,21 @@ public class TablesNoSqlTests
     public void FilesColumns_Should_Have_Id()
     {
         // Assert
-        TablesNoSql.FilesColumns.Id.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.Id.ShouldNotBeNullOrEmpty();
     }
 
     [Test]
     public void FilesColumns_Should_Have_All_Columns()
     {
         // Assert
-        TablesNoSql.FilesColumns.Id.ShouldNotBeNullOrEmpty();
-        TablesNoSql.FilesColumns.SourceMachineId.ShouldNotBeNullOrEmpty();
-        TablesNoSql.FilesColumns.OriginalFilePath.ShouldNotBeNullOrEmpty();
-        TablesNoSql.FilesColumns.LastFileUpdate.ShouldNotBeNullOrEmpty();
-        TablesNoSql.FilesColumns.IsCurrent.ShouldNotBeNullOrEmpty();
-        TablesNoSql.FilesColumns.InsertedOn.ShouldNotBeNullOrEmpty();
-        TablesNoSql.FilesColumns.UpdatedOn.ShouldNotBeNullOrEmpty();
-        TablesNoSql.FilesColumns.Metadata.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.Id.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.SourceMachineId.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.OriginalFilePath.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.LastFileUpdate.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.IsCurrent.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.InsertedOn.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.UpdatedOn.ShouldNotBeNullOrEmpty();
+        TablesCql.FilesColumns.Metadata.ShouldNotBeNullOrEmpty();
     }
 }
 

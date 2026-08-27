@@ -3,11 +3,11 @@ using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981 
-using cnf = Media.Database.Repositories.Schemas.TablesNoSql.FilesColumns;
+using cnf = Media.Database.Repositories.Schemas.TablesCql.FilesColumns;
 using csf = Media.Database.Repositories.Schemas.TablesSql.FilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
-using tn = Media.Database.Repositories.Schemas.TablesNoSql;
+using tn = Media.Database.Repositories.Schemas.TablesCql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
 #pragma warning restore CS8981 
 
@@ -191,7 +191,7 @@ public static class QueryFiles
 
     #region NoSQL Queries
     /// <summary>CQL to select a file by its unique identifier.</summary>
-    public static string GetByIdNoSql => $@"
+    public static string GetByIdCql => $@"
         SELECT 
             {cnf.Id}, 
             {cnf.SourceMachineId}, 
@@ -209,7 +209,7 @@ public static class QueryFiles
         ;";
 
     /// <summary>CQL to mark a file row as no longer current.</summary>
-    public static string InactivateNoSql => $@"
+    public static string InactivateCql => $@"
         UPDATE {tn.Files} SET
             {cnf.IsCurrent} = false
         WHERE 
@@ -217,7 +217,7 @@ public static class QueryFiles
         ;";
 
     /// <summary>CQL to insert a file row.</summary>
-    public static string UpsertNoSql => $@"
+    public static string UpsertCql => $@"
         INSERT INTO {tn.Files} 
         (
             {cnf.Id}, 
@@ -243,7 +243,7 @@ public static class QueryFiles
         ;";
 
     /// <summary>CQL to update a file row's metadata and timestamps by id.</summary>
-    public static string UpdateNoSql => $@"
+    public static string UpdateCql => $@"
         UPDATE {tn.Files} SET 
             {cnf.UpdatedOn} = {pn.UpdatedOn},
             {cnf.LastFileUpdate} = {pn.LastFileUpdate},
@@ -253,7 +253,7 @@ public static class QueryFiles
         ;";
 
     /// <summary>CQL to delete a file row by id.</summary>
-    public static string DeleteNoSql => $@"
+    public static string DeleteCql => $@"
         DELETE FROM {tn.Files} WHERE id = {pn.Id};";
     #endregion
 

@@ -4,7 +4,7 @@ namespace Media.Database.Repositories.Schemas;
 /// Registry of field names used as Scylla/Cassandra <c>Row</c> column keys for the <c>files</c>
 /// table, validated against <see cref="Ordinals"/>. See <see cref="BaseSchema{TParent, TChild}"/>.
 /// </summary>
-public class OrdinalsNoSql : BaseSchema<OrdinalsNoSql, Ordinals>
+public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
 {
     /// <summary>Field name for <c>Id</c>.</summary>
     public static readonly string Id = x();

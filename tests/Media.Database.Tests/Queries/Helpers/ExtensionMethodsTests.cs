@@ -94,11 +94,11 @@ public class ExtensionMethodsTests
     }
 
     [Test, AutoData]
-    public void GetNoSqlCommand_Should_Return_NoSqlCommand_Wrapping_Session(string query)
+    public void GetCqlCommand_Should_Return_CqlCommand_Wrapping_Session(string query)
     {
         var session = Mock.Of<ISession>();
 
-        var command = session.GetNoSqlCommand(query);
+        var command = session.GetCqlCommand(query);
 
         command.ShouldNotBeNull();
         command.Parameters.ShouldBeEmpty();

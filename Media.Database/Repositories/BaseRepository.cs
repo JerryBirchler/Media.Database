@@ -37,7 +37,7 @@ namespace Media.Database.Repositories
         /// </summary>
         /// <returns>The current <see cref="ISession"/>.</returns>
         /// <exception cref="InvalidOperationException">Thrown when this repository was not constructed with a Scylla session provider.</exception>
-        public ISession GetNoSqlConnection()
+        public ISession GetCqlConnection()
         {
             return _scyllaProvider?.GetSession() ?? throw new InvalidOperationException("Scylla provider not initialized");
         }

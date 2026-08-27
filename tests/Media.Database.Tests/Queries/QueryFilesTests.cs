@@ -17,9 +17,9 @@ public class QueryFilesTests
     }
 
     [Test]
-    public void This_UpsertNoSql_Should_Contain_Insert_Values()
+    public void This_UpsertCql_Should_Contain_Insert_Values()
     {
-        var sql = QueryFiles.UpsertNoSql;
+        var sql = QueryFiles.UpsertCql;
         sql.ShouldContain("INSERT INTO");
         sql.ShouldContain("VALUES");
     }
@@ -116,9 +116,9 @@ public class QueryFilesTests
     }
 
     [Test]
-    public void GetByIdNoSql_Should_Contain_Select_From_Where_Limit1()
+    public void GetByIdCql_Should_Contain_Select_From_Where_Limit1()
     {
-        var sql = QueryFiles.GetByIdNoSql;
+        var sql = QueryFiles.GetByIdCql;
         sql.ShouldContain("SELECT");
         sql.ShouldContain("FROM");
         sql.ShouldContain("WHERE");
@@ -126,25 +126,25 @@ public class QueryFilesTests
     }
 
     [Test]
-    public void InactivateNoSql_Should_Contain_Update_Where()
+    public void InactivateCql_Should_Contain_Update_Where()
     {
-        var sql = QueryFiles.InactivateNoSql;
+        var sql = QueryFiles.InactivateCql;
         sql.ShouldContain("UPDATE");
         sql.ShouldContain("WHERE");
     }
 
     [Test]
-    public void UpdateNoSql_Should_Contain_Update_Where()
+    public void UpdateCql_Should_Contain_Update_Where()
     {
-        var sql = QueryFiles.UpdateNoSql;
+        var sql = QueryFiles.UpdateCql;
         sql.ShouldContain("UPDATE");
         sql.ShouldContain("WHERE");
     }
 
     [Test]
-    public void DeleteNoSql_Should_Contain_Delete_From_Where()
+    public void DeleteCql_Should_Contain_Delete_From_Where()
     {
-        var sql = QueryFiles.DeleteNoSql;
+        var sql = QueryFiles.DeleteCql;
         sql.ShouldContain("DELETE FROM");
         sql.ShouldContain("WHERE");
     }

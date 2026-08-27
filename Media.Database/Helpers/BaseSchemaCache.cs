@@ -49,7 +49,7 @@ internal static class BaseSchemaCache
     private static string ToFieldType(string name)
     {
         ReadOnlySpan<char> span = name;
-        ReadOnlySpan<string> suffixes = ["NoSql", "Sql", "s"];
+        ReadOnlySpan<string> suffixes = ["Cql", "Sql", "s"];
 
         foreach (var suffix in suffixes)
         {

@@ -5,9 +5,9 @@ namespace Media.Database.Repositories.Schemas;
 
 /// <summary>
 /// Registry of Scylla/Cassandra table and column names, derived from <see cref="Tables"/> and
-/// <see cref="ColumnsNoSql"/> and reformatted to snake_case. See <see cref="BaseSchema{TParent, TChild}"/>.
+/// <see cref="ColumnsCql"/> and reformatted to snake_case. See <see cref="BaseSchema{TParent, TChild}"/>.
 /// </summary>
-public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
+public class TablesCql : BaseSchema<TablesCql, Tables>
 {
     /// <summary>CQL table name for the <c>files</c> table.</summary>
     public static readonly string Files = x();
@@ -63,7 +63,7 @@ public class TablesNoSql : BaseSchema<TablesNoSql, Tables>
     public static string y([CallerMemberName] string callerName = "")
 #pragma warning restore IDE1006
     {
-        var columnName = ColumnsNoSql.GetField(callerName);
+        var columnName = ColumnsCql.GetField(callerName);
         return ToSnake(columnName);
     }
 

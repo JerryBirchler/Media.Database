@@ -31,7 +31,7 @@ namespace Media.Database.Tests.Repositories;
 /// are testable without touching a real cluster.
 /// </summary>
 [TestFixture]
-public class FileRepositoryBackgroundNoSqlTests
+public class FileRepositoryBackgroundCqlTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
     private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
@@ -78,7 +78,7 @@ public class FileRepositoryBackgroundNoSqlTests
     }
 
     [Test]
-    public async Task Upsert_BackgroundUpdate_Should_InactivatePreviousIds_And_UpsertNoSql_When_PreviousIdsExist()
+    public async Task Upsert_BackgroundUpdate_Should_InactivatePreviousIds_And_UpsertCql_When_PreviousIdsExist()
     {
         var insertedFile = _fixture.Create<Files>();
         var previousIds = _fixture.CreateMany<Guid>(2).ToList();
@@ -110,7 +110,7 @@ public class FileRepositoryBackgroundNoSqlTests
     }
 
     [Test]
-    public async Task Update_BackgroundMetadataUpdate_Should_UpdateNoSql()
+    public async Task Update_BackgroundMetadataUpdate_Should_UpdateCql()
     {
         var currentFile = _fixture.Create<Files>();
         var updatedFile = _fixture.Create<Files>();
@@ -125,7 +125,7 @@ public class FileRepositoryBackgroundNoSqlTests
     }
 
     [Test]
-    public async Task Delete_BackgroundDelete_Should_DeleteNoSql()
+    public async Task Delete_BackgroundDelete_Should_DeleteCql()
     {
         var deletedFile = _fixture.Create<Files>();
         _sqlExecutorMock.Setup(e => e.QuerySingleAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>())).ReturnsAsync(deletedFile);
@@ -138,7 +138,7 @@ public class FileRepositoryBackgroundNoSqlTests
     }
 
     [Test]
-    public async Task DeleteHistoryBySourceMachineId_BackgroundBatchDelete_Should_DeleteNoSqlBatch()
+    public async Task DeleteHistoryBySourceMachineId_BackgroundBatchDelete_Should_DeleteCqlBatch()
     {
         var files = _fixture.CreateMany<Files>(3).ToList();
         _sqlExecutorMock.Setup(e => e.QueryManyAsync(QueryFiles.DeleteHistorySql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>())).ReturnsAsync(files);

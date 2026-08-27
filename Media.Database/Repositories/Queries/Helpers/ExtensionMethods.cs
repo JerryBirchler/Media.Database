@@ -1,4 +1,5 @@
-﻿using Npgsql;
+﻿using Cassandra;
+using Npgsql;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
@@ -21,15 +22,15 @@ public static class ExtensionMethods
     }
 
     /// <summary>
-    /// Creates a <see cref="NoSqlCommand"/> bound to the given session and parameterized CQL query.
+    /// Creates a <see cref="CqlCommand"/> bound to the given session and parameterized CQL query.
     /// </summary>
     /// <param name="session">The Cassandra/Scylla session to execute against.</param>
     /// <param name="parameterizedQuery">The CQL query text, with named (<c>@name</c>) parameters.</param>
     /// <param name="batchSize">The number of statements to accumulate before flushing a batch.</param>
-    /// <returns>A new <see cref="NoSqlCommand"/>.</returns>
-    public static NoSqlCommand GetNoSqlCommand(this Cassandra.ISession session, string parameterizedQuery, int batchSize = 100)
+    /// <returns>A new <see cref="CqlCommand"/>.</returns>
+    public static CqlCommand GetCqlCommand(this ISession session, string parameterizedQuery, int batchSize = 100)
     {
-        return new NoSqlCommand(session, parameterizedQuery, batchSize);
+        return new CqlCommand(session, parameterizedQuery, batchSize);
     }
 
     /// <summary>
@@ -41,7 +42,7 @@ public static class ExtensionMethods
     /// <returns>The deserialized value, or null.</returns>
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Types are preserved elsewhere or not using Native AOT.")]
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Reflection deserialization is safe for this application profile.")]
-    public static T? GetValueOrDefault<T>(this Cassandra.Row row, string columnName) where T : class
+    public static T? GetValueOrDefault<T>(this Row row, string columnName) where T : class
     {
         if (row.IsNull(columnName))
             return default;
