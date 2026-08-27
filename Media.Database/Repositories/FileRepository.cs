@@ -1,6 +1,6 @@
 using Cassandra;
 using Media.Common.BackgroundJobs;
-using Media.Common.Helpers;
+using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
 using Media.Common.Transactions;
 using Media.Database.Helpers;
@@ -37,12 +37,7 @@ public class FileRepository(
     private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
     private readonly IBackgroundTaskQueue _backgroundTaskQueue = backgroundTaskQueue;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
-    private readonly ILogger<FileRepository> _logger = (new Func<ILogger<FileRepository>>(() =>
-    {
-        var className = ClassHelper.GetName();
-        logger.LogInformation(true, ClassHelper.Initializing, args: className);
-        return logger;
-    })());
+    private readonly ILogger<FileRepository> _logger = logger.LogInitializing();
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
     private readonly int _scyllaMaxBatchsize = scyllaProvider.MaxBatchSize;
@@ -59,7 +54,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "GetById failed for FileId {Id}", args: id);
+            _logger.WithCaller().LogError(ex, "GetById failed for FileId {Id}", id);
             throw;
         }
     }
@@ -80,8 +75,8 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "GetCurrentBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
-                args: [sourceMachineId, originalFilePath!]);
+            _logger.WithCaller().LogError(ex, "GetCurrentBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                sourceMachineId, originalFilePath!);
             throw;
         }
     }
@@ -103,8 +98,8 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "GetCurrentPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
-                args: [sourceMachineId, originalFilePath!]);
+            _logger.WithCaller().LogError(ex, "GetCurrentPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                sourceMachineId, originalFilePath!);
             throw;
         }
     }
@@ -126,8 +121,8 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "GetHistoryPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
-                args: [sourceMachineId, originalFilePath]);
+            _logger.WithCaller().LogError(ex, "GetHistoryPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                sourceMachineId, originalFilePath);
             throw;
         }
     }
@@ -198,8 +193,8 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
-                args: [request.SourceMachineId, request.OriginalFilePath]);
+            _logger.WithCaller().LogError(ex, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                request.SourceMachineId, request.OriginalFilePath);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -261,7 +256,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "Update transaction failed for FileId {Id}", args: id);
+            _logger.WithCaller().LogError(ex, "Update transaction failed for FileId {Id}", id);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -300,6 +295,8 @@ public class FileRepository(
 
     private async Task UpdateNoSqlAsync(Files file, List<Guid> previousIds)
     {
+        var log = _logger.WithCaller();
+
         try
         {
             var noSqlConnection = GetNoSqlConnection();
@@ -328,17 +325,17 @@ public class FileRepository(
             noSqlCommand2.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
             await noSqlCommand2.ExecuteRowSet();
 
-            _logger.LogInformation(true, "Background NoSQL upsert completed for FileId {Id}", args: file.Id);
+            log.LogInformation("Background NoSQL upsert completed for FileId {Id}", file.Id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
+            log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", file.Id);
             await TryHealScyllaSessionAsync(nameof(UpdateNoSqlAsync));
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: file.Id);
+            log.LogError(ex, "BackgroundUpdate task failed for FileId {Id}", file.Id);
             throw;
         }
     }
@@ -353,6 +350,8 @@ public class FileRepository(
 
     private async Task UpdateMetadataNoSqlAsync(Files file)
     {
+        var log = _logger.WithCaller();
+
         try
         {
             var noSqlConnection = GetNoSqlConnection();
@@ -364,17 +363,17 @@ public class FileRepository(
             noSqlCommand.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
             await noSqlCommand.ExecuteRowSet();
 
-            _logger.LogInformation(true, "Background NoSQL metadata update completed for FileId {Id}", args: file.Id);
+            log.LogInformation("Background NoSQL metadata update completed for FileId {Id}", file.Id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: file.Id);
+            log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", file.Id);
             await TryHealScyllaSessionAsync(nameof(UpdateMetadataNoSqlAsync));
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "BackgroundUpdate task failed for FileId {Id}", args: file.Id);
+            log.LogError(ex, "BackgroundUpdate task failed for FileId {Id}", file.Id);
             throw;
         }
     }
@@ -397,7 +396,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "Delete failed for FileId {Id}", args: id);
+            _logger.WithCaller().LogError(ex, "Delete failed for FileId {Id}", id);
             throw;
         }
     }
@@ -423,8 +422,8 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "DeleteHistoryBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
-                args: [sourceMachineId, originalFilePath]);
+            _logger.WithCaller().LogError(ex, "DeleteHistoryBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+                sourceMachineId, originalFilePath);
             throw;
         }
     }
@@ -439,6 +438,8 @@ public class FileRepository(
 
     private async Task DeleteNoSqlAsync(Guid id)
     {
+        var log = _logger.WithCaller();
+
         try
         {
             var noSqlConnection = GetNoSqlConnection();
@@ -447,17 +448,17 @@ public class FileRepository(
             noSqlCommand.Parameters.AddWithValue(pn.Id, id);
             await noSqlCommand.ExecuteRowSet();
 
-            _logger.LogInformation(true, "Background NoSQL delete completed for FileId {Id}", args: id);
+            log.LogInformation("Background NoSQL delete completed for FileId {Id}", id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            _logger.LogError(ex, true, "Scylla cluster unavailable for FileId {Id}", args: id);
+            log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", id);
             await TryHealScyllaSessionAsync(nameof(DeleteNoSqlAsync));
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "BackgroundDelete task failed for FileId {Id}", args: id);
+            log.LogError(ex, "BackgroundDelete task failed for FileId {Id}", id);
             throw;
         }
     }
@@ -472,6 +473,8 @@ public class FileRepository(
 
     private async Task DeleteNoSqlBatchAsync(List<Files> files)
     {
+        var log = _logger.WithCaller();
+
         try
         {
             var noSqlConnection = GetNoSqlConnection();
@@ -486,17 +489,17 @@ public class FileRepository(
             await Task.WhenAll(tasks);
             await noSqlCommand.EndBatch();
 
-            _logger.LogInformation(true, "Background NoSQL batch delete completed for {Count} files", args: files.Count);
+            log.LogInformation("Background NoSQL batch delete completed for {Count} files", files.Count);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            _logger.LogError(ex, true, "Scylla cluster unavailable during batch delete");
+            log.LogError(ex, "Scylla cluster unavailable during batch delete");
             await TryHealScyllaSessionAsync(nameof(DeleteNoSqlBatchAsync));
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "BackgroundDelete batch task failed");
+            log.LogError(ex, "BackgroundDelete batch task failed");
             throw;
         }
     }
@@ -520,7 +523,7 @@ public class FileRepository(
         }
         catch (Exception healEx)
         {
-            _logger.LogError(healEx, true, "Scylla session heal attempt failed in {MethodName}", args: methodName);
+            _logger.WithCaller().LogError(healEx, "Scylla session heal attempt failed in {OriginatingMethod}", methodName);
         }
     }
 }

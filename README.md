@@ -15,6 +15,7 @@ Media.Database is part of the Media suite of libraries, offering a robust data a
 - **Metadata Management**: Comprehensive metadata tracking for media files
 - **Word Indexing**: Advanced word origin tracking and file associations
 - **Query Builder**: Custom query builders for both SQL and NoSQL operations
+- **Fluent Logging**: Every repository log write is caller-aware via Media.Common's Fluent Logging API — no hand-typed `{ClassName}`/`{MethodName}` prefixes to drift out of sync with the code around them
 
 ## Technologies
 
@@ -196,6 +197,30 @@ Built-in support for Kafka messaging:
 - **KafkaRecordWrapper**: Serialization wrapper
 - **KafkaProducerActions**: Enumeration of producer operations
 
+## Logging
+
+Every log write in `FileRepository` and `WordRepository` goes through **Fluent Logging**, a small
+chainable API on `ILogger<T>` provided by
+[Media.Common](https://github.com/JerryBirchler/Media.Common). It stamps each entry with the
+calling class and method automatically, so there's no hand-typed prefix to fall out of sync with
+the code around it:
+
+```csharp
+_logger.WithCaller().LogError(ex, "GetById failed for WordId: [{Id}]", id);
+// class: [WordRepository] method: [GetById] GetById failed for WordId: [42]
+```
+
+Within a single method, `WithCaller()` is captured once and reused across every log call in that
+method (success path, multiple `catch` blocks, loop iterations) rather than re-derived per call.
+
+Repository constructors write a standardized "class initializing" entry the same way, via a single
+`logger.LogInitializing()` call in the `_logger` field initializer — replacing what used to be a
+one-off lambda duplicated in every repository.
+
+See `Media.Common/Helpers/Fluent/README.md` in the
+[Media.Common repo](https://github.com/JerryBirchler/Media.Common) for the full design: the four
+reserved tokens, configurable templates, and distributed-tracing integration.
+
 ## Dependencies
 
 This project depends on:
@@ -205,7 +230,7 @@ This project depends on:
   - Database providers (IPostgresConnectionProvider, IScyllaSessionProvider)
   - Settings validators (PostgresSettingsValidator, LocalMachineSettingsValidator)
   - BaseStartup for application initialization
-  - Logging extensions
+  - Fluent Logging (`WithCaller`/`LogInitializing`)
   - Docker port translation
   - Common models (LocalMachineSettings, PostgresSettings, ScyllaSettings, SerilogSettings)
 

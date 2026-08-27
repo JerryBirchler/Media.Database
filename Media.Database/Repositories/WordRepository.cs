@@ -1,4 +1,4 @@
-using Media.Common.Helpers;
+using Media.Common.Helpers.Fluent;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
@@ -22,12 +22,7 @@ public class WordRepository(
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
 
-    private readonly ILogger<WordRepository> _logger = (new Func<ILogger<WordRepository>>(() =>
-    {
-        var className = ClassHelper.GetName();
-        logger.LogInformation(ClassHelper.Initializing, className);
-        return logger;
-    })());
+    private readonly ILogger<WordRepository> _logger = logger.LogInitializing();
 
 #pragma warning disable S1144
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
@@ -45,7 +40,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "GetById failed for WordId: [{Id}]", args: id);
+            _logger.WithCaller().LogError(ex, "GetById failed for WordId: [{Id}]", id);
             throw;
         }
     }
@@ -83,7 +78,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "GetFilePages failed for Word: [{Word}], FileId: [{FileId}]", args: [word!, fileId!]);
+            _logger.WithCaller().LogError(ex, "GetFilePages failed for Word: [{Word}], FileId: [{FileId}]", word!, fileId!);
             throw;
         }
     }
@@ -142,7 +137,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "Upsert failed for Word: [{Word}]: ", args: request.Word);
+            _logger.WithCaller().LogError(ex, "Upsert failed for Word: [{Word}]: ", request.Word);
             throw;
         }
     }
@@ -156,7 +151,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "RefreshView failed: ");
+            _logger.WithCaller().LogError(ex, "RefreshView failed: ");
             throw;
         }
     }
@@ -172,7 +167,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "Delete failed for WordId: [{Id}]:", args: id);
+            _logger.WithCaller().LogError(ex, "Delete failed for WordId: [{Id}]:", id);
             throw;
         }
     }
@@ -188,7 +183,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, true, "DeleteFile failed for FileId: [{FileId}]", args: fileId);
+            _logger.WithCaller().LogError(ex, "DeleteFile failed for FileId: [{FileId}]", fileId);
             throw;
         }
     }
