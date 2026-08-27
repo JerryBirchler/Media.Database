@@ -18,4 +18,15 @@
     <ProjectReference Include="..\..\Media.Common\Media.Common\Media.Common.csproj" />
   </ItemGroup>
 
+  <!-- Installs the Husky.Net git hooks (.husky/pre-commit, .husky/pre-push) automatically on
+       restore, so a fresh clone gets them with no manual setup step. Set HUSKY=0 to skip, e.g.
+       in a CI environment that shouldn't be mutating git config. Uses
+       $(MSBuildThisFileDirectory).. rather than $(SolutionDir), since the latter only resolves
+       when building through the .slnx — the pre-push hook runs `dotnet test` directly against a
+       single project, where $(SolutionDir) is undefined. -->
+  <Target Name="Husky" BeforeTargets="Restore;CoreCompile" Condition="'$(HUSKY)' != 0">
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory).." />
+    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory).." />
+  </Target>
+
 </Project>

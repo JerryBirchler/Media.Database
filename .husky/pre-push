@@ -1,0 +1,52 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Gates pushes on Media.Database's own code coverage (line and branch), scoped to the
+# Media.Database assembly itself via coverlet's Include filter — Media.Database.Tests also loads
+# Media.Common (a referenced project with its own dedicated test suite), and an unscoped number
+# would be dragged down by code this test project was never meant to cover.
+THRESHOLD=70
+
+TEST_PROJECT="tests/Media.Database.Tests/Media.Database.Tests.csproj"
+RESULTS_DIR="tests/Media.Database.Tests/TestResults"
+
+echo "Running Media.Database.Tests with coverage (threshold: ${THRESHOLD}% line, ${THRESHOLD}% branch)..."
+
+rm -rf "$RESULTS_DIR"
+
+dotnet test "$TEST_PROJECT" \
+  --collect:"XPlat Code Coverage" \
+  -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Include="[Media.Database]*"
+
+COVERAGE_FILE=$(find "$RESULTS_DIR" -name "coverage.cobertura.xml" | head -1)
+
+if [ -z "$COVERAGE_FILE" ]; then
+  echo "FAIL: no coverage.cobertura.xml was produced under $RESULTS_DIR." >&2
+  exit 1
+fi
+
+LINE_RATE=$(grep -o 'line-rate="[0-9.]*"' "$COVERAGE_FILE" | head -1 | grep -o '[0-9.]*')
+BRANCH_RATE=$(grep -o 'branch-rate="[0-9.]*"' "$COVERAGE_FILE" | head -1 | grep -o '[0-9.]*')
+
+LINE_PCT=$(awk "BEGIN { printf \"%.1f\", $LINE_RATE * 100 }")
+BRANCH_PCT=$(awk "BEGIN { printf \"%.1f\", $BRANCH_RATE * 100 }")
+
+echo "Media.Database line coverage: ${LINE_PCT}% | branch coverage: ${BRANCH_PCT}%"
+
+FAIL=0
+
+if [ "$(awk "BEGIN { print ($LINE_RATE * 100 >= $THRESHOLD) ? 1 : 0 }")" -eq 0 ]; then
+  echo "FAIL: line coverage ${LINE_PCT}% is below the ${THRESHOLD}% threshold." >&2
+  FAIL=1
+fi
+
+if [ "$(awk "BEGIN { print ($BRANCH_RATE * 100 >= $THRESHOLD) ? 1 : 0 }")" -eq 0 ]; then
+  echo "FAIL: branch coverage ${BRANCH_PCT}% is below the ${THRESHOLD}% threshold." >&2
+  FAIL=1
+fi
+
+if [ "$FAIL" -eq 1 ]; then
+  exit 1
+fi
+
+echo "Coverage gate passed."
