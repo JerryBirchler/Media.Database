@@ -1,4 +1,5 @@
 ﻿using Cassandra;
+using Media.Database.Models;
 using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
@@ -258,9 +259,9 @@ public static class QueryFiles
     #endregion
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.Files"/>.</summary>
-    public static async Task<List<Models.Files>> ToFiles(this NpgsqlDataReader reader)
+    public static async Task<List<Files>> ToFiles(this NpgsqlDataReader reader)
     {
-        List<Models.Files> files = [];
+        List<Files> files = [];
 
         while (await reader.ReadAsync())
             files.Add(reader.ToFile());
@@ -269,9 +270,9 @@ public static class QueryFiles
     }
 
     /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.Files"/>.</summary>
-    public static Models.Files ToFile(this NpgsqlDataReader reader)
+    public static Files ToFile(this NpgsqlDataReader reader)
     {
-        return new Models.Files
+        return new Files
         {
             Id = reader.GetGuid(reader.GetOrdinal(os.Id)),
             SourceMachineId = reader.GetInt32(reader.GetOrdinal(os.SourceMachineId)),
@@ -302,10 +303,10 @@ public static class QueryFiles
         return reader.GetGuid(reader.GetOrdinal(os.Id));
     }
 
-    /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Models.Files"/>.</summary>
-    public static Models.Files ToFile(this Row row)
+    /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Files"/>.</summary>
+    public static Files ToFile(this Row row)
     {
-        return new Models.Files
+        return new Files
         {
             Id = row.GetValue<Guid>(cnf.Id),
             SourceMachineId = row.GetValue<int>(cnf.SourceMachineId),
