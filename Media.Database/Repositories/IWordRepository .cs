@@ -12,7 +12,7 @@ public interface IWordRepository
     /// </summary>
     /// <param name="id">The word's unique identifier.</param>
     /// <returns>The word, or null if not found.</returns>
-    Task<Models.Words?> GetById(int id);
+    Task<Words?> GetById(int id);
 
     /// <summary>
     /// Retrieves a page of word/file rows ordered by word, then origin, then file.
@@ -24,7 +24,7 @@ public interface IWordRepository
     /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
     /// <returns>The matching word/file rows.</returns>
-    Task<List<Models.ViewWordFiles>> GetFilePagesByWordOrigin(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
+    Task<List<ViewWordFiles>> GetFilePagesByWordOrigin(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
 
     /// <summary>
     /// Retrieves a page of word/file rows ordered by word, then file, then origin.
@@ -36,7 +36,7 @@ public interface IWordRepository
     /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
     /// <returns>The matching word/file rows.</returns>
-    Task<List<Models.ViewWordFiles>> GetFilePagesByWordFileId(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
+    Task<List<ViewWordFiles>> GetFilePagesByWordFileId(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
 
     /// <summary>
     /// Retrieves a page of word/file rows ordered by file, then origin, then word.
@@ -48,7 +48,7 @@ public interface IWordRepository
     /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
     /// <returns>The matching word/file rows.</returns>
-    Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdOrigin(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
+    Task<List<ViewWordFiles>> GetFilePagesByFileIdOrigin(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
 
     /// <summary>
     /// Retrieves a page of word/file rows ordered by file, then word, then origin.
@@ -60,7 +60,7 @@ public interface IWordRepository
     /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
     /// <returns>The matching word/file rows.</returns>
-    Task<List<Models.ViewWordFiles>> GetFilePagesByFileIdWord(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
+    Task<List<ViewWordFiles>> GetFilePagesByFileIdWord(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
 
     /// <summary>
     /// Inserts a new word, or updates it if it already exists, and links it to the originating file.

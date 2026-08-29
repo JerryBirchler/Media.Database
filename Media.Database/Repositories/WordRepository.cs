@@ -29,7 +29,7 @@ public class WordRepository(
 #pragma warning restore S1144
 
     /// <inheritdoc/>
-    public async Task<Models.Words?> GetById(int id)
+    public async Task<Words?> GetById(int id)
     {
         try
         {
@@ -67,6 +67,8 @@ public class WordRepository(
                 sql,
                 p =>
                 {
+         
+                    
                     p.AddWithValue(pn.Word, (object)word! ?? DBNull.Value);
                     p.AddWithValue(pn.Origin, (object)origin! ?? DBNull.Value);
                     p.AddWithValue(pn.FileId, (object)fileId! ?? DBNull.Value);
@@ -83,7 +85,16 @@ public class WordRepository(
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Retrieves a page of word/file rows ordered by word, then origin, then file.
+    /// </summary>
+    /// <param name="word">The word to search for, or null to match any word.</param>
+    /// <param name="origin">The word origin to filter by, or null to match any origin.</param>
+    /// <param name="fileId">The file identifier to filter by, or null to match any file.                       
+    /// <param name="isCurrent"></param>
+    /// <param name="isProperName"></param>
+    /// <param name="limit"></param>
+    /// <returns></returns>
     public async Task<List<ViewWordFiles>> GetFilePagesByWordOrigin(
         string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,

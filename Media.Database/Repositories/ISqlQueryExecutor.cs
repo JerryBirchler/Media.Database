@@ -11,24 +11,74 @@ namespace Media.Database.Repositories;
 /// </summary>
 public interface ISqlQueryExecutor
 {
-    /// <summary>Runs <paramref name="sql"/> on its own connection and maps the first row, or null if there were no rows.</summary>
+    /// <summary>
+    /// Executes a query that returns a single result asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the result.</typeparam>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="configureParameters">A delegate to configure the query parameters.</param>
+    /// <param name="map">A delegate to map the data reader to the result type.</param>
+    /// <returns>A task representing the asynchronous operation, containing the result.</returns>
     Task<T?> QuerySingleAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class;
 
-    /// <summary>Runs <paramref name="sql"/> on its own connection and maps the first row to a value type, or null if there were no rows.</summary>
+    /// <summary>
+    /// Executes a query that returns a single value asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="configureParameters">A delegate to configure the query parameters.</param>
+    /// <param name="map">A delegate to map the data reader to the value type.</param>
+    /// <returns>A task representing the asynchronous operation, containing the value.</returns>
     Task<T?> QuerySingleValueAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct;
 
-    /// <summary>Runs <paramref name="sql"/> on its own connection and maps every row.</summary>
+    /// <summary>
+    /// Executes a query that returns multiple results asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the results.</typeparam>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="configureParameters">A delegate to configure the query parameters.</param>
+    /// <param name="map">A delegate to map the data reader to the result type.</param>
+    /// <returns>A task representing the asynchronous operation, containing the list of results.</returns>
     Task<List<T>> QueryManyAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map);
 
-    /// <summary>Runs <paramref name="sql"/> on its own connection for its side effect, returning the affected row count.</summary>
+    /// <summary>
+    /// Executes a command that does not return any results asynchronously.
+    /// </summary>
+    /// <param name="sql">The SQL command to execute.</param>
+    /// <param name="configureParameters">A delegate to configure the command parameters.</param>
+    /// <returns>A task representing the asynchronous operation, containing the number of affected rows.</returns>
     Task<int> ExecuteAsync(string sql, Action<NpgsqlParameterCollection> configureParameters);
 
-    /// <summary>Runs <paramref name="sql"/> on <paramref name="unitOfWork"/>'s connection/transaction and maps the first row, or null if there were no rows.</summary>
+    /// <summary>
+    /// Executes a query that returns a single result asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the result.</typeparam>
+    /// <param name="unitOfWork">The unit of work containing the connection and transaction.</param>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="configureParameters">A delegate to configure the query parameters.</param>
+    /// <param name="map">A delegate to map the data reader to the result type.</param>
+    /// <returns>A task representing the asynchronous operation, containing the result.</returns>
     Task<T?> QuerySingleAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class;
 
-    /// <summary>Runs <paramref name="sql"/> on <paramref name="unitOfWork"/>'s connection/transaction and maps the first row to a value type, or null if there were no rows.</summary>
+    /// <summary>
+    /// Executes a query that returns a single value asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <param name="unitOfWork">The unit of work containing the connection and transaction.</param>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="configureParameters">A delegate to configure the query parameters.</param>
+    /// <param name="map">A delegate to map the data reader to the value type.</param>
+    /// <returns>A task representing the asynchronous operation, containing the value.</returns>
     Task<T?> QuerySingleValueAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct;
 
-    /// <summary>Runs <paramref name="sql"/> on <paramref name="unitOfWork"/>'s connection/transaction and maps every row.</summary>
+    /// <summary>
+    /// Executes a query that returns multiple results asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the results.</typeparam>
+    /// <param name="unitOfWork">The unit of work containing the connection and transaction.</param>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="configureParameters">A delegate to configure the query parameters.</param>
+    /// <param name="map">A delegate to map the data reader to the result type.</param>
+    /// <returns>A task representing the asynchronous operation, containing the list of results.</returns>
     Task<List<T>> QueryManyAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map);
 }
