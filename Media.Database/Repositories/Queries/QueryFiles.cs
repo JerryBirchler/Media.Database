@@ -4,11 +4,11 @@ using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981 
-using cnf = Media.Database.Repositories.Schemas.TablesCql.FilesColumns;
+using ccf = Media.Database.Repositories.Schemas.TablesCql.FilesColumns;
 using csf = Media.Database.Repositories.Schemas.TablesSql.FilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
-using tn = Media.Database.Repositories.Schemas.TablesCql;
+using tc = Media.Database.Repositories.Schemas.TablesCql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
 #pragma warning restore CS8981 
 
@@ -194,41 +194,41 @@ public static class QueryFiles
     /// <summary>CQL to select a file by its unique identifier.</summary>
     public static string GetByIdCql => $@"
         SELECT 
-            {cnf.Id}, 
-            {cnf.SourceMachineId}, 
-            {cnf.OriginalFilePath}, 
-            {cnf.InsertedOn}, 
-            {cnf.UpdatedOn}, 
-            {cnf.LastFileUpdate}, 
-            {cnf.IsCurrent}, 
-            {cnf.Metadata}
+            {ccf.Id}, 
+            {ccf.SourceMachineId}, 
+            {ccf.OriginalFilePath}, 
+            {ccf.InsertedOn}, 
+            {ccf.UpdatedOn}, 
+            {ccf.LastFileUpdate}, 
+            {ccf.IsCurrent}, 
+            {ccf.Metadata}
         FROM 
-            {tn.Files}          
+            {tc.Files}          
         WHERE 
-            {cnf.Id} = {pn.Id} 
+            {ccf.Id} = {pn.Id} 
         LIMIT 1
         ;";
 
     /// <summary>CQL to mark a file row as no longer current.</summary>
     public static string InactivateCql => $@"
-        UPDATE {tn.Files} SET
-            {cnf.IsCurrent} = false
+        UPDATE {tc.Files} SET
+            {ccf.IsCurrent} = false
         WHERE 
-            {cnf.Id} = {pn.Id}
+            {ccf.Id} = {pn.Id}
         ;";
 
     /// <summary>CQL to insert a file row.</summary>
     public static string UpsertCql => $@"
-        INSERT INTO {tn.Files} 
+        INSERT INTO {tc.Files} 
         (
-            {cnf.Id}, 
-            {cnf.SourceMachineId}, 
-            {cnf.OriginalFilePath}, 
-            {cnf.InsertedOn}, 
-            {cnf.UpdatedOn}, 
-            {cnf.LastFileUpdate}, 
-            {cnf.IsCurrent}, 
-            {cnf.Metadata}
+            {ccf.Id}, 
+            {ccf.SourceMachineId}, 
+            {ccf.OriginalFilePath}, 
+            {ccf.InsertedOn}, 
+            {ccf.UpdatedOn}, 
+            {ccf.LastFileUpdate}, 
+            {ccf.IsCurrent}, 
+            {ccf.Metadata}
         )
         VALUES 
         (
@@ -245,17 +245,17 @@ public static class QueryFiles
 
     /// <summary>CQL to update a file row's metadata and timestamps by id.</summary>
     public static string UpdateCql => $@"
-        UPDATE {tn.Files} SET 
-            {cnf.UpdatedOn} = {pn.UpdatedOn},
-            {cnf.LastFileUpdate} = {pn.LastFileUpdate},
-            {cnf.Metadata} = {pn.Metadata}
+        UPDATE {tc.Files} SET 
+            {ccf.UpdatedOn} = {pn.UpdatedOn},
+            {ccf.LastFileUpdate} = {pn.LastFileUpdate},
+            {ccf.Metadata} = {pn.Metadata}
         WHERE
-            {cnf.Id} = {pn.Id}
+            {ccf.Id} = {pn.Id}
         ;";
 
     /// <summary>CQL to delete a file row by id.</summary>
     public static string DeleteCql => $@"
-        DELETE FROM {tn.Files} WHERE id = {pn.Id};";
+        DELETE FROM {tc.Files} WHERE id = {pn.Id};";
     #endregion
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.Files"/>.</summary>
@@ -308,14 +308,14 @@ public static class QueryFiles
     {
         return new Files
         {
-            Id = row.GetValue<Guid>(cnf.Id),
-            SourceMachineId = row.GetValue<int>(cnf.SourceMachineId),
-            OriginalFilePath = row.GetValue<string>(cnf.OriginalFilePath),
-            LastFileUpdate = row.GetValue<DateTimeOffset?>(cnf.LastFileUpdate),
-            InsertedOn = row.GetValue<DateTimeOffset>(cnf.InsertedOn),
-            UpdatedOn = row.GetValue<DateTimeOffset?>(cnf.UpdatedOn),
-            IsCurrent = row.GetValue<bool>(cnf.IsCurrent),
-            Metadata = row.GetValueOrDefault<Models.Metadata>(cnf.Metadata)
+            Id = row.GetValue<Guid>(ccf.Id),
+            SourceMachineId = row.GetValue<int>(ccf.SourceMachineId),
+            OriginalFilePath = row.GetValue<string>(ccf.OriginalFilePath),
+            LastFileUpdate = row.GetValue<DateTimeOffset?>(ccf.LastFileUpdate),
+            InsertedOn = row.GetValue<DateTimeOffset>(ccf.InsertedOn),
+            UpdatedOn = row.GetValue<DateTimeOffset?>(ccf.UpdatedOn),
+            IsCurrent = row.GetValue<bool>(ccf.IsCurrent),
+            Metadata = row.GetValueOrDefault<Models.Metadata>(ccf.Metadata)
         };
     }
 }

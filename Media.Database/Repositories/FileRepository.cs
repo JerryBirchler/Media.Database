@@ -23,6 +23,13 @@ namespace Media.Database.Repositories;
 /// synchronously within a transaction; the equivalent Scylla/Cassandra rows are then updated
 /// on a background task queue, with self-healing if the Scylla session becomes unreachable.
 /// </summary>
+/// <param name="sqlExecutor">The SQL query executor.</param>
+/// <param name="scyllaProvider">The Scylla session provider.</param>
+/// <param name="unitOfWorkFactory">The factory function to create a unit of work.</param>
+/// <param name="changeWordMapper">The mapper for change word requests.</param>
+/// <param name="backgroundTaskQueue">The background task queue.</param>
+/// <param name="logger">The logger instance.</param>
+/// <param name="levelSwitch">The logging level switch.</param>
 public class FileRepository(
     ISqlQueryExecutor sqlExecutor,
     IScyllaSessionProvider scyllaProvider,
@@ -42,7 +49,11 @@ public class FileRepository(
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
     private readonly int _scyllaMaxBatchsize = scyllaProvider.MaxBatchSize;
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets a file by its unique identifier asynchronously.            
+    /// </summary>
+    /// <param name="id">The unique identifier of the file.</param>
+    /// <returns>A task representing the asynchronous operation, containing the file.</returns>
     public async Task<Files?> GetById(Guid id)
     {
         try
@@ -59,7 +70,13 @@ public class FileRepository(
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets the current pages of files by source machine ID asynchronously.
+    /// </summary>
+    /// <param name="sourceMachineId">The ID of the source machine.</param>
+    /// <param name="originalFilePath">The original file path.</param>
+    /// <param name="limit">The maximum number of files to retrieve.</param>
+    /// <returns>A task representing the asynchronous operation, containing the file.</returns>
     public async Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         try
@@ -81,7 +98,13 @@ public class FileRepository(
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets the current pages of files by source machine ID asynchronously.
+    /// </summary>
+    /// <param name="sourceMachineId">The ID of the source machine.</param>
+    /// <param name="originalFilePath">The original file path.</param>
+    /// <param name="limit">The maximum number of files to retrieve.</param>
+    /// <returns>A task representing the asynchronous operation, containing a list of files.</returns>
     public async Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
     {
         try
@@ -104,7 +127,13 @@ public class FileRepository(
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets the history pages of files by source machine ID asynchronously.
+    /// </summary>
+    /// <param name="sourceMachineId">The ID of the source machine.</param>
+    /// <param name="originalFilePath">The original file path.</param>
+    /// <param name="limit">The maximum number of files to retrieve.</param>
+    /// <returns>A task representing the asynchronous operation, containing a list of files.</returns>
     public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
     {
         try
@@ -127,7 +156,11 @@ public class FileRepository(
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Inserts or updates a file in the database asynchronously.
+    /// </summary>
+    /// <param name="request">The upload file request containing the file details.</param>
+    /// <returns>A task representing the asynchronous operation, containing the inserted or updated file.</returns>
     public async Task<Files?> Upsert(UploadFileRequest request)
     {
         await using var uow = _unitOfWorkFactory();
@@ -203,7 +236,12 @@ public class FileRepository(
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Updates a file in the database asynchronously.
+    /// </summary>
+    /// <param name="id">The ID of the file to update.</param>
+    /// <param name="request">The update request containing the new metadata.</param>
+    /// <returns>A task representing the asynchronous operation, containing the update response.</returns>
     public async Task<UpdateFileResponse> Update(
         Guid id,
         UpdateFileRequest request)
@@ -265,6 +303,12 @@ public class FileRepository(
         }
     }
 
+    /// <summary>
+    /// Gets the list of updates for a file based on the current metadata and the update request.
+    /// </summary>
+    /// <param name="current">The current file.</param>
+    /// <param name="request">The update request.</param>
+    /// <returns>A list of change word requests representing the updates.</returns>
     private List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest request)
     {
         var updates = new List<ChangeWordRequest>();
@@ -285,6 +329,12 @@ public class FileRepository(
         return updates;
     }
 
+    /// <summary>
+    /// Queues a background task to update a file in the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="file">The file to update.</param>
+    /// <param name="previousIds">The list of previous IDs associated with the file.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task QueueBackgroundUpdateAsync(Files file, List<Guid> previousIds)
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
@@ -293,6 +343,12 @@ public class FileRepository(
         });
     }
 
+    /// <summary>
+    /// Updates a file in the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="file">The file to update.</param>
+    /// <param name="previousIds">The list of previous IDs associated with the file.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task UpdateCqlAsync(Files file, List<Guid> previousIds)
     {
         var log = _logger.WithCaller();
@@ -340,6 +396,11 @@ public class FileRepository(
         }
     }
 
+    /// <summary>
+    /// Queues a background task to update the metadata of a file in the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="file">The file whose metadata is to be updated.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task QueueBackgroundUpdateMetadataAsync(Files file)
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
@@ -348,6 +409,11 @@ public class FileRepository(
         });
     }
 
+    /// <summary>
+    /// Updates the metadata of a file in the Scylla database asynchronously.       
+    /// </summary>
+    /// <param name="file"></param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task UpdateMetadataCqlAsync(Files file)
     {
         var log = _logger.WithCaller();
@@ -378,8 +444,11 @@ public class FileRepository(
         }
     }
 
-
-    /// <inheritdoc/>
+    /// <summary>
+    /// Deletes a file from the SQL database asynchronously.
+    /// </summary>
+    /// <param name="id">The ID of the file to delete.</param>
+    /// <returns>A task representing the asynchronous operation, containing the deleted file if found.</returns>
     public async Task<Files?> Delete(Guid id)
     {
         try
@@ -401,7 +470,12 @@ public class FileRepository(
         }
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Deletes the history of files by source machine ID and original file path from the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="sourceMachineId">The ID of the source machine.</param>
+    /// <param name="originalFilePath">The original file path.</param>
+    /// <returns>A task representing the asynchronous operation, containing the list of deleted files.</returns>
     public async Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
     {
         try
@@ -428,6 +502,11 @@ public class FileRepository(
         }
     }
 
+    /// <summary>
+    /// Queues a background task to delete a file from the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="id">The ID of the file to delete.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task QueueBackgroundDeleteAsync(Guid id)
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
@@ -436,6 +515,11 @@ public class FileRepository(
         });
     }
 
+    /// <summary>
+    /// Deletes a file from the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="id">The ID of the file to delete.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task DeleteCqlAsync(Guid id)
     {
         var log = _logger.WithCaller();
@@ -463,6 +547,12 @@ public class FileRepository(
         }
     }
 
+    /// <summary>
+    /// Queues a background task to delete a batch of files from the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="files">The list of files to delete.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+
     private async Task QueueBackgroundDeleteAsync(List<Files> files)
     {
         await _backgroundTaskQueue.QueueBackgroundWorkItemAsync(async cancellationToken =>
@@ -471,6 +561,11 @@ public class FileRepository(
         });
     }
 
+    /// <summary>
+    /// Deletes a batch of files from the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="files">The list of files to delete.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task DeleteCqlBatchAsync(List<Files> files)
     {
         var log = _logger.WithCaller();
@@ -508,6 +603,8 @@ public class FileRepository(
     /// Cassandra driver exceptions that indicate the cluster/session is unreachable, as opposed to a single
     /// query timing out against an otherwise healthy cluster. Only these warrant rebuilding the session.
     /// </summary>
+    /// <param name="ex">The exception to check.</param>
+    /// <returns>True if the exception indicates a connectivity issue with the Scylla cluster; otherwise, false.</returns>
     private static bool IsScyllaConnectivityException(Exception ex) =>
         ex is NoHostAvailableException or UnavailableException or OperationTimedOutException;
 
@@ -515,6 +612,7 @@ public class FileRepository(
     /// Attempts to heal the Scylla session without letting a healing failure (e.g. a busy self-heal lock)
     /// mask the original exception that triggered the heal attempt.
     /// </summary>
+    /// <param name="methodName">The name of the method that triggered the heal attempt.</param>    
     private async Task TryHealScyllaSessionAsync(string methodName)
     {
         try

@@ -179,7 +179,7 @@ public static class QueryWords
 
     #endregion
 
-    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.Words"/>.</summary>
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Words"/>.</summary>
     public static async Task<List<Words>> ToWords(this NpgsqlDataReader reader)
     {
         List<Words> words = [];
@@ -190,7 +190,7 @@ public static class QueryWords
         return words;
     }
 
-    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.Words"/>.</summary>
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Words"/>.</summary>
     public static Words ToWord(this NpgsqlDataReader reader)
     {
         return new Words
@@ -205,7 +205,7 @@ public static class QueryWords
         };
     }
 
-    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="ViewWordFiles"/>.</summary>
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.ViewWordFiles"/>.</summary>
     public static async Task<List<ViewWordFiles>> ToWordFiles(this NpgsqlDataReader reader)
     {
         List<ViewWordFiles> wordFiles = [];
@@ -216,10 +216,10 @@ public static class QueryWords
         return wordFiles;
     }
 
-    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="ViewWordFiles"/>.</summary>
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.ViewWordFiles"/>.</summary>
     public static ViewWordFiles ToWordFile(this NpgsqlDataReader reader)
     {
-        return new ViewWordFiles
+        return new Models.ViewWordFiles
         {
             Origin = (WordOrigin)reader.GetInt32(reader.GetOrdinal(os.Origin)),
             WordId = reader.GetInt32(reader.GetOrdinal(os.WordId)),
