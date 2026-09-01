@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Cassandra;
 using Media.Common.BackgroundJobs;
 using Media.Common.Providers;
 using Media.Common.Transactions;
@@ -14,6 +15,9 @@ using NUnit.Framework;
 using Serilog.Core;
 using Shouldly;
 using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
@@ -350,5 +354,109 @@ public class RegistrationRepositoryTests
         var request = _fixture.Create<UpdateSourceInformationRequest>();
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateSourceInformation(request));
+    }
+
+    [Test]
+    public async Task UpdateSourceInformation_Should_SkipOtpGeneration_When_ContactAlreadyVerified()
+    {
+        var existing = CreateRegistration() with { IsEmailVerified = true, IsSmsVerified = true };
+        var updated = existing with { EmailAddress = "new2@example.com", CellPhoneNumber = "555-0200" };
+        var addResponse = new AddRegistrationResponse
+        {
+            Id = 100,
+            OtpEmail = string.Empty,
+            OtpCellPhone = string.Empty,
+            IsEmailVerified = true,
+            IsSmsVerified = true,
+            InsertedOn = DateTimeOffset.UtcNow,
+            UpdatedOn = null
+        };
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(updated);
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .ReturnsAsync([]);
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<AddRegistrationResponse?>>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Task<AddRegistrationResponse?>>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(Task.FromResult<AddRegistrationResponse?>(addResponse));
+        var request = new UpdateSourceInformationRequest
+        {
+            SourceMachineUuid = existing.SourceMachineUuid,
+            EmailAddress = "new2@example.com",
+            CellPhoneNumber = "555-0200",
+            OperatingSystem = existing.OperatingSystem
+        };
+
+        var result = await CreateRepository().UpdateSourceInformation(request);
+
+        result.ShouldNotBeNull();
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.OtpEmail].Value.ShouldBe(string.Empty);
+        command.Parameters[pn.OtpCellPhone].Value.ShouldBe(string.Empty);
+    }
+
+    /// <summary>
+    /// Pins current behavior: when AddRegistrationBySourceMachineUuidSql returns no row, the repository
+    /// unboxes a null Nullable&lt;int&gt; at `(int)addRegistrationResponse?.Result?.Id!` and throws
+    /// InvalidOperationException rather than handling the no-row case gracefully. This looks like a real
+    /// gap (worth a null-check before the cast), not something this test suite should paper over.
+    /// </summary>
+    [Test]
+    public void UpdateSourceInformation_Should_ThrowInvalidOperationException_When_AddRegistrationReturnsNoRow()
+    {
+        var existing = CreateRegistration();
+        var updated = existing with { EmailAddress = "new3@example.com", CellPhoneNumber = "555-0201" };
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(updated);
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .ReturnsAsync([]);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<AddRegistrationResponse?>>>()))
+            .ReturnsAsync((Task<AddRegistrationResponse?>?)null);
+        var request = new UpdateSourceInformationRequest
+        {
+            SourceMachineUuid = existing.SourceMachineUuid,
+            EmailAddress = "new3@example.com",
+            CellPhoneNumber = "555-0201",
+            OperatingSystem = existing.OperatingSystem
+        };
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateSourceInformation(request));
+    }
+
+    private static bool InvokeIsScyllaConnectivityException(Exception ex)
+    {
+        var method = typeof(RegistrationRepository).GetMethod("IsScyllaConnectivityException", BindingFlags.NonPublic | BindingFlags.Static)!;
+        return (bool)method.Invoke(null, [ex])!;
+    }
+
+    [Test]
+    public void IsScyllaConnectivityException_Should_ReturnTrue_For_KnownConnectivityExceptions()
+    {
+        var noHost = new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>());
+        var unavailable = new UnavailableException(ConsistencyLevel.One, 1, 0);
+        var timedOut = new OperationTimedOutException(new IPEndPoint(IPAddress.Loopback, 9042), 1000);
+
+        InvokeIsScyllaConnectivityException(noHost).ShouldBeTrue();
+        InvokeIsScyllaConnectivityException(unavailable).ShouldBeTrue();
+        InvokeIsScyllaConnectivityException(timedOut).ShouldBeTrue();
+    }
+
+    [Test]
+    public void IsScyllaConnectivityException_Should_ReturnFalse_For_UnrelatedException()
+    {
+        InvokeIsScyllaConnectivityException(new InvalidOperationException()).ShouldBeFalse();
     }
 }

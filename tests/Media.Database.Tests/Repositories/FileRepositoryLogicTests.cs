@@ -130,6 +130,28 @@ public class FileRepositoryLogicTests
     }
 
     [Test]
+    public void GetUpdates_Should_ProcessAllFields_When_OnlyCurrentMetadataIsPresent()
+    {
+        var mapperMock = new Mock<IMapChangeWordRequests>();
+        var repository = CreateRepository(mapperMock.Object);
+        var current = new Files
+        {
+            Id = Guid.NewGuid(),
+            Metadata = new Metadata { Names = ["alice"], KeyWords = ["kw1"], Title = "old-title", Description = "old-desc", Event = "old-event", Location = "old-location" }
+        };
+        var request = new UpdateFileRequest { Metadata = null };
+
+        InvokeGetUpdates(repository, current, request);
+
+        mapperMock.Verify(m => m.ProcessList(It.IsAny<List<ChangeWordRequest>>(), current.Metadata.Names, null, current, WordOrigin.Name), Times.Once);
+        mapperMock.Verify(m => m.ProcessList(It.IsAny<List<ChangeWordRequest>>(), current.Metadata.KeyWords, null, current, WordOrigin.Keyword), Times.Once);
+        mapperMock.Verify(m => m.ProcessScalar(It.IsAny<List<ChangeWordRequest>>(), "old-title", null, current, WordOrigin.FromTitle), Times.Once);
+        mapperMock.Verify(m => m.ProcessScalar(It.IsAny<List<ChangeWordRequest>>(), "old-desc", null, current, WordOrigin.FromDescription), Times.Once);
+        mapperMock.Verify(m => m.ProcessScalar(It.IsAny<List<ChangeWordRequest>>(), "old-event", null, current, WordOrigin.FromEvent), Times.Once);
+        mapperMock.Verify(m => m.ProcessScalar(It.IsAny<List<ChangeWordRequest>>(), "old-location", null, current, WordOrigin.FromLocation), Times.Once);
+    }
+
+    [Test]
     public void IsScyllaConnectivityException_Should_ReturnTrue_For_KnownConnectivityExceptions()
     {
         var noHost = new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>());
