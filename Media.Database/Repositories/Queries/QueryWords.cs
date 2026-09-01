@@ -1,6 +1,7 @@
-﻿using Npgsql;
+﻿using Media.Database.Helpers;
+using Npgsql;
 
-#pragma warning disable CS8981 
+#pragma warning disable CS8981
 using csw = Media.Database.Repositories.Schemas.TablesSql.WordsColumns;
 using cswf = Media.Database.Repositories.Schemas.TablesSql.WordFilesColumns;
 using csvwf = Media.Database.Repositories.Schemas.TablesSql.View_WordFilesColumns;
@@ -195,13 +196,13 @@ public static class QueryWords
     {
         return new Words
         {
-            Id = reader.GetInt32(reader.GetOrdinal(os.Id)),
-            Word = reader.GetString(reader.GetOrdinal(os.Word)),
-            Origin = (WordOrigin)reader.GetInt32(reader.GetOrdinal(os.Origin)),
-            IsProperName = reader.GetFieldValue<bool>(reader.GetOrdinal(os.IsProperName)),
-            InsertedOn = reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal(os.InsertedOn)),
-            UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(reader.GetOrdinal(os.UpdatedOn)),
-            CameFromFileId = reader.GetFieldValue<Guid>(reader.GetOrdinal(os.CameFromFileId)),
+            Id = reader.GetInt32(os.Id),
+            Word = reader.GetString(os.Word),
+            Origin = (WordOrigin)reader.GetInt32(os.Origin),
+            IsProperName = reader.GetFieldValue<bool>(os.IsProperName),
+            InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
+            UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
+            CameFromFileId = reader.GetFieldValue<Guid>(os.CameFromFileId),
         };
     }
 
@@ -221,12 +222,12 @@ public static class QueryWords
     {
         return new Models.ViewWordFiles
         {
-            Origin = (WordOrigin)reader.GetInt32(reader.GetOrdinal(os.Origin)),
-            WordId = reader.GetInt32(reader.GetOrdinal(os.WordId)),
-            Word = reader.GetString(reader.GetOrdinal(os.Word)),
-            FileId = reader.GetFieldValue<Guid>(reader.GetOrdinal(os.FileId)),
-            IsCurrent = reader.GetFieldValue<bool?>(reader.GetOrdinal(os.IsCurrent)),
-            IsProperName = reader.GetFieldValue<bool?>(reader.GetOrdinal(os.IsProperName))
+            Origin = (WordOrigin)reader.GetInt32(os.Origin),
+            WordId = reader.GetInt32(os.WordId),
+            Word = reader.GetString(os.Word),
+            FileId = reader.GetFieldValue<Guid>(os.FileId),
+            IsCurrent = reader.GetFieldValue<bool?>(os.IsCurrent),
+            IsProperName = reader.GetFieldValue<bool?>(os.IsProperName)
         };
     }
 }

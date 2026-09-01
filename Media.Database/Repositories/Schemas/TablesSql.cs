@@ -9,10 +9,12 @@ namespace Media.Database.Repositories.Schemas;
 public class TablesSql : BaseSchema<TablesSql, Tables>
 {
     public static readonly string Files = x();
-    public static readonly string Words = x();
-    public static readonly string WordFiles = x();
+    public static readonly string Registrations = x();
+    public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();
     public static readonly string View_WordFiles = x();
+    public static readonly string Words = x();
+    public static readonly string WordFiles = x();
 
     public static class FilesColumns
     {
@@ -24,6 +26,39 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
         public static readonly string Metadata = y();
+    }
+
+    public static class RegistrationsColumns
+    {
+        public static readonly string Id = y();
+        public static readonly string SourceMachineId = y();
+        public static readonly string EmailAddress = y();
+        public static readonly string OtpEmail = y();
+        public static readonly string CellPhoneNumber = y();
+        public static readonly string OtpCellPhone = y();
+        public static readonly string IsEmailVerified = y();
+        public static readonly string IsSmsVerified = y();
+        public static readonly string IsCurrent = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class SourceMachineRegistrationsColumns
+    {
+        public static readonly string SourceMachineId = y();
+        public static readonly string SourceMachineUuid = y();
+        public static readonly string SourceMachineName = y();
+        public static readonly string DeviceTypeId = y();
+        public static readonly string EmailAddress = y();
+        public static readonly string CellPhoneNumber = y();
+        public static readonly string FirstName = y();
+        public static readonly string LastName = y();
+        public static readonly string IsEmailVerified = y();
+        public static readonly string IsSmsVerified = y();
+        public static readonly string OperatingSystem = y();
+        public static readonly string IsActive = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
     }
 
     public static class WordsColumns

@@ -617,7 +617,7 @@ public class FileRepository(
     {
         try
         {
-            await ScyllaProvider.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), methodName);
+            await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), methodName);
         }
         catch (Exception healEx)
         {

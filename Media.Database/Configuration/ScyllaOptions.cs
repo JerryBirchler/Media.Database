@@ -13,12 +13,12 @@ public class ScyllaOptions
     /// <summary>
     /// Gets or sets the list of internal contact points for the ScyllaDB cluster.
     /// </summary>
-    public List<string> ContactPoints { get; set; } = new();
+    public List<string> ContactPoints { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the list of external contact points for the ScyllaDB cluster.
     /// </summary>
-    public List<string> ExternalContactPoints { get; set; } = new();
+    public List<string> ExternalContactPoints { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the port number for ScyllaDB connections.

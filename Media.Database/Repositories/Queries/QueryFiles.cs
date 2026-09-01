@@ -1,4 +1,5 @@
 ﻿using Cassandra;
+using Media.Database.Helpers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
@@ -274,24 +275,24 @@ public static class QueryFiles
     {
         return new Files
         {
-            Id = reader.GetGuid(reader.GetOrdinal(os.Id)),
-            SourceMachineId = reader.GetInt32(reader.GetOrdinal(os.SourceMachineId)),
-            OriginalFilePath = reader.GetString(reader.GetOrdinal(os.OriginalFilePath)),
-            InsertedOn = reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal(os.InsertedOn)),
-            UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(reader.GetOrdinal(os.UpdatedOn)),
-            LastFileUpdate = reader.GetFieldValue<DateTimeOffset?>(reader.GetOrdinal(os.LastFileUpdate)),
-            IsCurrent = reader.GetFieldValue<bool>(reader.GetOrdinal(os.IsCurrent)),
+            Id = reader.GetGuid(os.Id),
+            SourceMachineId = reader.GetInt32(os.SourceMachineId),
+            OriginalFilePath = reader.GetString(os.OriginalFilePath),
+            InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
+            UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
+            LastFileUpdate = reader.GetFieldValue<DateTimeOffset?>(os.LastFileUpdate),
+            IsCurrent = reader.GetFieldValue<bool>(os.IsCurrent),
             Metadata = reader.ToModelOrDefault<Models.Metadata>(os.Metadata)
         };
     }
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and collects the id column of each.</summary>
-    public static async Task<List<Guid>> ToIds(this NpgsqlDataReader reader)
+    public static async Task<List<Guid>> ToFileIds(this NpgsqlDataReader reader)
     {
         var ids = new List<Guid>();
         while (await reader.ReadAsync())
         {
-            ids.Add(reader.GetGuid(reader.GetOrdinal(os.Id)));
+            ids.Add(reader.GetGuid(os.Id));
         }
 
         return ids;
@@ -300,7 +301,7 @@ public static class QueryFiles
     /// <summary>Reads the id column of the current row of <paramref name="reader"/>.</summary>
     public static Guid ToId(this NpgsqlDataReader reader)
     {
-        return reader.GetGuid(reader.GetOrdinal(os.Id));
+        return reader.GetGuid(os.Id);
     }
 
     /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Files"/>.</summary>
