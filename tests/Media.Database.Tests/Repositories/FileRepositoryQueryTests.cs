@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ParameterNames = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Tests.Repositories;
 
@@ -261,6 +262,72 @@ public class FileRepositoryQueryTests
     }
 
     [Test]
+    public async Task Upsert_Should_ConfigureLastFileUpdateAndMetadata_When_BothProvided()
+    {
+        var insertedFile = _fixture.Create<Files>();
+        Action<NpgsqlParameterCollection>? existsCaptured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryFiles.ExistsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Guid>>((_, _, configure, _) => existsCaptured = configure)
+            .ReturnsAsync((Guid?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryFiles.GetPreviousIdsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ReturnsAsync([]);
+        Action<NpgsqlParameterCollection>? upsertCaptured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Files>>((_, _, configure, _) => upsertCaptured = configure)
+            .ReturnsAsync(insertedFile);
+        var request = _fixture.Build<UploadFileRequest>()
+            .With(r => r.LastFileUpdate, DateTimeOffset.UtcNow)
+            .With(r => r.Metadata, new Metadata { Title = "a title" })
+            .Create();
+
+        await CreateRepository().Upsert(request);
+
+        using var existsCommand = new NpgsqlCommand();
+        existsCaptured!(existsCommand.Parameters);
+        existsCommand.Parameters[ParameterNames.LastFileUpdate].Value.ShouldBe(request.LastFileUpdate);
+
+        using var upsertCommand = new NpgsqlCommand();
+        upsertCaptured!(upsertCommand.Parameters);
+        upsertCommand.Parameters[ParameterNames.Metadata].Value.ShouldNotBe(DBNull.Value);
+    }
+
+    [Test]
+    public async Task Upsert_Should_ConfigureLastFileUpdateAndMetadata_As_DbNull_When_BothNull()
+    {
+        var insertedFile = _fixture.Create<Files>();
+        Action<NpgsqlParameterCollection>? existsCaptured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryFiles.ExistsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Guid>>((_, _, configure, _) => existsCaptured = configure)
+            .ReturnsAsync((Guid?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryFiles.GetPreviousIdsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ReturnsAsync([]);
+        Action<NpgsqlParameterCollection>? upsertCaptured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Files>>((_, _, configure, _) => upsertCaptured = configure)
+            .ReturnsAsync(insertedFile);
+        var request = _fixture.Build<UploadFileRequest>()
+            .With(r => r.LastFileUpdate, (DateTimeOffset?)null)
+            .With(r => r.Metadata, (Metadata?)null)
+            .Create();
+
+        await CreateRepository().Upsert(request);
+
+        using var existsCommand = new NpgsqlCommand();
+        existsCaptured!(existsCommand.Parameters);
+        existsCommand.Parameters[ParameterNames.LastFileUpdate].Value.ShouldBe(DBNull.Value);
+
+        using var upsertCommand = new NpgsqlCommand();
+        upsertCaptured!(upsertCommand.Parameters);
+        upsertCommand.Parameters[ParameterNames.Metadata].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
     public void Upsert_Should_RollbackAndRethrow_When_ExecutorThrows()
     {
         _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((Npgsql.NpgsqlTransaction)null!);
@@ -270,6 +337,48 @@ public class FileRepositoryQueryTests
         var request = _fixture.Create<UploadFileRequest>();
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Upsert(request));
+    }
+
+    [Test]
+    public void Upsert_Should_Rollback_When_ExecutorThrows_And_TransactionIsActive()
+    {
+        _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(NpgsqlTransaction)));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryFiles.ExistsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        var request = _fixture.Create<UploadFileRequest>();
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Upsert(request));
+
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public void Update_Should_RollbackAndRethrow_When_ExecutorThrows_And_TransactionIsActive()
+    {
+        _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(NpgsqlTransaction)));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        var request = _fixture.Create<UpdateFileRequest>();
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Update(Guid.NewGuid(), request));
+
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public void Update_Should_Rethrow_Without_Rollback_When_ExecutorThrows_And_NoTransactionActive()
+    {
+        _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)null!);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        var request = _fixture.Create<UpdateFileRequest>();
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Update(Guid.NewGuid(), request));
+
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -305,6 +414,54 @@ public class FileRepositoryQueryTests
         response.File.ShouldBe(updatedFile);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
         _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Update_Should_ConfigureMetadataAsJson_When_MetadataProvided()
+    {
+        var currentFile = _fixture.Create<Files>();
+        var updatedFile = _fixture.Create<Files>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync(currentFile);
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Files>>((_, _, configure, _) => captured = configure)
+            .ReturnsAsync(updatedFile);
+        var request = _fixture.Build<UpdateFileRequest>()
+            .With(r => r.Metadata, new Metadata { Title = "a title" })
+            .Create();
+
+        await CreateRepository().Update(Guid.NewGuid(), request);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[ParameterNames.Metadata].Value.ShouldNotBe(DBNull.Value);
+    }
+
+    [Test]
+    public async Task Update_Should_ConfigureMetadataAsDbNull_When_MetadataNull()
+    {
+        var currentFile = _fixture.Create<Files>();
+        var updatedFile = _fixture.Create<Files>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync(currentFile);
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Files>>((_, _, configure, _) => captured = configure)
+            .ReturnsAsync(updatedFile);
+        var request = _fixture.Build<UpdateFileRequest>()
+            .With(r => r.Metadata, (Metadata?)null)
+            .Create();
+
+        await CreateRepository().Update(Guid.NewGuid(), request);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[ParameterNames.Metadata].Value.ShouldBe(DBNull.Value);
     }
 
     [Test]

@@ -15,6 +15,7 @@ using Serilog.Core;
 using Shouldly;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
@@ -432,5 +433,59 @@ public class RegistrationRepositoryTests
         };
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateSourceInformation(request));
+    }
+
+    [Test]
+    public async Task Delete_Should_ReturnFile_And_QueueBackgroundDelete_When_ExecutorFindsMatch()
+    {
+        var expected = _fixture.Create<Files>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().Delete(Guid.NewGuid());
+
+        result.ShouldBe(expected);
+        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Delete_Should_ReturnNull_And_NotQueueBackgroundDelete_When_ExecutorFindsNoMatch()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync((Files?)null);
+
+        var result = await CreateRepository().Delete(Guid.NewGuid());
+
+        result.ShouldBeNull();
+        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task DeleteHistoryBySourceMachineId_Should_QueueBackgroundDelete_When_FilesFound()
+    {
+        var files = _fixture.CreateMany<Files>(2).ToList();
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryFiles.DeleteHistorySql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync(files);
+
+        var result = await CreateRepository().DeleteHistoryBySourceMachineId(1, "path");
+
+        result.ShouldBe(files);
+        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task DeleteHistoryBySourceMachineId_Should_NotQueueBackgroundDelete_When_NoFilesFound()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryFiles.DeleteHistorySql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync([]);
+
+        var result = await CreateRepository().DeleteHistoryBySourceMachineId(1, "path");
+
+        result.ShouldBeEmpty();
+        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
     }
 }

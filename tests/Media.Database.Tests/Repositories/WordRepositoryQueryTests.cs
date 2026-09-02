@@ -14,6 +14,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+#pragma warning disable CS8981
+using pn = Media.Database.Repositories.Schemas.ParameterNames;
+#pragma warning restore CS8981
 
 namespace Media.Database.Tests.Repositories;
 
@@ -75,6 +78,47 @@ public class WordRepositoryQueryTests
         var result = await CreateRepository().GetFilePagesByWordOrigin("word", WordOrigin.Name, Guid.NewGuid(), true, false);
 
         result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetFilePages_Should_ConfigureNonNullParameters_When_AllArgumentsProvided()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFilePagesByWordFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+        var fileId = Guid.NewGuid();
+
+        await CreateRepository().GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, "word", WordOrigin.Name, fileId, true, false);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Word].Value.ShouldBe("word");
+        command.Parameters[pn.Origin].Value.ShouldBe(WordOrigin.Name);
+        command.Parameters[pn.FileId].Value.ShouldBe(fileId);
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(true);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(false);
+    }
+
+    [Test]
+    public async Task GetFilePages_Should_ConfigureDbNullParameters_When_AllArgumentsNull()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFilePagesByWordFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, null, null, null, null, null);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Word].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.Origin].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.FileId].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(DBNull.Value);
     }
 
     [TestCase(nameof(WordRepository.GetFilePagesByWordFileId))]
