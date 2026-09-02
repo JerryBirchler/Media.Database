@@ -48,6 +48,11 @@ public class RegistrationRepository(
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
     private readonly int _scyllaMaxBatchsize = scyllaProvider.MaxBatchSize;
 
+    /// <summary>
+    /// Adds a new source machine registration by source information. If the source machine already exists, it will return the existing registration.
+    /// </summary>
+    /// <param name="request">The request containing the source information.</param>
+    /// <returns>The source machine registration, or null if the registration could not be created.</returns>
     public async Task<SourceMachineRegistrations?> AddBySourceInformation(AddSourceInformationRequest request)
     {
         try
@@ -86,9 +91,17 @@ public class RegistrationRepository(
                 reader => reader.ToSourceMachineRegistration()
             );
 
-            ///TODO: Add background process to send OTP to email and cell phone number asynchronously
+            if (addRegistrationResponse is null)
+                return null;
 
-            return addRegistrationResponse;
+            addSourceResponse.OtpEmail = addRegistrationResponse.OtpEmail;
+            addSourceResponse.OtpCellPhone = addRegistrationResponse.OtpCellPhone;
+            addSourceResponse.RegistrationId = addRegistrationResponse.RegistrationId;
+            addSourceResponse.RegistrationInsertedOn = addRegistrationResponse.RegistrationInsertedOn;
+            addSourceResponse.RegistrationUpdatedOn = addRegistrationResponse.RegistrationUpdatedOn;
+
+            QueueBackgroundUpdateAsync(addSourceResponse);
+            return addSourceResponse;
         }
         catch (Exception ex)
         {
@@ -97,6 +110,11 @@ public class RegistrationRepository(
         }
     }
 
+    /// <summary>
+    /// Gets a source machine registration by its UUID.
+    /// </summary>
+    /// <param name="uuid">The UUID of the source machine registration.</param>
+    /// <returns>The source machine registration, or null if it does not exist.</returns>
     public async Task<SourceMachineRegistrations?> GetByUuid(Guid uuid)
     {
         try
@@ -115,6 +133,12 @@ public class RegistrationRepository(
         }
     }
 
+    /// <summary>
+    /// Updates the source information for a given source machine UUID. If the email address or cell phone number has changed,
+    /// a new registration is created and the old one is inactivated.
+    /// </summary>
+    /// <param name="request">The request containing the updated source information.</param>
+    /// <returns>The updated source machine registration, or null if the registration does not exist.</returns>
     public async Task<SourceMachineRegistrations?> UpdateSourceInformation(UpdateSourceInformationRequest request)
     {
         try
@@ -190,6 +214,7 @@ public class RegistrationRepository(
             throw;
         }
     }
+
     /// <summary>
     /// Queues a background task to upsert a registration in the Scylla database asynchronously.
     /// </summary>
@@ -203,6 +228,11 @@ public class RegistrationRepository(
         });
     }
 
+    /// <summary>
+    /// Upserts a registration in the Scylla database asynchronously.
+    /// </summary>
+    /// <param name="registration">The registration to upsert.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task UpsertCqlAsync(SourceMachineRegistrations registration)
     {
         var log = _logger.WithCaller();
