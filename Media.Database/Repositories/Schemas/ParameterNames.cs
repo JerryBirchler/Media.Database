@@ -28,6 +28,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string OriginalFilePath = x();
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
+    public static readonly string OtpWindowStart = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();

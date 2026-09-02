@@ -11,7 +11,7 @@ public record ChangeWordRequest
     /// <summary>
     /// Gets or sets the Kafka producer action to perform for this word.
     /// </summary>
-    public virtual KafkaProducerActions Action { get; set; }
+    public virtual WordProducerActions Action { get; set; }
 
     /// <summary>
     /// Gets or sets the new word text.

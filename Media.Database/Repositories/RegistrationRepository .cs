@@ -3,11 +3,13 @@ using Media.Common.BackgroundJobs;
 using Media.Common.Helpers;
 using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
+using Media.Common.Settings;
 using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Serilog.Core;
 
 
@@ -27,6 +29,7 @@ namespace Media.Database.Repositories;
 /// <param name="scyllaProvider">The Scylla session provider.</param>
 /// <param name="unitOfWorkFactory">The factory function to create a unit of work.</param>
 /// <param name="backgroundTaskQueue">The background task queue.</param>
+/// <param name="registrationSettings">The registration/OTP workflow settings.</param>
 /// <param name="logger">The logger instance.</param>
 /// <param name="levelSwitch">The logging level switch.</param>
 public class RegistrationRepository(
@@ -35,6 +38,7 @@ public class RegistrationRepository(
     IScyllaSessionProvider scyllaProvider,
     Func<IUnitOfWork> unitOfWorkFactory,
     IBackgroundTaskQueue backgroundTaskQueue,
+    IOptions<RegistrationSettings> registrationSettings,
     ILogger<RegistrationRepository> logger,
     LoggingLevelSwitch levelSwitch)
     : BaseRepository(scyllaProvider), IRegistrationRepository
@@ -43,6 +47,7 @@ public class RegistrationRepository(
     private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly IBackgroundTaskQueue _backgroundTaskQueue = backgroundTaskQueue;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
+    private readonly IOptions<RegistrationSettings> _registrationSettings = registrationSettings;
     private readonly FluentLogger<RegistrationRepository> _logger = logger.Initializer();
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
@@ -139,10 +144,10 @@ public class RegistrationRepository(
                     p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
                     p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
                 },
-                reader => reader.ToSourceMachineRegistration()
+                reader => reader.ToSourceMachineRegistration(existingRegistration)
             );
 
-            if (updateResponse is null) 
+            if (updateResponse is null)
                 return null;
 
             if (existingRegistration.EmailAddress == request.EmailAddress
@@ -155,7 +160,11 @@ public class RegistrationRepository(
             var ids = await _sqlExecutor.QueryManyAsync
             (
                 QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql,
-                p => p.AddWithValue(pn.SourceMachineUuid, request.SourceMachineUuid),
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineUuid, request.SourceMachineUuid);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
                 reader => reader.ToRegistrationIds()
             );
 
@@ -174,12 +183,14 @@ public class RegistrationRepository(
                 reader => reader.ToAddRegistrationResponse()
             );
 
-            updateResponse.OtpEmail = addRegistrationResponse?.Result?.OtpEmail!;
-            updateResponse.OtpCellPhone = addRegistrationResponse?.Result?.OtpCellPhone!;
-            updateResponse.RegistrationId = (int)addRegistrationResponse?.Result?.Id!;
-            updateResponse.RegistrationInsertedOn = addRegistrationResponse?.Result?.InsertedOn;
-            updateResponse.RegistrationUpdatedOn = addRegistrationResponse?.Result?.UpdatedOn;
+            if (addRegistrationResponse is null)
+                return null;
 
+            updateResponse.OtpEmail = addRegistrationResponse.OtpEmail;
+            updateResponse.OtpCellPhone = addRegistrationResponse.OtpCellPhone;
+            updateResponse.RegistrationId = addRegistrationResponse.Id;
+            updateResponse.RegistrationInsertedOn = addRegistrationResponse.InsertedOn;
+            updateResponse.RegistrationUpdatedOn = addRegistrationResponse.UpdatedOn;
 
             QueueBackgroundUpdateAsync(updateResponse);
             return updateResponse;
@@ -190,6 +201,122 @@ public class RegistrationRepository(
             throw;
         }
     }
+
+    public async Task<ResendOtpResult?> ResendOtp(Guid sourceMachineUuid)
+    {
+        try
+        {
+            var existingRegistration = await _sqlExecutor.QuerySingleAsync
+            (
+                QueryRegistrations.GetBySourceMachineUuidSql,
+                p => p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid),
+                reader => reader.ToSourceMachineRegistration()
+            );
+
+            if (existingRegistration is null)
+                return null;
+
+            if (existingRegistration.IsEmailVerified && existingRegistration.IsSmsVerified)
+            {
+                return new ResendOtpResult
+                {
+                    EmailOtpSent = false,
+                    SmsOtpSent = false
+                };
+            }
+
+            await _sqlExecutor.QueryManyAsync
+            (
+                QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToRegistrationIds()
+            );
+
+            var otpEmail = existingRegistration.IsEmailVerified ? string.Empty : OneTimePassword.Generate();
+            var otpCellPhone = existingRegistration.IsSmsVerified ? string.Empty : OneTimePassword.Generate();
+
+            var addRegistrationResponse = await _sqlExecutor.QuerySingleAsync
+            (
+                QueryRegistrations.AddRegistrationBySourceMachineUuidSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.OtpEmail, otpEmail);
+                    p.AddWithValue(pn.OtpCellPhone, otpCellPhone);
+                },
+                reader => reader.ToAddRegistrationResponse()
+            );
+
+            if (addRegistrationResponse is null)
+                return null;
+
+            ///TODO: Add background process to send OTP to email and cell phone number asynchronously
+
+            return new ResendOtpResult
+            {
+                EmailOtpSent = !existingRegistration.IsEmailVerified,
+                SmsOtpSent = !existingRegistration.IsSmsVerified
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ResendOtp failed for SourceMachineUuid {SourceMachineUuid}", sourceMachineUuid);
+            throw;
+        }
+    }
+
+    public async Task<OtpEmailResponse?> VerifyOtpEmail(Guid sourceMachineUuid, string otp)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryRegistrations.VerifyOtpEmailSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.OtpEmail, otp);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                    p.AddWithValue(pn.OtpWindowStart, DateTimeOffset.UtcNow - _registrationSettings.Value.OtpWindow);
+                },
+                reader => reader.ToOtpEmailResponse()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "VerifyOtpEmail failed for SourceMachineUuid {SourceMachineUuid}", sourceMachineUuid);
+            throw;
+        }
+    }
+
+    public async Task<OtpSmsResponse?> VerifyOtpCellPhone(Guid sourceMachineUuid, string otp)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryRegistrations.VerifyOtpCellPhoneSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.OtpCellPhone, otp);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                    p.AddWithValue(pn.OtpWindowStart, DateTimeOffset.UtcNow - _registrationSettings.Value.OtpWindow);
+                },
+                reader => reader.ToOtpSmsResponse()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "VerifyOtpCellPhone failed for SourceMachineUuid {SourceMachineUuid}", sourceMachineUuid);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Queues a background task to upsert a registration in the Scylla database asynchronously.
     /// </summary>

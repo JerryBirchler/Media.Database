@@ -204,8 +204,9 @@ public class FileRepositoryQueryTests
             .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryFiles.ExistsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
             .ReturnsAsync(existingId);
         var request = _fixture.Create<UploadFileRequest>();
+        var sourceMachineId = _fixture.Create<int>();
 
-        var result = await CreateRepository().Upsert(request);
+        var result = await CreateRepository().Upsert(sourceMachineId, request);
 
         result.ShouldNotBeNull();
         result!.Id.ShouldBe(existingId);
@@ -230,8 +231,9 @@ public class FileRepositoryQueryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
             .ReturnsAsync(insertedFile);
         var request = _fixture.Create<UploadFileRequest>();
+        var sourceMachineId = _fixture.Create<int>();
 
-        var result = await CreateRepository().Upsert(request);
+        var result = await CreateRepository().Upsert(sourceMachineId, request);
 
         result.ShouldBe(insertedFile);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -252,8 +254,9 @@ public class FileRepositoryQueryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
             .ReturnsAsync((Files?)null);
         var request = _fixture.Create<UploadFileRequest>();
+        var sourceMachineId = _fixture.Create<int>();
 
-        var result = await CreateRepository().Upsert(request);
+        var result = await CreateRepository().Upsert(sourceMachineId, request);
 
         result.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -282,8 +285,9 @@ public class FileRepositoryQueryTests
             .With(r => r.LastFileUpdate, DateTimeOffset.UtcNow)
             .With(r => r.Metadata, new Metadata { Title = "a title" })
             .Create();
+        var sourceMachineId = _fixture.Create<int>();
 
-        await CreateRepository().Upsert(request);
+        await CreateRepository().Upsert(sourceMachineId, request);
 
         using var existsCommand = new NpgsqlCommand();
         existsCaptured!(existsCommand.Parameters);
@@ -315,8 +319,9 @@ public class FileRepositoryQueryTests
             .With(r => r.LastFileUpdate, (DateTimeOffset?)null)
             .With(r => r.Metadata, (Metadata?)null)
             .Create();
+        var sourceMachineId = _fixture.Create<int>();
 
-        await CreateRepository().Upsert(request);
+        await CreateRepository().Upsert(sourceMachineId, request);
 
         using var existsCommand = new NpgsqlCommand();
         existsCaptured!(existsCommand.Parameters);
@@ -335,8 +340,9 @@ public class FileRepositoryQueryTests
             .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryFiles.ExistsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var request = _fixture.Create<UploadFileRequest>();
+        var sourceMachineId = _fixture.Create<int>();
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Upsert(request));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Upsert(sourceMachineId, request));
     }
 
     [Test]
@@ -347,8 +353,9 @@ public class FileRepositoryQueryTests
             .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryFiles.ExistsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var request = _fixture.Create<UploadFileRequest>();
+        var sourceMachineId = _fixture.Create<int>();
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Upsert(request));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().Upsert(sourceMachineId, request));
 
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
     }

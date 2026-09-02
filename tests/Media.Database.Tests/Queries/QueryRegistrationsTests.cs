@@ -77,6 +77,7 @@ public class QueryRegistrationsTests
         sql.ShouldContain("WHERE");
         sql.ShouldContain("RETURNING");
         sql.ShouldContain("@OtpEmail");
+        sql.ShouldContain("@OtpWindowStart");
     }
 
     [Test]
@@ -87,6 +88,7 @@ public class QueryRegistrationsTests
         sql.ShouldContain("WHERE");
         sql.ShouldContain("RETURNING");
         sql.ShouldContain("@OtpCellPhone");
+        sql.ShouldContain("@OtpWindowStart");
     }
 
     [Test]

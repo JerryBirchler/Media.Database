@@ -11,7 +11,6 @@ Media.Database is part of the Media suite of libraries, offering a robust data a
 - **Multi-Database Support**: Works with both SQL (PostgreSQL via Npgsql) and CQL (Cassandra/ScyllaDB) databases
 - **Repository Pattern**: Clean abstractions for data access through `IFileRepository` and `IWordRepository`
 - **Schema Management**: Dynamic schema handling with caching for optimal performance
-- **Kafka Integration**: Built-in models for Kafka messaging and event streaming
 - **Metadata Management**: Comprehensive metadata tracking for media files
 - **Word Indexing**: Advanced word origin tracking and file associations
 - **Query Builder**: Custom query builders for both SQL and CQL operations
@@ -37,8 +36,6 @@ Media.Database/
 │   ├── Files.cs                    # File entity model
 │   ├── Words.cs                    # Word entity model
 │   ├── Metadata.cs                 # Metadata model
-│   ├── KafkaSettings.cs            # Kafka configuration
-│   ├── KafkaRecord.cs              # Kafka message models
 │   └── ...                         # Additional models and requests
 ├── Repositories/
 │   ├── BaseRepository.cs           # Scylla session access shared by repositories that need it
@@ -187,15 +184,6 @@ The library supports dynamic schema detection and handles both SQL and CQL datab
 - **CQL Mode**: Uses Cassandra/ScyllaDB with denormalized document structure
 
 Schema information is cached for performance using `BaseSchemaCache`.
-
-## Kafka Integration
-
-Built-in support for Kafka messaging:
-
-- **KafkaSettings**: Configure Kafka brokers and topics
-- **KafkaRecord**: Message structure
-- **KafkaRecordWrapper**: Serialization wrapper
-- **KafkaProducerActions**: Enumeration of producer operations
 
 ## Logging
 

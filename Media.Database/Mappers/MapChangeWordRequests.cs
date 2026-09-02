@@ -29,7 +29,7 @@ public class MapChangeWordRequests : IMapChangeWordRequests
         {
             updates.Add(new ChangeWordRequest
             {
-                Action = KafkaProducerActions.Delete,
+                Action = WordProducerActions.Delete,
                 Origin = origin,
                 NewSpan = item,
                 CameFromFileId = current.Id
@@ -40,7 +40,7 @@ public class MapChangeWordRequests : IMapChangeWordRequests
         {
             updates.Add(new ChangeWordRequest
             {
-                Action = KafkaProducerActions.Upsert,
+                Action = WordProducerActions.Upsert,
                 Origin = origin,
                 NewSpan = item,
                 CameFromFileId = current.Id
@@ -72,7 +72,7 @@ public class MapChangeWordRequests : IMapChangeWordRequests
             {
                 updates.Add(new ChangeWordRequest
                 {
-                    Action = KafkaProducerActions.Update,
+                    Action = WordProducerActions.Update,
                     Origin = origin,
                     CurrentSpan = curValue,
                     NewSpan = newValue!,
@@ -84,7 +84,7 @@ public class MapChangeWordRequests : IMapChangeWordRequests
         {
             updates.Add(new ChangeWordRequest
             {
-                Action = KafkaProducerActions.Delete,
+                Action = WordProducerActions.Delete,
                 Origin = origin,
                 CurrentSpan = curValue,
                 NewSpan = null!,
@@ -95,7 +95,7 @@ public class MapChangeWordRequests : IMapChangeWordRequests
         {
             updates.Add(new ChangeWordRequest
             {
-                Action = KafkaProducerActions.Upsert,
+                Action = WordProducerActions.Upsert,
                 Origin = origin,
                 NewSpan = newValue!,
                 CameFromFileId = current.Id

@@ -68,7 +68,7 @@ public class BaseWordRequestTests
             Origin = origin,
             IsProperName = isProperName,
             CameFromFileId = fileId,
-            Action = KafkaProducerActions.Add
+            Action = WordProducerActions.Add
         };
 
         // Assert
@@ -76,7 +76,7 @@ public class BaseWordRequestTests
         request.Origin.ShouldBe(origin);
         request.IsProperName.ShouldBe(isProperName);
         request.CameFromFileId.ShouldBe(fileId);
-        request.Action.ShouldBe(KafkaProducerActions.Add);
+        request.Action.ShouldBe(WordProducerActions.Add);
     }
 
     [Test]
@@ -155,7 +155,7 @@ public class DeleteWordRequestTests
         };
 
         // Assert
-        request.Action.ShouldBe(KafkaProducerActions.Delete);
+        request.Action.ShouldBe(WordProducerActions.Delete);
     }
 
     [Test, AutoData]
@@ -195,10 +195,10 @@ public class DeleteWordRequestTests
             Origin = origin,
             IsProperName = isProperName,
             CameFromFileId = fileId,
-            Action = KafkaProducerActions.Update
+            Action = WordProducerActions.Update
         };
 
         // Assert
-        request.Action.ShouldBe(KafkaProducerActions.Update);
+        request.Action.ShouldBe(WordProducerActions.Update);
     }
 }

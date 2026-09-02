@@ -27,7 +27,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Delete);
+        updates[0].Action.ShouldBe(WordProducerActions.Delete);
         updates[0].NewSpan.ShouldBe("word2");
         updates[0].Origin.ShouldBe(origin);
         updates[0].CameFromFileId.ShouldBe(fileId);
@@ -48,7 +48,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Upsert);
+        updates[0].Action.ShouldBe(WordProducerActions.Upsert);
         updates[0].NewSpan.ShouldBe("word3");
         updates[0].Origin.ShouldBe(origin);
         updates[0].CameFromFileId.ShouldBe(fileId);
@@ -69,8 +69,8 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(4);
-        var deletes = updates.Where(u => u.Action == KafkaProducerActions.Delete).ToList();
-        var upserts = updates.Where(u => u.Action == KafkaProducerActions.Upsert).ToList();
+        var deletes = updates.Where(u => u.Action == WordProducerActions.Delete).ToList();
+        var upserts = updates.Where(u => u.Action == WordProducerActions.Upsert).ToList();
 
         deletes.Count.ShouldBe(2);
         deletes.Select(d => d.NewSpan).ShouldBe(new[] { "word2", "word3" }, ignoreOrder: true);
@@ -93,7 +93,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(2);
-        updates.All(u => u.Action == KafkaProducerActions.Upsert).ShouldBeTrue();
+        updates.All(u => u.Action == WordProducerActions.Upsert).ShouldBeTrue();
         updates.Select(u => u.NewSpan).ShouldBe(newList);
     }
 
@@ -111,7 +111,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(2);
-        updates.All(u => u.Action == KafkaProducerActions.Delete).ShouldBeTrue();
+        updates.All(u => u.Action == WordProducerActions.Delete).ShouldBeTrue();
         updates.Select(u => u.NewSpan).ShouldBe(curList);
     }
 
@@ -175,7 +175,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Update);
+        updates[0].Action.ShouldBe(WordProducerActions.Update);
         updates[0].CurrentSpan.ShouldBe("oldValue");
         updates[0].NewSpan.ShouldBe("newValue");
         updates[0].Origin.ShouldBe(origin);
@@ -210,7 +210,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Delete);
+        updates[0].Action.ShouldBe(WordProducerActions.Delete);
         updates[0].CurrentSpan.ShouldBe("oldValue");
         updates[0].Origin.ShouldBe(origin);
         updates[0].CameFromFileId.ShouldBe(fileId);
@@ -229,7 +229,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Delete);
+        updates[0].Action.ShouldBe(WordProducerActions.Delete);
     }
 
     [Test, AutoData]
@@ -245,7 +245,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Delete);
+        updates[0].Action.ShouldBe(WordProducerActions.Delete);
     }
 
     [Test, AutoData]
@@ -261,7 +261,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Upsert);
+        updates[0].Action.ShouldBe(WordProducerActions.Upsert);
         updates[0].NewSpan.ShouldBe("newValue");
         updates[0].Origin.ShouldBe(origin);
         updates[0].CameFromFileId.ShouldBe(fileId);
@@ -280,7 +280,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Upsert);
+        updates[0].Action.ShouldBe(WordProducerActions.Upsert);
         updates[0].NewSpan.ShouldBe("newValue");
     }
 
@@ -297,7 +297,7 @@ public class MapChangeWordRequestsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Upsert);
+        updates[0].Action.ShouldBe(WordProducerActions.Upsert);
     }
 
     [Test, AutoData]
@@ -343,6 +343,6 @@ public class MapChangeWordRequestsTests
 
         // Assert - Different case should trigger update
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Update);
+        updates[0].Action.ShouldBe(WordProducerActions.Update);
     }
 }

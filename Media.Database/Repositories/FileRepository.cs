@@ -162,9 +162,10 @@ public class FileRepository(
     /// <summary>
     /// Inserts or updates a file in the database asynchronously.
     /// </summary>
+    /// <param name="sourceMachineId">The identifier of the device that owns the file, resolved from the X-API-KEY.</param>
     /// <param name="request">The upload file request containing the file details.</param>
     /// <returns>A task representing the asynchronous operation, containing the inserted or updated file.</returns>
-    public async Task<Files?> Upsert(UploadFileRequest request)
+    public async Task<Files?> Upsert(int sourceMachineId, UploadFileRequest request)
     {
         await using var uow = _unitOfWorkFactory();
 
@@ -177,7 +178,7 @@ public class FileRepository(
                 QueryFiles.ExistsSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
                     p.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
                     p.AddWithValue(pn.LastFileUpdate, (object)request.LastFileUpdate! ?? DBNull.Value);
                 },
@@ -198,7 +199,7 @@ public class FileRepository(
                 QueryFiles.GetPreviousIdsSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
                     p.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
                 },
                 reader => reader.ToId());
@@ -208,7 +209,7 @@ public class FileRepository(
                 QueryFiles.UpsertSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
                     p.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
                     p.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
@@ -230,7 +231,7 @@ public class FileRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
-                request.SourceMachineId, request.OriginalFilePath);
+                sourceMachineId, request.OriginalFilePath);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();

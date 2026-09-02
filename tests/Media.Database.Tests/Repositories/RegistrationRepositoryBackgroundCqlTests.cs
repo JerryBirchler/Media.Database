@@ -3,12 +3,14 @@ using AutoFixture;
 using Cassandra;
 using Media.Common.BackgroundJobs;
 using Media.Common.Providers;
+using Media.Common.Settings;
 using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories;
 using Media.Database.Repositories.Queries;
 using Media.Database.Tests.TestHelpers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Npgsql;
 using NUnit.Framework;
@@ -58,6 +60,7 @@ public class RegistrationRepositoryBackgroundCqlTests
         _scyllaProviderMock.Object,
         () => Mock.Of<IUnitOfWork>(),
         backgroundTaskQueue,
+        Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1) }),
         Mock.Of<ILogger<RegistrationRepository>>(),
         new LoggingLevelSwitch());
 

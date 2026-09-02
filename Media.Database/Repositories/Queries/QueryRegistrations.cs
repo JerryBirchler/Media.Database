@@ -203,72 +203,78 @@ public static class QueryRegistrations
             CASE WHEN {pn.OtpCellPhone} = '' THEN True ELSE False END
         WHERE 
             {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
-        RETURNING 
-            Id,
-            IsEmailVerfied,
-            IsSmsVerified,
-            OptEmail,
-            OptCellPhone,
-            InsertedOn,
-            UpdatedOn
+        RETURNING
+            {csr.Id},
+            {csr.IsEmailVerified},
+            {csr.IsSmsVerified},
+            {csr.OtpEmail},
+            {csr.OtpCellPhone},
+            {csr.InsertedOn},
+            {csr.UpdatedOn}
         ;";
 
     /// <summary>
-    /// Update the registration when the one-time password for email is verified.
+    /// Update the registration when the one-time password for email is verified. The OTP is only
+    /// honored within one hour of the pending registration row's <see cref="TablesSql.RegistrationsColumns.InsertedOn"/>;
+    /// past that window this matches no row, the same as an incorrect code.
     /// </summary>
     public static string VerifyOtpEmailSql => $@"
         UPDATE r SET
             {csr.IsEmailVerified} = True,
             {csr.UpdatedOn} = {pn.UpdatedOn}
-        FROM 
+        FROM
             {ts.Registrations} AS r
-        INNER JOIN 
+        INNER JOIN
             {ts.SourceMachineRegistrations} AS smr
-        ON  
+        ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
-        WHERE 
+        WHERE
             {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
             AND {csr.IsCurrent} = True
             AND {csr.EmailAddress} = {cssmr.EmailAddress}
             AND {csr.CellPhoneNumber} = {cssmr.CellPhoneNumber}
             AND {csr.OtpEmail} = {pn.OtpEmail}
+            AND {csr.InsertedOn} > {pn.OtpWindowStart}
         RETURNING
             smr.{cssmr.SourceMachineUuid},
             smr.{cssmr.SourceMachineName},
             smr.{cssmr.DeviceTypeId},
             smr.{cssmr.FirstName},
             smr.{cssmr.LastName},
-            r.{csr.EmailAddress}, 
-            r.{csr.IsEmailVerified} 
+            r.{csr.EmailAddress},
+            r.{csr.IsEmailVerified}
         ;";
 
     /// <summary>
-    /// Update the registration when the one-time password for cell phone is verified.
+    /// Update the registration when the one-time password for cell phone is verified. The OTP is
+    /// only honored within one hour of the pending registration row's <see cref="TablesSql.RegistrationsColumns.InsertedOn"/>;
+    /// past that window this matches no row, the same as an incorrect code.
     /// </summary>
     public static string VerifyOtpCellPhoneSql => $@"
         UPDATE r SET
             {csr.IsSmsVerified} = True,
             {csr.UpdatedOn} = {pn.UpdatedOn}
-        FROM 
-            {ts.Registrations} AS r 
-        INNER JOIN 
+        FROM
+            {ts.Registrations} AS r
+        INNER JOIN
             {ts.SourceMachineRegistrations} AS smr
-        ON  
+        ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
-        WHERE 
+        WHERE
             {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
             AND {csr.IsCurrent} = True
             AND {csr.EmailAddress} = {cssmr.EmailAddress}
             AND {csr.CellPhoneNumber} = {cssmr.CellPhoneNumber}
             AND {csr.OtpCellPhone} = {pn.OtpCellPhone}
-        RETURNING 
+            AND {csr.InsertedOn} > {pn.OtpWindowStart}
+        RETURNING
             smr.{cssmr.SourceMachineUuid},
             smr.{cssmr.SourceMachineName},
             smr.{cssmr.DeviceTypeId},
             smr.{cssmr.FirstName},
             smr.{cssmr.LastName},
-            r.{csr.CellPhoneNumber}, 
-            r.{csr.IsSmsVerified} 
+            r.{csr.CellPhoneNumber},
+            r.{csr.IsSmsVerified}
         ;";
 
     #endregion
@@ -346,6 +352,60 @@ public static class QueryRegistrations
         };
     }
 
+    /// <summary>
+    /// Maps the current row of <paramref name="reader"/> onto <paramref name="baseline"/>, for result
+    /// sets — like <see cref="UpdateSourceInformationSql"/>'s — that only return the
+    /// <c>SourceMachineRegistrations</c> table's own columns. Verification state, OTP codes, and the
+    /// registration row's id/timestamps aren't part of that RETURNING clause, so they're carried over
+    /// from <paramref name="baseline"/> (typically a row already fetched moments earlier) unchanged.
+    /// </summary>
+    public static SourceMachineRegistrations ToSourceMachineRegistration(this NpgsqlDataReader reader, SourceMachineRegistrations baseline)
+    {
+        return baseline with
+        {
+            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
+            SourceMachineName = reader.GetString(os.SourceMachineName),
+            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+            EmailAddress = reader.GetString(os.EmailAddress),
+            CellPhoneNumber = reader.GetString(os.CellPhoneNumber)!,
+            FirstName = reader.GetString(os.FirstName),
+            LastName = reader.GetString(os.LastName),
+            OperatingSystem = reader.GetString(os.OperatingSystem),
+            InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
+            IsActive = reader.GetFieldValue<bool>(os.IsActive)
+        };
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to an <see cref="OtpEmailResponse"/>.</summary>
+    public static OtpEmailResponse ToOtpEmailResponse(this NpgsqlDataReader reader)
+    {
+        return new OtpEmailResponse
+        {
+            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
+            SourceMachineName = reader.GetString(os.SourceMachineName),
+            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+            FirstName = reader.GetString(os.FirstName),
+            LastName = reader.GetString(os.LastName),
+            EmailAddress = reader.GetString(os.EmailAddress),
+            OtpEmailVerified = reader.GetFieldValue<bool>(os.IsEmailVerified)
+        };
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to an <see cref="OtpSmsResponse"/>.</summary>
+    public static OtpSmsResponse ToOtpSmsResponse(this NpgsqlDataReader reader)
+    {
+        return new OtpSmsResponse
+        {
+            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
+            SourceMachineName = reader.GetString(os.SourceMachineName),
+            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+            FirstName = reader.GetString(os.FirstName),
+            LastName = reader.GetString(os.LastName),
+            CellPhoneNumber = reader.GetString(os.CellPhoneNumber),
+            OtpSmsVerified = reader.GetFieldValue<bool>(os.IsSmsVerified)
+        };
+    }
+
     public static async Task<SortedSet<int>> ToRegistrationIds(this NpgsqlDataReader reader)
     {
         SortedSet<int> ids = [];
@@ -377,11 +437,9 @@ public static class QueryRegistrations
         };
     }
 
-    public static async Task<AddRegistrationResponse?> ToAddRegistrationResponse(this NpgsqlDataReader reader)
+    /// <summary>Maps the current row of <paramref name="reader"/> to an <see cref="AddRegistrationResponse"/>.</summary>
+    public static AddRegistrationResponse ToAddRegistrationResponse(this NpgsqlDataReader reader)
     {
-        if (!await reader.ReadAsync())
-            return null;
-     
         return new AddRegistrationResponse
         {
             Id = reader.GetInt32(os.Id),

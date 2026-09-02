@@ -11,7 +11,7 @@ public record BaseWordRequest
     /// Gets or sets the Kafka producer action to perform.
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public virtual KafkaProducerActions Action { get; set; }
+    public virtual WordProducerActions Action { get; set; }
 
     /// <summary>
     /// Gets or sets the word text.

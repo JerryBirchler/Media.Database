@@ -9,13 +9,6 @@ namespace Media.Database.Models;
 public record UploadFileRequest
 {
     /// <summary>
-    /// Gets or sets the source machine identifier.
-    /// </summary>
-    [JsonPropertyName("sourceMachineId")]
-    [FromHeader(Name = "sourceMachineId")]
-    public required int SourceMachineId { get; set; }
-
-    /// <summary>
     /// Gets or sets the original file path.
     /// </summary>
     [JsonPropertyName("originalFilePath")]

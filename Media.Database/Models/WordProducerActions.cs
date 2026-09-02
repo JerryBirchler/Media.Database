@@ -3,10 +3,10 @@
 namespace Media.Database.Models
 {
     /// <summary>
-    /// Enumerates the actions that can be performed by a Kafka producer.
+    /// Enumerates the actions that can be performed against a word record.
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum KafkaProducerActions
+    public enum WordProducerActions
     {
         /// <summary>
         /// Add a new record.

@@ -2,12 +2,14 @@
 using AutoFixture;
 using Media.Common.BackgroundJobs;
 using Media.Common.Providers;
+using Media.Common.Settings;
 using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories;
 using Media.Database.Repositories.Queries;
 using Media.Database.Tests.TestHelpers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Npgsql;
 using NUnit.Framework;
@@ -26,11 +28,11 @@ namespace Media.Database.Tests.Repositories;
 
 /// <summary>
 /// Covers RegistrationRepository's public API against a mocked ISqlQueryExecutor, following the
-/// same pattern as FileRepositoryQueryTests. The mapping extensions on QueryRegistrations
-/// (ToRegistrationIds/ToAddRegistrationResponse) are declared as async methods, so when used as the
-/// `map` delegate for ISqlQueryExecutor they produce a nested Task (e.g. Task&lt;AddRegistrationResponse?&gt;
-/// as T rather than AddRegistrationResponse). The mocks below match that actual, current signature so
-/// the UpdateSourceInformation branch that hits it stays covered as written.
+/// same pattern as FileRepositoryQueryTests. ToRegistrationIds is still declared as an async method
+/// and so still produces a nested Task (Task&lt;SortedSet&lt;int&gt;&gt; as T) when used as the `map`
+/// delegate; ToAddRegistrationResponse was fixed to map synchronously like the other single-row
+/// mappers (see QueryRegistrations), so its mocks use Func&lt;NpgsqlDataReader, AddRegistrationResponse&gt;
+/// directly.
 /// </summary>
 [TestFixture]
 public class RegistrationRepositoryTests
@@ -58,6 +60,7 @@ public class RegistrationRepositoryTests
             scyllaProviderMock.Object,
             () => Mock.Of<IUnitOfWork>(),
             _backgroundTaskQueueMock.Object,
+            Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1) }),
             Mock.Of<ILogger<RegistrationRepository>>(),
             new LoggingLevelSwitch());
     }
@@ -324,8 +327,8 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<System.Collections.Generic.SortedSet<int>>>>()))
             .ReturnsAsync([]);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<AddRegistrationResponse?>>>()))
-            .ReturnsAsync(Task.FromResult<AddRegistrationResponse?>(addResponse));
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .ReturnsAsync(addResponse);
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineUuid = existing.SourceMachineUuid,
@@ -381,9 +384,9 @@ public class RegistrationRepositoryTests
             .ReturnsAsync([]);
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<AddRegistrationResponse?>>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Task<AddRegistrationResponse?>>>((_, configure, _) => captured = configure)
-            .ReturnsAsync(Task.FromResult<AddRegistrationResponse?>(addResponse));
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(addResponse);
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineUuid = existing.SourceMachineUuid,
@@ -402,13 +405,12 @@ public class RegistrationRepositoryTests
     }
 
     /// <summary>
-    /// Pins current behavior: when AddRegistrationBySourceMachineUuidSql returns no row, the repository
-    /// unboxes a null Nullable&lt;int&gt; at `(int)addRegistrationResponse?.Result?.Id!` and throws
-    /// InvalidOperationException rather than handling the no-row case gracefully. This looks like a real
-    /// gap (worth a null-check before the cast), not something this test suite should paper over.
+    /// When AddRegistrationBySourceMachineUuidSql returns no row, the repository now returns null
+    /// gracefully instead of unboxing a null Nullable&lt;int&gt; and throwing InvalidOperationException
+    /// (the previous behavior, which this test used to pin).
     /// </summary>
     [Test]
-    public void UpdateSourceInformation_Should_ThrowInvalidOperationException_When_AddRegistrationReturnsNoRow()
+    public async Task UpdateSourceInformation_Should_ReturnNull_When_AddRegistrationReturnsNoRow()
     {
         var existing = CreateRegistration();
         var updated = existing with { EmailAddress = "new3@example.com", CellPhoneNumber = "555-0201" };
@@ -422,8 +424,8 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
             .ReturnsAsync([]);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<AddRegistrationResponse?>>>()))
-            .ReturnsAsync((Task<AddRegistrationResponse?>?)null);
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .ReturnsAsync((AddRegistrationResponse?)null);
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineUuid = existing.SourceMachineUuid,
@@ -432,7 +434,105 @@ public class RegistrationRepositoryTests
             OperatingSystem = existing.OperatingSystem
         };
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateSourceInformation(request));
+        var result = await CreateRepository().UpdateSourceInformation(request);
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task ResendOtp_Should_ReturnNull_When_RegistrationNotFound()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+
+        var result = await CreateRepository().ResendOtp(Guid.NewGuid());
+
+        result.ShouldBeNull();
+        _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ResendOtp_Should_ReturnBothFalse_And_SkipReRegistration_When_AlreadyFullyVerified()
+    {
+        var existing = CreateRegistration() with { IsEmailVerified = true, IsSmsVerified = true };
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
+
+        result.ShouldNotBeNull();
+        result!.EmailOtpSent.ShouldBeFalse();
+        result.SmsOtpSent.ShouldBeFalse();
+        _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ResendOtp_Should_GenerateOtpOnlyForUnverifiedChannel_When_OneChannelAlreadyVerified()
+    {
+        var existing = CreateRegistration() with { IsEmailVerified = true, IsSmsVerified = false };
+        var addResponse = new AddRegistrationResponse
+        {
+            Id = 42,
+            OtpEmail = string.Empty,
+            OtpCellPhone = "654321",
+            IsEmailVerified = true,
+            IsSmsVerified = false,
+            InsertedOn = DateTimeOffset.UtcNow,
+            UpdatedOn = null
+        };
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .ReturnsAsync([]);
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(addResponse);
+
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
+
+        result.ShouldNotBeNull();
+        result!.EmailOtpSent.ShouldBeFalse();
+        result.SmsOtpSent.ShouldBeTrue();
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.OtpEmail].Value.ShouldBe(string.Empty);
+        command.Parameters[pn.OtpCellPhone].Value.ShouldNotBe(string.Empty);
+    }
+
+    [Test]
+    public async Task ResendOtp_Should_ReturnNull_When_AddRegistrationReturnsNoRow()
+    {
+        var existing = CreateRegistration();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .ReturnsAsync([]);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .ReturnsAsync((AddRegistrationResponse?)null);
+
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public void ResendOtp_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ResendOtp(Guid.NewGuid()));
     }
 
     [Test]

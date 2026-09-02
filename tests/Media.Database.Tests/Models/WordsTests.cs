@@ -46,7 +46,7 @@ public class UpsertWordRequestTests
         };
 
         // Assert
-        request.Action.ShouldBe(KafkaProducerActions.Upsert);
+        request.Action.ShouldBe(WordProducerActions.Upsert);
     }
 
     [Test, AutoData]
@@ -86,11 +86,11 @@ public class UpsertWordRequestTests
             Origin = origin,
             IsProperName = isProperName,
             CameFromFileId = fileId,
-            Action = KafkaProducerActions.Update
+            Action = WordProducerActions.Update
         };
 
         // Assert
-        request.Action.ShouldBe(KafkaProducerActions.Update);
+        request.Action.ShouldBe(WordProducerActions.Update);
     }
 }
 

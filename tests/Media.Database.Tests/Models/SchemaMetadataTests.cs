@@ -170,7 +170,6 @@ public class UploadFileRequestTests
 {
     [Test, AutoData]
     public void UploadFileRequest_Should_Allow_PropertyAssignment(
-        int sourceMachineId,
         string originalFilePath,
         DateTimeOffset lastFileUpdate,
         Metadata metadata)
@@ -178,14 +177,12 @@ public class UploadFileRequestTests
         // Act
         var request = new UploadFileRequest
         {
-            SourceMachineId = sourceMachineId,
             OriginalFilePath = originalFilePath,
             LastFileUpdate = lastFileUpdate,
             Metadata = metadata
         };
 
         // Assert
-        request.SourceMachineId.ShouldBe(sourceMachineId);
         request.OriginalFilePath.ShouldBe(originalFilePath);
         request.LastFileUpdate.ShouldBe(lastFileUpdate);
         request.Metadata.ShouldBe(metadata);
@@ -197,7 +194,6 @@ public class UploadFileRequestTests
         // Act
         var request = new UploadFileRequest
         {
-            SourceMachineId = 1,
             OriginalFilePath = "/path/to/file.txt",
             LastFileUpdate = null,
             Metadata = null
@@ -213,7 +209,6 @@ public class UploadFileRequestTests
         // Act
         var request = new UploadFileRequest
         {
-            SourceMachineId = 1,
             OriginalFilePath = "/path/to/file.txt",
             Metadata = null
         };
@@ -224,18 +219,15 @@ public class UploadFileRequestTests
 
     [Test, AutoData]
     public void UploadFileRequest_Should_Have_Required_Properties(
-        int sourceMachineId,
         string originalFilePath)
     {
         // Act
         var request = new UploadFileRequest
         {
-            SourceMachineId = sourceMachineId,
             OriginalFilePath = originalFilePath
         };
 
         // Assert
-        request.SourceMachineId.ShouldNotBe(0);
         request.OriginalFilePath.ShouldNotBeNullOrEmpty();
     }
 
@@ -248,7 +240,6 @@ public class UploadFileRequestTests
         // Act
         var request = new UploadFileRequest
         {
-            SourceMachineId = 1,
             OriginalFilePath = "/test/file.txt",
             LastFileUpdate = now
         };
@@ -264,7 +255,6 @@ public class UploadFileRequestTests
         // Act
         var request = new UploadFileRequest
         {
-            SourceMachineId = 1,
             OriginalFilePath = "/test/file.txt",
             Metadata = metadata
         };

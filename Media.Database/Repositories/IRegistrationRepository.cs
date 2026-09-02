@@ -7,4 +7,13 @@ public interface IRegistrationRepository
     Task<SourceMachineRegistrations?> AddBySourceInformation(AddSourceInformationRequest request);
     Task<SourceMachineRegistrations?> UpdateSourceInformation(UpdateSourceInformationRequest request);
     Task<SourceMachineRegistrations?> GetByUuid(Guid uuid);
+    Task<OtpEmailResponse?> VerifyOtpEmail(Guid sourceMachineUuid, string otp);
+    Task<OtpSmsResponse?> VerifyOtpCellPhone(Guid sourceMachineUuid, string otp);
+
+    /// <summary>
+    /// Regenerates OTP codes for whichever of email/SMS remain unverified for the given device,
+    /// leaving any already-verified channel untouched. Returns null if no registration exists for
+    /// the given UUID.
+    /// </summary>
+    Task<ResendOtpResult?> ResendOtp(Guid sourceMachineUuid);
 }

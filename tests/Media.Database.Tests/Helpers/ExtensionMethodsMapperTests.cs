@@ -28,7 +28,7 @@ public class ExtensionMethodsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Delete);
+        updates[0].Action.ShouldBe(WordProducerActions.Delete);
         updates[0].NewSpan.ShouldBe("word2");
     }
 
@@ -46,7 +46,7 @@ public class ExtensionMethodsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Upsert);
+        updates[0].Action.ShouldBe(WordProducerActions.Upsert);
         updates[0].NewSpan.ShouldBe("word3");
     }
 
@@ -62,7 +62,7 @@ public class ExtensionMethodsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Update);
+        updates[0].Action.ShouldBe(WordProducerActions.Update);
         updates[0].CurrentSpan.ShouldBe("oldValue");
         updates[0].NewSpan.ShouldBe("newValue");
     }
@@ -79,7 +79,7 @@ public class ExtensionMethodsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Delete);
+        updates[0].Action.ShouldBe(WordProducerActions.Delete);
     }
 
     [Test, AutoData]
@@ -94,7 +94,7 @@ public class ExtensionMethodsTests
 
         // Assert
         updates.Count.ShouldBe(1);
-        updates[0].Action.ShouldBe(KafkaProducerActions.Upsert);
+        updates[0].Action.ShouldBe(WordProducerActions.Upsert);
         updates[0].NewSpan.ShouldBe("newValue");
     }
 }

@@ -20,9 +20,10 @@ public class Files
     public Guid Id { get; set; }
 
     /// <summary>
-    /// Gets or sets the source machine identifier.
+    /// Gets or sets the source machine identifier. Internal plumbing only — the caller already
+    /// identified their device via the X-API-KEY header, so this is never returned to a client.
     /// </summary>
-    [JsonPropertyName("sourceMachineId")]
+    [JsonIgnore]
     public int SourceMachineId { get; set; }
 
     /// <summary>

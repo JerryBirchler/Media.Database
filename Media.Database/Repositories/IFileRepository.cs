@@ -45,9 +45,10 @@ public interface IFileRepository
     /// <summary>
     /// Inserts a new file record, or returns the existing one if it already exists unchanged.
     /// </summary>
+    /// <param name="sourceMachineId">The identifier of the device that owns the file, resolved from the X-API-KEY.</param>
     /// <param name="request">The upload request describing the file.</param>
     /// <returns>The created or existing file, or null if the upsert did not return a row.</returns>
-    Task<Files?> Upsert(UploadFileRequest request);
+    Task<Files?> Upsert(int sourceMachineId, UploadFileRequest request);
 
     /// <summary>
     /// Updates an existing file's metadata and last-update timestamp.

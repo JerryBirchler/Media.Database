@@ -91,7 +91,7 @@ public class FileRepositoryBackgroundCqlTests
         _sqlExecutorMock.Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryFiles.GetPreviousIdsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>())).ReturnsAsync(previousIds);
         _sqlExecutorMock.Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>())).ReturnsAsync(insertedFile);
         var queueMock = CaptureBackgroundTaskQueue();
-        await CreateRepository(queueMock.Object).Upsert(_fixture.Create<UploadFileRequest>());
+        await CreateRepository(queueMock.Object).Upsert(_fixture.Create<int>(), _fixture.Create<UploadFileRequest>());
 
         await _capturedCallback!(CancellationToken.None);
 
@@ -109,7 +109,7 @@ public class FileRepositoryBackgroundCqlTests
         _sqlExecutorMock.Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryFiles.GetPreviousIdsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>())).ReturnsAsync([]);
         _sqlExecutorMock.Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>())).ReturnsAsync(insertedFile);
         var queueMock = CaptureBackgroundTaskQueue();
-        await CreateRepository(queueMock.Object).Upsert(_fixture.Create<UploadFileRequest>());
+        await CreateRepository(queueMock.Object).Upsert(_fixture.Create<int>(), _fixture.Create<UploadFileRequest>());
 
         await _capturedCallback!(CancellationToken.None);
 
