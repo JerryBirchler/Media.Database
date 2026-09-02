@@ -183,7 +183,12 @@ public class RegistrationRepositoryTests
 
         var result = await CreateRepository().AddBySourceInformation(request);
 
-        result.ShouldBe(added);
+        result.ShouldNotBeNull();
+        result.OtpEmail.ShouldBe(added.OtpEmail);
+        result.OtpCellPhone.ShouldBe(added.OtpCellPhone);
+        result.RegistrationId.ShouldBe(added.RegistrationId);
+        result.RegistrationInsertedOn.ShouldBe(added.RegistrationInsertedOn);
+        result.RegistrationUpdatedOn.ShouldBe(added.RegistrationUpdatedOn);
     }
 
     [Test]
@@ -227,6 +232,24 @@ public class RegistrationRepositoryTests
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.SourceMachineUuid].Value.ShouldBe(sourceMachine.SourceMachineUuid);
+    }
+
+    [Test]
+    public async Task AddBySourceInformation_Should_ReturnNull_When_AddRegistrationReturnsNoRow()
+    {
+        var sourceMachine = CreateRegistration();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(sourceMachine);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        var request = _fixture.Create<AddSourceInformationRequest>();
+
+        var result = await CreateRepository().AddBySourceInformation(request);
+
+        result.ShouldBeNull();
+        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
     }
 
     [Test]
