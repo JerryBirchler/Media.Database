@@ -23,6 +23,7 @@ namespace Media.Database.Repositories;
 /// on a background task queue, with self-healing if the Scylla session becomes unreachable.
 /// </summary>
 /// <param name="sqlExecutor">The SQL query executor.</param>
+/// <param name="cqlExecutor">The CQL query executor.</param>
 /// <param name="scyllaProvider">The Scylla session provider.</param>
 /// <param name="unitOfWorkFactory">The factory function to create a unit of work.</param>
 /// <param name="backgroundTaskQueue">The background task queue.</param>
@@ -30,6 +31,7 @@ namespace Media.Database.Repositories;
 /// <param name="levelSwitch">The logging level switch.</param>
 public class RegistrationRepository(
     ISqlQueryExecutor sqlExecutor,
+    ICqlQueryExecutor cqlExecutor,
     IScyllaSessionProvider scyllaProvider,
     Func<IUnitOfWork> unitOfWorkFactory,
     IBackgroundTaskQueue backgroundTaskQueue,
@@ -38,6 +40,7 @@ public class RegistrationRepository(
     : BaseRepository(scyllaProvider), IRegistrationRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+    private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly IBackgroundTaskQueue _backgroundTaskQueue = backgroundTaskQueue;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly FluentLogger<RegistrationRepository> _logger = logger.Initializer();
@@ -206,35 +209,35 @@ public class RegistrationRepository(
 
         try
         {
-            var cqlConnection = GetCqlConnection();
-            var cqlCommand = cqlConnection.GetCqlCommand(QueryRegistrations.UpsertRegistrationCql);
-            cqlCommand.Parameters.AddWithValue(pn.RegistrationId, registration.RegistrationId);
-            cqlCommand.Parameters.AddWithValue(pn.SourceMachineId, registration.SourceMachineId);
-            cqlCommand.Parameters.AddWithValue(pn.SourceMachineUuid, registration.SourceMachineUuid);
-            cqlCommand.Parameters.AddWithValue(pn.SourceMachineName, registration.SourceMachineName);
-            cqlCommand.Parameters.AddWithValue(pn.DeviceTypeId, (int)registration.DeviceTypeId);
-            cqlCommand.Parameters.AddWithValue(pn.FirstName, registration.FirstName);
-            cqlCommand.Parameters.AddWithValue(pn.LastName, registration.LastName);
-            cqlCommand.Parameters.AddWithValue(pn.EmailAddress, registration.EmailAddress);
-            cqlCommand.Parameters.AddWithValue(pn.CellPhoneNumber, registration.CellPhoneNumber);
-            cqlCommand.Parameters.AddWithValue(pn.OperatingSystem, registration.OperatingSystem);
-            cqlCommand.Parameters.AddWithValue(pn.SourceInsertedOn, registration.InsertedOn);
-            cqlCommand.Parameters.AddWithValue(pn.SourceUpdatedOn, registration.UpdatedOn!);
-            cqlCommand.Parameters.AddWithValue(pn.IsActive, registration.IsActive);
-            cqlCommand.Parameters.AddWithValue(pn.OtpEmail, registration.OtpEmail);
-            cqlCommand.Parameters.AddWithValue(pn.OtpCellPhone, registration.OtpCellPhone);
-            cqlCommand.Parameters.AddWithValue(pn.IsEmailVerified, registration.IsEmailVerified);
-            cqlCommand.Parameters.AddWithValue(pn.IsSmsVerified, registration.IsSmsVerified);
-            cqlCommand.Parameters.AddWithValue(pn.RegistrationInsertedOn, registration.RegistrationInsertedOn!);
-            cqlCommand.Parameters.AddWithValue(pn.RegistrationUpdatedOn, registration.RegistrationUpdatedOn!);
-            await cqlCommand.ExecuteRowSet();
+            await _cqlExecutor.ExecuteAsync(QueryRegistrations.UpsertRegistrationCql, p =>
+            {
+                p.AddWithValue(pn.RegistrationId, registration.RegistrationId);
+                p.AddWithValue(pn.SourceMachineId, registration.SourceMachineId);
+                p.AddWithValue(pn.SourceMachineUuid, registration.SourceMachineUuid);
+                p.AddWithValue(pn.SourceMachineName, registration.SourceMachineName);
+                p.AddWithValue(pn.DeviceTypeId, (int)registration.DeviceTypeId);
+                p.AddWithValue(pn.FirstName, registration.FirstName);
+                p.AddWithValue(pn.LastName, registration.LastName);
+                p.AddWithValue(pn.EmailAddress, registration.EmailAddress);
+                p.AddWithValue(pn.CellPhoneNumber, registration.CellPhoneNumber);
+                p.AddWithValue(pn.OperatingSystem, registration.OperatingSystem);
+                p.AddWithValue(pn.SourceInsertedOn, registration.InsertedOn);
+                p.AddWithValue(pn.SourceUpdatedOn, registration.UpdatedOn!);
+                p.AddWithValue(pn.IsActive, registration.IsActive);
+                p.AddWithValue(pn.OtpEmail, registration.OtpEmail);
+                p.AddWithValue(pn.OtpCellPhone, registration.OtpCellPhone);
+                p.AddWithValue(pn.IsEmailVerified, registration.IsEmailVerified);
+                p.AddWithValue(pn.IsSmsVerified, registration.IsSmsVerified);
+                p.AddWithValue(pn.RegistrationInsertedOn, registration.RegistrationInsertedOn!);
+                p.AddWithValue(pn.RegistrationUpdatedOn, registration.RegistrationUpdatedOn!);
+            });
 
             log.LogInformation("Background CQL completed for RegistrationId {Id}", registration.RegistrationId);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for RegistrationId {Id}", registration.RegistrationId);
-            await TryHealScyllaSessionAsync(nameof(UpsertCqlAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(UpsertCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -268,21 +271,20 @@ public class RegistrationRepository(
 
         try
         {
-            var cqlConnection = GetCqlConnection();
-            var cqlCommand = cqlConnection.GetCqlCommand(QueryFiles.UpdateCql);
+            await _cqlExecutor.ExecuteAsync(QueryFiles.UpdateCql, p =>
+            {
+                p.AddWithValue(pn.Id, file.Id);
+                p.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
+                p.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
+                p.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
+            });
 
-            cqlCommand.Parameters.AddWithValue(pn.Id, file.Id);
-            cqlCommand.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
-            cqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
-            cqlCommand.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
-            await cqlCommand.ExecuteRowSet();
-
-            log.LogInformation("Background NoSQL metadata update completed for FileId {Id}", file.Id);
+            log.LogInformation("Background CQL metadata update completed for FileId {Id}", file.Id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", file.Id);
-            await TryHealScyllaSessionAsync(nameof(UpdateMetadataCqlAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(UpdateMetadataCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -374,18 +376,14 @@ public class RegistrationRepository(
 
         try
         {
-            var cqlConnection = GetCqlConnection();
-            var cqlCommand = cqlConnection.GetCqlCommand(QueryFiles.DeleteCql);
+            await _cqlExecutor.ExecuteAsync(QueryFiles.DeleteCql, p => p.AddWithValue(pn.Id, id));
 
-            cqlCommand.Parameters.AddWithValue(pn.Id, id);
-            await cqlCommand.ExecuteRowSet();
-
-            log.LogInformation("Background NoSQL delete completed for FileId {Id}", id);
+            log.LogInformation("Background CQL delete completed for FileId {Id}", id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", id);
-            await TryHealScyllaSessionAsync(nameof(DeleteCqlAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(DeleteCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -432,12 +430,12 @@ public class RegistrationRepository(
             await Task.WhenAll(tasks);
             await cqlCommand.EndBatch();
 
-            log.LogInformation("Background NoSQL batch delete completed for {Count} files", files.Count);
+            log.LogInformation("Background CQL batch delete completed for {Count} files", files.Count);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable during batch delete");
-            await TryHealScyllaSessionAsync(nameof(DeleteCqlBatchAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(DeleteCqlBatchAsync));
             throw;
         }
         catch (Exception ex)
@@ -447,29 +445,4 @@ public class RegistrationRepository(
         }
     }
 
-    /// <summary>
-    /// Cassandra driver exceptions that indicate the cluster/session is unreachable, as opposed to a single
-    /// query timing out against an otherwise healthy cluster. Only these warrant rebuilding the session.
-    /// </summary>
-    /// <param name="ex">The exception to check.</param>
-    /// <returns>True if the exception indicates a connectivity issue with the Scylla cluster; otherwise, false.</returns>
-    private static bool IsScyllaConnectivityException(Exception ex) =>
-        ex is NoHostAvailableException or UnavailableException or OperationTimedOutException;
-
-    /// <summary>
-    /// Attempts to heal the Scylla session without letting a healing failure (e.g. a busy self-heal lock)
-    /// mask the original exception that triggered the heal attempt.
-    /// </summary>
-    /// <param name="methodName">The name of the method that triggered the heal attempt.</param>    
-    private async Task TryHealScyllaSessionAsync(string methodName)
-    {
-        try
-        {
-            await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), methodName);
-        }
-        catch (Exception healEx)
-        {
-            _logger.WithCaller().LogError(healEx, "Scylla session heal attempt failed in {OriginatingMethod}", methodName);
-        }
-    }
 }

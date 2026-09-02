@@ -17,6 +17,7 @@ public class FileRepositoryTests
     {
         var repo = new FileRepository(
             Mock.Of<ISqlQueryExecutor>(),
+            Mock.Of<ICqlQueryExecutor>(),
             Mock.Of<IScyllaSessionProvider>(),
             () => Mock.Of<IUnitOfWork>(),
             Mock.Of<IMapChangeWordRequests>(),

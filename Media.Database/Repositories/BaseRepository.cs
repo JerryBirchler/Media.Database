@@ -1,11 +1,13 @@
 using Cassandra;
+using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
+using Microsoft.Extensions.Logging;
 
 namespace Media.Database.Repositories
 {
     /// <summary>
     /// Base class for repositories, providing access to the Scylla/Cassandra session for
-    /// implementations that also need NoSQL storage. PostgreSQL access is provided separately
+    /// implementations that also need CQL storage. PostgreSQL access is provided separately
     /// via <see cref="ISqlQueryExecutor"/>.
     /// </summary>
     public abstract class BaseRepository
@@ -46,5 +48,33 @@ namespace Media.Database.Repositories
         /// Gets the Scylla session provider, or null if this repository was not constructed with one.
         /// </summary>
         protected IScyllaSessionProvider? ScyllaProvider => _scyllaProvider;
+
+        /// <summary>
+        /// Cassandra driver exceptions that indicate the cluster/session is unreachable, as opposed to a single
+        /// query timing out against an otherwise healthy cluster. Only these warrant rebuilding the session.
+        /// </summary>
+        /// <param name="ex">The exception to check.</param>
+        /// <returns>True if the exception indicates a connectivity issue with the Scylla cluster; otherwise, false.</returns>
+        protected static bool IsScyllaConnectivityException(Exception ex) =>
+            ex is NoHostAvailableException or UnavailableException or OperationTimedOutException;
+
+        /// <summary>
+        /// Attempts to heal the Scylla session without letting a healing failure (e.g. a busy self-heal lock)
+        /// mask the original exception that triggered the heal attempt.
+        /// </summary>
+        /// <typeparam name="T">The calling repository's own type, so the heal-failure log line is tagged with it.</typeparam>
+        /// <param name="logger">The calling repository's fluent logger.</param>
+        /// <param name="methodName">The name of the method that triggered the heal attempt.</param>
+        protected async Task TryHealScyllaSessionAsync<T>(FluentLogger<T> logger, string methodName)
+        {
+            try
+            {
+                await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), methodName);
+            }
+            catch (Exception healEx)
+            {
+                logger.WithCaller().LogError(healEx, "Scylla session heal attempt failed in {OriginatingMethod}", methodName);
+            }
+        }
     }
 }

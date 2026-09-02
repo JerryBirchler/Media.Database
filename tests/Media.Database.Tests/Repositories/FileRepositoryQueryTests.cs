@@ -51,6 +51,7 @@ public class FileRepositoryQueryTests
 
         return new FileRepository(
             _sqlExecutorMock.Object,
+            Mock.Of<ICqlQueryExecutor>(),
             scyllaProviderMock.Object,
             () => _unitOfWorkMock.Object,
             Mock.Of<IMapChangeWordRequests>(),

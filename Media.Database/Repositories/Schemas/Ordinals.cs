@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 namespace Media.Database.Repositories.Schemas;
 
 /// <summary>
-/// Canonical registry of field names used across the SQL and NoSQL schemas, used both directly
+/// Canonical registry of field names used across the SQL and CQL schemas, used both directly
 /// as <c>reader.GetOrdinal(...)</c>/row column keys and as the root of the field-name validation
 /// chain for the other schema registries. See <see cref="BaseSchema{TParent, TChild}"/>.
 /// </summary>

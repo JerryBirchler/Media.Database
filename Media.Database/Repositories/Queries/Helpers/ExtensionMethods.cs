@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace Media.Database.Repositories.Queries.Helpers;
 
 /// <summary>
-/// General-purpose helpers for building NoSQL commands and mapping between SQL/CQL rows and models.
+/// General-purpose helpers for building CQL commands and mapping between SQL/CQL rows and models.
 /// </summary>
 public static class ExtensionMethods
 {

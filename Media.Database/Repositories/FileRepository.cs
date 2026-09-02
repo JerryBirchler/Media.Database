@@ -24,6 +24,7 @@ namespace Media.Database.Repositories;
 /// on a background task queue, with self-healing if the Scylla session becomes unreachable.
 /// </summary>
 /// <param name="sqlExecutor">The SQL query executor.</param>
+/// <param name="cqlExecutor">The CQL query executor.</param>
 /// <param name="scyllaProvider">The Scylla session provider.</param>
 /// <param name="unitOfWorkFactory">The factory function to create a unit of work.</param>
 /// <param name="changeWordMapper">The mapper for change word requests.</param>
@@ -32,6 +33,7 @@ namespace Media.Database.Repositories;
 /// <param name="levelSwitch">The logging level switch.</param>
 public class FileRepository(
     ISqlQueryExecutor sqlExecutor,
+    ICqlQueryExecutor cqlExecutor,
     IScyllaSessionProvider scyllaProvider,
     Func<IUnitOfWork> unitOfWorkFactory,
     IMapChangeWordRequests changeWordMapper,
@@ -41,6 +43,7 @@ public class FileRepository(
     : BaseRepository(scyllaProvider), IFileRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+    private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
     private readonly IBackgroundTaskQueue _backgroundTaskQueue = backgroundTaskQueue;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
@@ -370,23 +373,24 @@ public class FileRepository(
                 await cqlCommand.EndBatch();
             }
 
-            var cqlCommand2 = cqlConnection.GetCqlCommand(QueryFiles.UpsertCql);
-            cqlCommand2.Parameters.AddWithValue(pn.Id, file.Id);
-            cqlCommand2.Parameters.AddWithValue(pn.SourceMachineId, file.SourceMachineId);
-            cqlCommand2.Parameters.AddWithValue(pn.OriginalFilePath, file.OriginalFilePath);
-            cqlCommand2.Parameters.AddWithValue(pn.InsertedOn, file.InsertedOn);
-            cqlCommand2.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
-            cqlCommand2.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
-            cqlCommand2.Parameters.AddWithValue(pn.IsCurrent, file.IsCurrent);
-            cqlCommand2.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
-            await cqlCommand2.ExecuteRowSet();
+            await _cqlExecutor.ExecuteAsync(QueryFiles.UpsertCql, p =>
+            {
+                p.AddWithValue(pn.Id, file.Id);
+                p.AddWithValue(pn.SourceMachineId, file.SourceMachineId);
+                p.AddWithValue(pn.OriginalFilePath, file.OriginalFilePath);
+                p.AddWithValue(pn.InsertedOn, file.InsertedOn);
+                p.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
+                p.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
+                p.AddWithValue(pn.IsCurrent, file.IsCurrent);
+                p.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
+            });
 
-            log.LogInformation("Background NoSQL upsert completed for FileId {Id}", file.Id);
+            log.LogInformation("Background CQL upsert completed for FileId {Id}", file.Id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", file.Id);
-            await TryHealScyllaSessionAsync(nameof(UpdateCqlAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(UpdateCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -420,21 +424,20 @@ public class FileRepository(
 
         try
         {
-            var cqlConnection = GetCqlConnection();
-            var cqlCommand = cqlConnection.GetCqlCommand(QueryFiles.UpdateCql);
+            await _cqlExecutor.ExecuteAsync(QueryFiles.UpdateCql, p =>
+            {
+                p.AddWithValue(pn.Id, file.Id);
+                p.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
+                p.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
+                p.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
+            });
 
-            cqlCommand.Parameters.AddWithValue(pn.Id, file.Id);
-            cqlCommand.Parameters.AddWithValue(pn.UpdatedOn, file.UpdatedOn!);
-            cqlCommand.Parameters.AddWithValue(pn.LastFileUpdate, file.LastFileUpdate!);
-            cqlCommand.Parameters.AddWithValue(pn.Metadata, file.Metadata!.ToJsonString());
-            await cqlCommand.ExecuteRowSet();
-
-            log.LogInformation("Background NoSQL metadata update completed for FileId {Id}", file.Id);
+            log.LogInformation("Background CQL metadata update completed for FileId {Id}", file.Id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", file.Id);
-            await TryHealScyllaSessionAsync(nameof(UpdateMetadataCqlAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(UpdateMetadataCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -526,18 +529,14 @@ public class FileRepository(
 
         try
         {
-            var cqlConnection = GetCqlConnection();
-            var cqlCommand = cqlConnection.GetCqlCommand(QueryFiles.DeleteCql);
+            await _cqlExecutor.ExecuteAsync(QueryFiles.DeleteCql, p => p.AddWithValue(pn.Id, id));
 
-            cqlCommand.Parameters.AddWithValue(pn.Id, id);
-            await cqlCommand.ExecuteRowSet();
-
-            log.LogInformation("Background NoSQL delete completed for FileId {Id}", id);
+            log.LogInformation("Background CQL delete completed for FileId {Id}", id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable for FileId {Id}", id);
-            await TryHealScyllaSessionAsync(nameof(DeleteCqlAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(DeleteCqlAsync));
             throw;
         }
         catch (Exception ex)
@@ -584,12 +583,12 @@ public class FileRepository(
             await Task.WhenAll(tasks);
             await cqlCommand.EndBatch();
 
-            log.LogInformation("Background NoSQL batch delete completed for {Count} files", files.Count);
+            log.LogInformation("Background CQL batch delete completed for {Count} files", files.Count);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
             log.LogError(ex, "Scylla cluster unavailable during batch delete");
-            await TryHealScyllaSessionAsync(nameof(DeleteCqlBatchAsync));
+            await TryHealScyllaSessionAsync(_logger, nameof(DeleteCqlBatchAsync));
             throw;
         }
         catch (Exception ex)
@@ -599,29 +598,4 @@ public class FileRepository(
         }
     }
 
-    /// <summary>
-    /// Cassandra driver exceptions that indicate the cluster/session is unreachable, as opposed to a single
-    /// query timing out against an otherwise healthy cluster. Only these warrant rebuilding the session.
-    /// </summary>
-    /// <param name="ex">The exception to check.</param>
-    /// <returns>True if the exception indicates a connectivity issue with the Scylla cluster; otherwise, false.</returns>
-    private static bool IsScyllaConnectivityException(Exception ex) =>
-        ex is NoHostAvailableException or UnavailableException or OperationTimedOutException;
-
-    /// <summary>
-    /// Attempts to heal the Scylla session without letting a healing failure (e.g. a busy self-heal lock)
-    /// mask the original exception that triggered the heal attempt.
-    /// </summary>
-    /// <param name="methodName">The name of the method that triggered the heal attempt.</param>    
-    private async Task TryHealScyllaSessionAsync(string methodName)
-    {
-        try
-        {
-            await ScyllaProvider!.HealSessionAsync(ScyllaProvider.GetCurrentSessionId(), methodName);
-        }
-        catch (Exception healEx)
-        {
-            _logger.WithCaller().LogError(healEx, "Scylla session heal attempt failed in {OriginatingMethod}", methodName);
-        }
-    }
 }

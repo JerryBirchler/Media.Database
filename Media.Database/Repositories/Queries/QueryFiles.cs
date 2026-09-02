@@ -191,7 +191,7 @@ public static class QueryFiles
         ;";
     #endregion
 
-    #region NoSQL Queries
+    #region CQL Queries
     /// <summary>CQL to select a file by its unique identifier.</summary>
     public static string GetByIdCql => $@"
         SELECT 

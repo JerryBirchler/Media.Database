@@ -1,6 +1,5 @@
 #nullable enable
 using AutoFixture;
-using Cassandra;
 using Media.Common.BackgroundJobs;
 using Media.Common.Providers;
 using Media.Common.Transactions;
@@ -16,8 +15,6 @@ using Serilog.Core;
 using Shouldly;
 using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
@@ -56,6 +53,7 @@ public class RegistrationRepositoryTests
 
         return new RegistrationRepository(
             _sqlExecutorMock.Object,
+            Mock.Of<ICqlQueryExecutor>(),
             scyllaProviderMock.Object,
             () => Mock.Of<IUnitOfWork>(),
             _backgroundTaskQueueMock.Object,
@@ -434,29 +432,5 @@ public class RegistrationRepositoryTests
         };
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateSourceInformation(request));
-    }
-
-    private static bool InvokeIsScyllaConnectivityException(Exception ex)
-    {
-        var method = typeof(RegistrationRepository).GetMethod("IsScyllaConnectivityException", BindingFlags.NonPublic | BindingFlags.Static)!;
-        return (bool)method.Invoke(null, [ex])!;
-    }
-
-    [Test]
-    public void IsScyllaConnectivityException_Should_ReturnTrue_For_KnownConnectivityExceptions()
-    {
-        var noHost = new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>());
-        var unavailable = new UnavailableException(ConsistencyLevel.One, 1, 0);
-        var timedOut = new OperationTimedOutException(new IPEndPoint(IPAddress.Loopback, 9042), 1000);
-
-        InvokeIsScyllaConnectivityException(noHost).ShouldBeTrue();
-        InvokeIsScyllaConnectivityException(unavailable).ShouldBeTrue();
-        InvokeIsScyllaConnectivityException(timedOut).ShouldBeTrue();
-    }
-
-    [Test]
-    public void IsScyllaConnectivityException_Should_ReturnFalse_For_UnrelatedException()
-    {
-        InvokeIsScyllaConnectivityException(new InvalidOperationException()).ShouldBeFalse();
     }
 }

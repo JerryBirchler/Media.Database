@@ -21,7 +21,8 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     public async Task<T?> QuerySingleAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class
     {
         await using var connection = await OpenConnectionAsync();
-        return await QuerySingleAsync(connection, sql, configureParameters, map);
+        var (found, value) = await TryReadSingleAsync(connection, sql, configureParameters, map);
+        return found ? value : null;
     }
 
     /// <summary>
@@ -35,7 +36,8 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     public async Task<T?> QuerySingleValueAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct
     {
         await using var connection = await OpenConnectionAsync();
-        return await QuerySingleValueAsync(connection, sql, configureParameters, map);
+        var (found, value) = await TryReadSingleAsync(connection, sql, configureParameters, map);
+        return found ? value : null;
     }
 
     /// <summary>
@@ -75,8 +77,11 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing the result.</returns>
-    public Task<T?> QuerySingleAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class =>
-        QuerySingleAsync(unitOfWork.Connection, sql, configureParameters, map);
+    public async Task<T?> QuerySingleAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class
+    {
+        var (found, value) = await TryReadSingleAsync(unitOfWork.Connection, sql, configureParameters, map);
+        return found ? value : null;
+    }
 
     /// <summary>
     /// Executes a query that returns a single value asynchronously within a unit of work.
@@ -87,8 +92,11 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the value type.</param>
     /// <returns>A task representing the asynchronous operation, containing the value.</returns>
-    public Task<T?> QuerySingleValueAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct =>
-        QuerySingleValueAsync(unitOfWork.Connection, sql, configureParameters, map);
+    public async Task<T?> QuerySingleValueAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct
+    {
+        var (found, value) = await TryReadSingleAsync(unitOfWork.Connection, sql, configureParameters, map);
+        return found ? value : null;
+    }
 
     /// <summary>
     /// Executes a query that returns multiple results asynchronously within a unit of work.
@@ -114,37 +122,25 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     }
 
     /// <summary>
-    /// Executes a query that returns a single result asynchronously.
+    /// Executes a query and maps at most one row. Returns a found/value pair rather than a bare
+    /// <c>T?</c>: for an unconstrained T, <c>default</c> is the value type's zero value (e.g. 0), not
+    /// "no value" — only a caller that knows T is a class or a struct can turn "no row" into the right
+    /// null/Nullable&lt;T&gt; shape, so that decision is left to the properly-constrained public
+    /// <c>QuerySingleAsync</c>/<c>QuerySingleValueAsync</c> overloads that call this.
     /// </summary>
     /// <typeparam name="T">The type of the result.</typeparam>
     /// <param name="connection">The database connection.</param>
     /// <param name="sql">The SQL query to execute.</param>
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the result type.</param>
-    /// <returns>A task representing the asynchronous operation, containing the result.</returns>
-    private static async Task<T?> QuerySingleAsync<T>(NpgsqlConnection connection, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class
+    /// <returns>A task representing the asynchronous operation, containing whether a row was found and, if so, its mapped value.</returns>
+    private static async Task<(bool Found, T Value)> TryReadSingleAsync<T>(NpgsqlConnection connection, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map)
     {
         await using var command = new NpgsqlCommand(sql, connection);
         configureParameters(command.Parameters);
         await using var reader = await command.ExecuteReaderAsync();
-        return await reader.ReadAsync() ? map(reader) : null;
-    }
-
-    /// <summary>
-    /// Executes a query that returns a single value asynchronously.
-    /// </summary>
-    /// <typeparam name="T">The type of the value.</typeparam>
-    /// <param name="connection">The database connection.</param>
-    /// <param name="sql">The SQL query to execute.</param>
-    /// <param name="configureParameters">A delegate to configure the query parameters.</param>
-    /// <param name="map">A delegate to map the data reader to the value type.</param>
-    /// <returns>A task representing the asynchronous operation, containing the value.</returns>
-    private static async Task<T?> QuerySingleValueAsync<T>(NpgsqlConnection connection, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct
-    {
-        await using var command = new NpgsqlCommand(sql, connection);
-        configureParameters(command.Parameters);
-        await using var reader = await command.ExecuteReaderAsync();
-        return await reader.ReadAsync() ? map(reader) : null;
+        var found = await reader.ReadAsync();
+        return (found, found ? map(reader) : default!);
     }
 
     /// <summary>

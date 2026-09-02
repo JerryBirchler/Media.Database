@@ -16,6 +16,7 @@ using NUnit.Framework;
 using Serilog.Core;
 using Shouldly;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -24,16 +25,18 @@ using System.Threading.Tasks;
 namespace Media.Database.Tests.Repositories;
 
 /// <summary>
-/// Covers FileRepository's fire-and-forget background NoSQL sync (queued via IBackgroundTaskQueue
+/// Covers FileRepository's fire-and-forget background CQL sync (queued via IBackgroundTaskQueue
 /// after a successful SQL write). Per the dotnet-test-standards "fire-and-forget Task.Run" gotcha,
 /// we capture the queued callback and invoke it directly rather than racing a background thread.
-/// ISession is fully mockable, so these branches - including the Scylla-connectivity self-heal path -
-/// are testable without touching a real cluster.
+/// Single-statement CQL (upsert/metadata-update/delete) goes through the mocked ICqlQueryExecutor;
+/// the still-raw id-batch paths (inactivate previous ids, batch delete) go through ISession directly,
+/// since ICqlQueryExecutor has no batch-oriented method yet.
 /// </summary>
 [TestFixture]
 public class FileRepositoryBackgroundCqlTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
     private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
     private Mock<ISession> _sessionMock = null!;
     private Mock<IUnitOfWork> _unitOfWorkMock = null!;
@@ -45,6 +48,7 @@ public class FileRepositoryBackgroundCqlTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _sessionMock = new Mock<ISession>();
         _capturedCallback = null;
@@ -61,6 +65,7 @@ public class FileRepositoryBackgroundCqlTests
 
     private FileRepository CreateRepository(IBackgroundTaskQueue backgroundTaskQueue) => new(
         _sqlExecutorMock.Object,
+        _cqlExecutorMock.Object,
         _scyllaProviderMock.Object,
         () => _unitOfWorkMock.Object,
         Mock.Of<IMapChangeWordRequests>(),
@@ -90,8 +95,10 @@ public class FileRepositoryBackgroundCqlTests
 
         await _capturedCallback!(CancellationToken.None);
 
-        // one ExecuteAsync for the batched inactivate, one for the upsert
-        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Exactly(2));
+        // the batched inactivate of previous ids still goes through the raw session
+        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Once);
+        // the single upsert now goes through ICqlQueryExecutor
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Once);
     }
 
     [Test]
@@ -106,7 +113,8 @@ public class FileRepositoryBackgroundCqlTests
 
         await _capturedCallback!(CancellationToken.None);
 
-        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Once);
+        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Never);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Once);
     }
 
     [Test]
@@ -121,7 +129,7 @@ public class FileRepositoryBackgroundCqlTests
 
         await _capturedCallback!(CancellationToken.None);
 
-        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Once);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.UpdateCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Once);
     }
 
     [Test]
@@ -134,7 +142,7 @@ public class FileRepositoryBackgroundCqlTests
 
         await _capturedCallback!(CancellationToken.None);
 
-        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Once);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Once);
     }
 
     [Test]
@@ -147,15 +155,15 @@ public class FileRepositoryBackgroundCqlTests
 
         await _capturedCallback!(CancellationToken.None);
 
-        // one batched ExecuteAsync covering all 3 files (batch size 100)
+        // one batched ExecuteAsync covering all 3 files (batch size 100) - still the raw session path
         _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Once);
     }
 
     [Test]
     public async Task BackgroundDelete_Should_HealScyllaSession_When_ConnectivityExceptionThrown()
     {
-        _sessionMock.Setup(s => s.ExecuteAsync(It.IsAny<Statement>()))
-            .ThrowsAsync(new NoHostAvailableException(new System.Collections.Generic.Dictionary<IPEndPoint, Exception>()));
+        _cqlExecutorMock.Setup(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<SortedDictionary<string, object>>>()))
+            .ThrowsAsync(new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()));
         var sessionId = Guid.NewGuid();
         _scyllaProviderMock.Setup(p => p.GetCurrentSessionId()).Returns(sessionId);
         _scyllaProviderMock.Setup(p => p.HealSessionAsync(sessionId, It.IsAny<string>())).Returns(Task.CompletedTask);
@@ -172,7 +180,8 @@ public class FileRepositoryBackgroundCqlTests
     [Test]
     public async Task BackgroundDelete_Should_Not_AttemptHeal_When_UnrelatedExceptionThrown()
     {
-        _sessionMock.Setup(s => s.ExecuteAsync(It.IsAny<Statement>())).ThrowsAsync(new InvalidOperationException("boom"));
+        _cqlExecutorMock.Setup(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<SortedDictionary<string, object>>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
         var deletedFile = _fixture.Create<Files>();
         _sqlExecutorMock.Setup(e => e.QuerySingleAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>())).ReturnsAsync(deletedFile);
         var queueMock = CaptureBackgroundTaskQueue();
@@ -186,8 +195,8 @@ public class FileRepositoryBackgroundCqlTests
     [Test]
     public async Task BackgroundDelete_Should_SwallowHealFailure_And_StillThrow_OriginalException()
     {
-        _sessionMock.Setup(s => s.ExecuteAsync(It.IsAny<Statement>()))
-            .ThrowsAsync(new NoHostAvailableException(new System.Collections.Generic.Dictionary<IPEndPoint, Exception>()));
+        _cqlExecutorMock.Setup(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<SortedDictionary<string, object>>>()))
+            .ThrowsAsync(new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()));
         _scyllaProviderMock.Setup(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException("heal failed"));
         var deletedFile = _fixture.Create<Files>();

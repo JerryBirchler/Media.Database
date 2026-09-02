@@ -1,4 +1,3 @@
-using Cassandra;
 using Media.Common.BackgroundJobs;
 using Media.Common.Providers;
 using Media.Common.Transactions;
@@ -12,16 +11,16 @@ using Serilog.Core;
 using Shouldly;
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Reflection;
 using Metadata = Media.Database.Models.Metadata;
 
 namespace Media.Database.Tests.Repositories;
 
 /// <summary>
-/// Covers the private pure logic in FileRepository via reflection: GetUpdates and
-/// IsScyllaConnectivityException. See FileRepositoryQueryTests for the public SQL-facing methods,
-/// which are mockable via ISqlQueryExecutor.
+/// Covers the private pure logic in FileRepository via reflection: GetUpdates. See
+/// FileRepositoryQueryTests for the public SQL-facing methods, which are mockable via
+/// ISqlQueryExecutor, and BaseRepositoryTests for IsScyllaConnectivityException/
+/// TryHealScyllaSessionAsync, which live on the shared base class now.
 /// </summary>
 [TestFixture]
 public class FileRepositoryLogicTests
@@ -33,6 +32,7 @@ public class FileRepositoryLogicTests
 
         return new FileRepository(
             Mock.Of<ISqlQueryExecutor>(),
+            Mock.Of<ICqlQueryExecutor>(),
             scyllaProviderMock.Object,
             () => Mock.Of<IUnitOfWork>(),
             mapper,
@@ -45,12 +45,6 @@ public class FileRepositoryLogicTests
     {
         var method = typeof(FileRepository).GetMethod("GetUpdates", BindingFlags.NonPublic | BindingFlags.Instance)!;
         return (List<ChangeWordRequest>)method.Invoke(repository, [current, request])!;
-    }
-
-    private static bool InvokeIsScyllaConnectivityException(Exception ex)
-    {
-        var method = typeof(FileRepository).GetMethod("IsScyllaConnectivityException", BindingFlags.NonPublic | BindingFlags.Static)!;
-        return (bool)method.Invoke(null, [ex])!;
     }
 
     [Test]
@@ -149,23 +143,5 @@ public class FileRepositoryLogicTests
         mapperMock.Verify(m => m.ProcessScalar(It.IsAny<List<ChangeWordRequest>>(), "old-desc", null, current, WordOrigin.FromDescription), Times.Once);
         mapperMock.Verify(m => m.ProcessScalar(It.IsAny<List<ChangeWordRequest>>(), "old-event", null, current, WordOrigin.FromEvent), Times.Once);
         mapperMock.Verify(m => m.ProcessScalar(It.IsAny<List<ChangeWordRequest>>(), "old-location", null, current, WordOrigin.FromLocation), Times.Once);
-    }
-
-    [Test]
-    public void IsScyllaConnectivityException_Should_ReturnTrue_For_KnownConnectivityExceptions()
-    {
-        var noHost = new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>());
-        var unavailable = new UnavailableException(ConsistencyLevel.One, 1, 0);
-        var timedOut = new OperationTimedOutException(new IPEndPoint(IPAddress.Loopback, 9042), 1000);
-
-        InvokeIsScyllaConnectivityException(noHost).ShouldBeTrue();
-        InvokeIsScyllaConnectivityException(unavailable).ShouldBeTrue();
-        InvokeIsScyllaConnectivityException(timedOut).ShouldBeTrue();
-    }
-
-    [Test]
-    public void IsScyllaConnectivityException_Should_ReturnFalse_For_UnrelatedException()
-    {
-        InvokeIsScyllaConnectivityException(new InvalidOperationException()).ShouldBeFalse();
     }
 }

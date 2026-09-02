@@ -1,6 +1,6 @@
 # Media.Database
 
-A .NET 10 database abstraction library for media management, providing repositories and models for file and word indexing with support for both SQL (PostgreSQL) and NoSQL (Cassandra/ScyllaDB) databases.
+A .NET 10 database abstraction library for media management, providing repositories and models for file and word indexing with support for both SQL (PostgreSQL) and CQL (Cassandra/ScyllaDB) databases.
 
 ## Overview
 
@@ -8,13 +8,13 @@ Media.Database is part of the Media suite of libraries, offering a robust data a
 
 ## Features
 
-- **Multi-Database Support**: Works with both SQL (PostgreSQL via Npgsql) and NoSQL (Cassandra/ScyllaDB) databases
+- **Multi-Database Support**: Works with both SQL (PostgreSQL via Npgsql) and CQL (Cassandra/ScyllaDB) databases
 - **Repository Pattern**: Clean abstractions for data access through `IFileRepository` and `IWordRepository`
 - **Schema Management**: Dynamic schema handling with caching for optimal performance
 - **Kafka Integration**: Built-in models for Kafka messaging and event streaming
 - **Metadata Management**: Comprehensive metadata tracking for media files
 - **Word Indexing**: Advanced word origin tracking and file associations
-- **Query Builder**: Custom query builders for both SQL and NoSQL operations
+- **Query Builder**: Custom query builders for both SQL and CQL operations
 - **Fluent Logging**: Every repository log write is caller-aware via Media.Common's Fluent Logging API — no hand-typed `{ClassName}`/`{MethodName}` prefixes to drift out of sync with the code around them
 
 ## Technologies
@@ -52,7 +52,7 @@ Media.Database/
 │   └── Schemas/
 │       ├── BaseSchema.cs           # Schema abstraction
 │       ├── ColumnsSql.cs           # SQL schema definitions
-│       ├── ColumnsCql.cs         # NoSQL schema definitions
+│       ├── ColumnsCql.cs         # CQL schema definitions
 │       └── ...                     # Additional schema components
 └── tests/
 	└── Media.Database.Tests/        # Unit tests
@@ -181,10 +181,10 @@ public class WordIndexService
 
 ## Database Schema
 
-The library supports dynamic schema detection and handles both SQL and NoSQL databases through a unified abstraction:
+The library supports dynamic schema detection and handles both SQL and CQL databases through a unified abstraction:
 
 - **SQL Mode**: Uses PostgreSQL with structured tables and relationships
-- **NoSQL Mode**: Uses Cassandra/ScyllaDB with denormalized document structure
+- **CQL Mode**: Uses Cassandra/ScyllaDB with denormalized document structure
 
 Schema information is cached for performance using `BaseSchemaCache`.
 
