@@ -87,7 +87,10 @@ public class RegistrationRepositoryTests
             OtpEmail = _fixture.Create<string>(),
             OtpCellPhone = _fixture.Create<string>(),
             RegistrationInsertedOn = DateTimeOffset.UtcNow,
-            RegistrationUpdatedOn = null
+            RegistrationUpdatedOn = null,
+            VaultToken = _fixture.Create<Guid>(),
+            VaultTokenExpiresOn = DateTimeOffset.UtcNow.AddHours(1),
+            VaultTokenConsumedOn = null
         };
 
     [Test]
@@ -155,6 +158,58 @@ public class RegistrationRepositoryTests
     }
 
     [Test]
+    public async Task ConsumeVaultToken_Should_ReturnUuid_When_TokenValid()
+    {
+        var expectedUuid = Guid.NewGuid();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryRegistrations.ConsumeVaultTokenSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ReturnsAsync(expectedUuid);
+
+        var result = await CreateRepository().ConsumeVaultToken(Guid.NewGuid());
+
+        result.ShouldBe(expectedUuid);
+    }
+
+    [Test]
+    public async Task ConsumeVaultToken_Should_ReturnNull_When_TokenUnknownExpiredOrAlreadyConsumed()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryRegistrations.ConsumeVaultTokenSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ReturnsAsync((Guid?)null);
+
+        var result = await CreateRepository().ConsumeVaultToken(Guid.NewGuid());
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task ConsumeVaultToken_Should_ConfigureVaultTokenParameter()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryRegistrations.ConsumeVaultTokenSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Guid>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((Guid?)null);
+        var token = Guid.NewGuid();
+
+        await CreateRepository().ConsumeVaultToken(token);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.VaultToken].Value.ShouldBe(token);
+    }
+
+    [Test]
+    public void ConsumeVaultToken_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryRegistrations.ConsumeVaultTokenSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ConsumeVaultToken(Guid.NewGuid()));
+    }
+
+    [Test]
     public async Task AddBySourceInformation_Should_ReturnNull_And_NotAddRegistration_When_NoMatchingSourceMachine()
     {
         _sqlExecutorMock
@@ -166,6 +221,51 @@ public class RegistrationRepositoryTests
 
         result.ShouldBeNull();
         _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task AddBySourceInformation_Should_InsertNewSourceMachine_When_NoExistingRowMatches()
+    {
+        var newMachine = CreateRegistration();
+        var added = CreateRegistration(sourceMachineUuid: newMachine.SourceMachineUuid);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(newMachine);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(added);
+        var request = _fixture.Create<AddSourceInformationRequest>();
+
+        var result = await CreateRepository().AddBySourceInformation(request);
+
+        result.ShouldNotBeNull();
+        result.SourceMachineUuid.ShouldBe(newMachine.SourceMachineUuid);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task AddBySourceInformation_Should_ConfigureVaultTokenParameters_When_InsertingNewSourceMachine()
+    {
+        var newMachine = CreateRegistration();
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(newMachine);
+        var request = _fixture.Create<AddSourceInformationRequest>();
+
+        await CreateRepository().AddBySourceInformation(request);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.VaultToken].Value.ShouldNotBe(Guid.Empty);
+        command.Parameters[pn.VaultTokenExpiresOn].Value.ShouldBeOfType<DateTimeOffset>();
     }
 
     [Test]

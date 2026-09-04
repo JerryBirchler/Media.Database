@@ -59,6 +59,9 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string IsActive = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
+        public static readonly string VaultToken = y();
+        public static readonly string VaultTokenExpiresOn = y();
+        public static readonly string VaultTokenConsumedOn = y();
     }
 
     public static class WordsColumns

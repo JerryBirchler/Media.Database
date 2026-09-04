@@ -78,6 +78,26 @@ public class RegistrationRepository(
                 reader => reader.ToSourceMachineRegistration()
             );
 
+            // No existing row matched — this is a genuinely new device. GetBySourceInformationSql
+            // is a lookup only; it never creates a row, so a brand-new device must be inserted here.
+            addSourceResponse ??= await _sqlExecutor.QuerySingleAsync
+            (
+                QueryRegistrations.AddBySourceInformationSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
+                    p.AddWithValue(pn.DeviceTypeId, request.DeviceTypeId);
+                    p.AddWithValue(pn.EmailAddress, request.EmailAddress);
+                    p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
+                    p.AddWithValue(pn.FirstName, request.FirstName);
+                    p.AddWithValue(pn.LastName, request.LastName);
+                    p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
+                    p.AddWithValue(pn.VaultToken, Guid.NewGuid());
+                    p.AddWithValue(pn.VaultTokenExpiresOn, DateTimeOffset.UtcNow + _registrationSettings.Value.OtpWindow);
+                },
+                reader => reader.ToNewSourceMachineRegistration()
+            );
+
             if (addSourceResponse is null)
                 return null;
 
@@ -134,6 +154,35 @@ public class RegistrationRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "GetByUuid failed for SourceMachineUuid {Uuid}", uuid);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Atomically consumes a vault-reveal token, returning the device's <see cref="Guid"/> API
+    /// key exactly once. Returns null if the token is unknown, already consumed, or expired —
+    /// these cases are deliberately indistinguishable to the caller.
+    /// </summary>
+    /// <param name="vaultToken">The one-time vault-reveal token from the emailed link.</param>
+    /// <returns>The device's source machine UUID, or null if the token cannot be consumed.</returns>
+    public async Task<Guid?> ConsumeVaultToken(Guid vaultToken)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleValueAsync
+            (
+                QueryRegistrations.ConsumeVaultTokenSql,
+                p =>
+                {
+                    p.AddWithValue(pn.VaultToken, vaultToken);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToVaultRevealUuid()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ConsumeVaultToken failed for VaultToken {VaultToken}", vaultToken);
             throw;
         }
     }

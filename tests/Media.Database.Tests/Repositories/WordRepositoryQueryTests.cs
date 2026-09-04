@@ -72,7 +72,7 @@ public class WordRepositoryQueryTests
     {
         var expected = _fixture.CreateMany<ViewWordFiles>(2).ToList();
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryWords.GetFilePagesByWordFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFilePagesByWordOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
             .ReturnsAsync(expected);
 
         var result = await CreateRepository().GetFilePagesByWordOrigin("word", WordOrigin.Name, Guid.NewGuid(), true, false);
@@ -121,14 +121,29 @@ public class WordRepositoryQueryTests
         command.Parameters[pn.IsProperName].Value.ShouldBe(DBNull.Value);
     }
 
+    /// <summary>
+    /// Each "By*" variant must query its own like-named sort-order query — not a shared one.
+    /// Regression coverage for a wiring bug where three of the four variants all silently
+    /// executed <see cref="QueryWords.GetFilePagesByWordFileIdSql"/> regardless of which
+    /// sort order their name promised.
+    /// </summary>
+    [TestCase(nameof(WordRepository.GetFilePagesByWordOrigin))]
     [TestCase(nameof(WordRepository.GetFilePagesByWordFileId))]
     [TestCase(nameof(WordRepository.GetFilePagesByFileIdOrigin))]
     [TestCase(nameof(WordRepository.GetFilePagesByFileIdWord))]
-    public async Task GetFilePagesBy_Variants_Should_All_Query_GetFilePagesByWordFileIdSql(string methodName)
+    public async Task GetFilePagesBy_Variants_Should_Query_TheirOwnLikeNamedSql(string methodName)
     {
+        var expectedSql = methodName switch
+        {
+            nameof(WordRepository.GetFilePagesByWordOrigin) => QueryWords.GetFilePagesByWordOriginSql,
+            nameof(WordRepository.GetFilePagesByWordFileId) => QueryWords.GetFilePagesByWordFileIdSql,
+            nameof(WordRepository.GetFilePagesByFileIdOrigin) => QueryWords.GetFilePagesByFileIdOriginSql,
+            nameof(WordRepository.GetFilePagesByFileIdWord) => QueryWords.GetFilePagesByFileIdWordSql,
+            _ => throw new ArgumentOutOfRangeException(nameof(methodName))
+        };
         var expected = _fixture.CreateMany<ViewWordFiles>(2).ToList();
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryWords.GetFilePagesByWordFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Setup(e => e.QueryManyAsync(expectedSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
             .ReturnsAsync(expected);
         var repository = CreateRepository();
         var method = typeof(WordRepository).GetMethod(methodName)!;
@@ -169,11 +184,27 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
-    public async Task Delete_Should_Execute_DeleteSql()
+    public async Task Delete_Should_Execute_DeleteWordSql()
     {
         await CreateRepository().Delete(5);
 
-        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryWords.DeleteWordSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Delete_Should_ConfigureIdParameter()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryWords.DeleteWordSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>>((_, configure) => captured = configure)
+            .ReturnsAsync(1);
+
+        await CreateRepository().Delete(5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Id].Value.ShouldBe(5);
     }
 
     [Test]

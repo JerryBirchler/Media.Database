@@ -254,4 +254,20 @@ public class QueryWordsTests
         sql.ShouldContain("@IsProperName", Case.Insensitive);
         sql.ShouldContain("IS NULL");
     }
+
+    [Test]
+    public void DeleteWordSql_Should_Contain_Delete_From_Where()
+    {
+        var sql = QueryWords.DeleteWordSql;
+        sql.ShouldContain("DELETE FROM");
+        sql.ShouldContain("WHERE");
+    }
+
+    [Test]
+    public void DeleteWordSql_Should_Delete_From_Words_Table_By_Id()
+    {
+        var sql = QueryWords.DeleteWordSql;
+        sql.ShouldContain("\"Words\"");
+        sql.ShouldContain("\"Id\" = @Id");
+    }
 }

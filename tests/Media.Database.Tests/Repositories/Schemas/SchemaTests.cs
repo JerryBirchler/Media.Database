@@ -132,6 +132,27 @@ public class ColumnsSqlTests
     }
 
     [Test]
+    public void ColumnsSql_Should_Have_VaultToken_Column()
+    {
+        // Assert
+        ColumnsSql.VaultToken.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void ColumnsSql_Should_Have_VaultTokenExpiresOn_Column()
+    {
+        // Assert
+        ColumnsSql.VaultTokenExpiresOn.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void ColumnsSql_Should_Have_VaultTokenConsumedOn_Column()
+    {
+        // Assert
+        ColumnsSql.VaultTokenConsumedOn.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
     public void ColumnsSql_Should_Have_Word_Column()
     {
         // Assert

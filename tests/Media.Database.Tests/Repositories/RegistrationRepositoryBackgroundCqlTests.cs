@@ -94,7 +94,10 @@ public class RegistrationRepositoryBackgroundCqlTests
         OtpEmail = _fixture.Create<string>(),
         OtpCellPhone = _fixture.Create<string>(),
         RegistrationInsertedOn = DateTimeOffset.UtcNow,
-        RegistrationUpdatedOn = null
+        RegistrationUpdatedOn = null,
+        VaultToken = _fixture.Create<Guid>(),
+        VaultTokenExpiresOn = DateTimeOffset.UtcNow.AddHours(1),
+        VaultTokenConsumedOn = null
     };
 
     [Test]

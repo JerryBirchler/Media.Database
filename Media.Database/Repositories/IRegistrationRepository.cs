@@ -7,6 +7,12 @@ public interface IRegistrationRepository
     Task<SourceMachineRegistrations?> AddBySourceInformation(AddSourceInformationRequest request);
     Task<SourceMachineRegistrations?> UpdateSourceInformation(UpdateSourceInformationRequest request);
     Task<SourceMachineRegistrations?> GetByUuid(Guid uuid);
+
+    /// <summary>
+    /// Atomically consumes a vault-reveal token, returning the device's source machine UUID
+    /// exactly once. Returns null if the token is unknown, already consumed, or expired.
+    /// </summary>
+    Task<Guid?> ConsumeVaultToken(Guid vaultToken);
     Task<OtpEmailResponse?> VerifyOtpEmail(Guid sourceMachineUuid, string otp);
     Task<OtpSmsResponse?> VerifyOtpCellPhone(Guid sourceMachineUuid, string otp);
 

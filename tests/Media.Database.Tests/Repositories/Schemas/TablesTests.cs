@@ -94,6 +94,9 @@ public class ParameterNamesTests
         ParameterNames.OriginalFilePath.ShouldStartWith("@");
         ParameterNames.SourceMachineId.ShouldStartWith("@");
         ParameterNames.UpdatedOn.ShouldStartWith("@");
+        ParameterNames.VaultToken.ShouldStartWith("@");
+        ParameterNames.VaultTokenExpiresOn.ShouldStartWith("@");
+        ParameterNames.VaultTokenConsumedOn.ShouldStartWith("@");
         ParameterNames.Word.ShouldStartWith("@");
         ParameterNames.WordId.ShouldStartWith("@");
     }
@@ -343,6 +346,15 @@ public class TablesSqlTests
         TablesSql.WordFilesColumns.Origin.ShouldNotBeNullOrEmpty();
         TablesSql.WordFilesColumns.WordId.ShouldNotBeNullOrEmpty();
         TablesSql.WordFilesColumns.FileId.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void SourceMachineRegistrationsColumns_Should_Have_VaultTokenColumns()
+    {
+        // Assert
+        TablesSql.SourceMachineRegistrationsColumns.VaultToken.ShouldNotBeNullOrEmpty();
+        TablesSql.SourceMachineRegistrationsColumns.VaultTokenExpiresOn.ShouldNotBeNullOrEmpty();
+        TablesSql.SourceMachineRegistrationsColumns.VaultTokenConsumedOn.ShouldNotBeNullOrEmpty();
     }
 
     [Test]

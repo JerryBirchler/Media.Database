@@ -21,27 +21,35 @@ public static class QueryRegistrations
 {
     #region SQL Queries
     /// <summary>
-    /// SQL to insert a new SourceMachine registration, returning the inserted row.
+    /// SQL to insert a new SourceMachine registration, returning the inserted row. Also mints
+    /// the one-time vault-reveal token (<see cref="TablesSql.SourceMachineRegistrationsColumns.VaultToken"/>)
+    /// used to hand the device its <see cref="TablesSql.SourceMachineRegistrationsColumns.SourceMachineUuid"/>
+    /// API key exactly once, since that value is never returned directly from any API response.
     /// </summary>
     public static string AddBySourceInformationSql => $@"
         INSERT INTO {ts.SourceMachineRegistrations} (
-            {cssmr.SourceMachineName}, 
-            {cssmr.DeviceTypeId}, 
-            {cssmr.EmailAddress}, 
-            {cssmr.CellPhoneNumber}, 
-            {cssmr.FirstName}, 
-            {cssmr.LastName}, 
-            {cssmr.OperatingSystem}
+            {cssmr.SourceMachineName},
+            {cssmr.DeviceTypeId},
+            {cssmr.EmailAddress},
+            {cssmr.CellPhoneNumber},
+            {cssmr.FirstName},
+            {cssmr.LastName},
+            {cssmr.OperatingSystem},
+            {cssmr.VaultToken},
+            {cssmr.VaultTokenExpiresOn}
         ) VALUES (
-            {pn.SourceMachineName}, 
-            {pn.DeviceTypeId}, 
-            {pn.EmailAddress}, 
-            {pn.CellPhoneNumber}, 
-            {pn.FirstName}, 
-            {pn.LastName}, 
-            {pn.OperatingSystem}
+            {pn.SourceMachineName},
+            {pn.DeviceTypeId},
+            {pn.EmailAddress},
+            {pn.CellPhoneNumber},
+            {pn.FirstName},
+            {pn.LastName},
+            {pn.OperatingSystem},
+            {pn.VaultToken},
+            {pn.VaultTokenExpiresOn}
         )
         RETURNING
+            {cssmr.SourceMachineId},
             {cssmr.SourceMachineUuid},
             {cssmr.SourceMachineName},
             {cssmr.DeviceTypeId},
@@ -51,7 +59,10 @@ public static class QueryRegistrations
             {cssmr.LastName},
             {cssmr.OperatingSystem},
             {cssmr.InsertedOn},
-            {cssmr.IsActive}
+            {cssmr.IsActive},
+            {cssmr.VaultToken},
+            {cssmr.VaultTokenExpiresOn},
+            {cssmr.VaultTokenConsumedOn}
         ;";
 
     /// <summary>
@@ -94,25 +105,28 @@ public static class QueryRegistrations
             CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
             COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"", 
             COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"", 
-            {cssmr.OperatingSystem}, 
-            {cssmr.IsActive}, 
-            {cssmr.InsertedOn}, 
+            {cssmr.OperatingSystem},
+            {cssmr.IsActive},
+            {cssmr.InsertedOn},
             {cssmr.UpdatedOn},
+            {cssmr.VaultToken},
+            {cssmr.VaultTokenExpiresOn},
+            {cssmr.VaultTokenConsumedOn},
             {csr.OtpEmail},
             {csr.OtpCellPhone},
             {csr.InsertedOn} As ""RegistrationInsertedOn"",
             {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
-        FROM 
+        FROM
             {ts.SourceMachineRegistrations} AS smr
-        LEFT JOIN 
+        LEFT JOIN
             {ts.Registrations} AS r
-        ON  
+        ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
             AND r.{csr.IsCurrent} = True
             AND smr.{cssmr.EmailAddress} = r.{csr.EmailAddress}
             AND smr.{cssmr.CellPhoneNumber} = r.{csr.CellPhoneNumber}
-        WHERE 
-            smr.{cssmr.SourceMachineName} = {pn.SourceMachineName} 
+        WHERE
+            smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
             AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId} 
             AND smr.{cssmr.EmailAddress} = {pn.EmailAddress} 
             AND smr.{cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}
@@ -137,25 +151,28 @@ public static class QueryRegistrations
             CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
             COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"", 
             COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"", 
-            {cssmr.OperatingSystem}, 
-            {cssmr.IsActive}, 
-            {cssmr.InsertedOn}, 
-            {cssmr.UpdatedOn}
+            {cssmr.OperatingSystem},
+            {cssmr.IsActive},
+            {cssmr.InsertedOn},
+            {cssmr.UpdatedOn},
+            {cssmr.VaultToken},
+            {cssmr.VaultTokenExpiresOn},
+            {cssmr.VaultTokenConsumedOn},
             {csr.OtpEmail},
             {csr.OtpCellPhone},
             {csr.InsertedOn} As ""RegistrationInsertedOn"",
             {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
-        FROM 
+        FROM
             {ts.SourceMachineRegistrations} AS smr
-        LEFT JOIN 
+        LEFT JOIN
             {ts.Registrations} AS r
-        ON  
+        ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
             AND r.{csr.IsCurrent} = True
             AND smr.{cssmr.EmailAddress} = r.{csr.EmailAddress}
             AND smr.{cssmr.CellPhoneNumber} = r.{csr.CellPhoneNumber}
-        WHERE 
-            smr.{cssmr.SourceMachineUuid} = {pn.SourceMachineUuid} 
+        WHERE
+            smr.{cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
         LIMIT 1
         ;";
 
@@ -277,6 +294,24 @@ public static class QueryRegistrations
             r.{csr.IsSmsVerified}
         ;";
 
+    /// <summary>
+    /// Atomically consumes a vault-reveal token: succeeds only when the token exists, has not
+    /// already been consumed, and has not expired, returning the device's
+    /// <see cref="TablesSql.SourceMachineRegistrationsColumns.SourceMachineUuid"/>. The
+    /// <c>IS NULL</c> guard makes consumption atomic — a second concurrent hit on the same link
+    /// cannot also succeed.
+    /// </summary>
+    public static string ConsumeVaultTokenSql => $@"
+        UPDATE {ts.SourceMachineRegistrations} SET
+            {cssmr.VaultTokenConsumedOn} = {pn.UpdatedOn}
+        WHERE
+            {cssmr.VaultToken} = {pn.VaultToken}
+            AND {cssmr.VaultTokenConsumedOn} IS NULL
+            AND {cssmr.VaultTokenExpiresOn} > {pn.UpdatedOn}
+        RETURNING
+            {cssmr.SourceMachineUuid}
+        ;";
+
     #endregion
 
     #region CQL Queries
@@ -294,7 +329,7 @@ public static class QueryRegistrations
             {ccr.CellPhoneNumber},
             {ccr.SourceInsertedOn},
             {ccr.SourceUpdatedOn},
-            {ccr.IsActive}
+            {ccr.IsActive},
             {ccr.IsEmailVerified},
             {ccr.IsSmsVerified},
             {ccr.OtpEmail},
@@ -348,7 +383,47 @@ public static class QueryRegistrations
             OtpEmail = reader.GetString(os.OtpEmail),
             OtpCellPhone = reader.GetString(os.OtpCellPhone),
             RegistrationInsertedOn = reader.GetFieldValue<DateTimeOffset?>(os.RegistrationInsertedOn),
-            RegistrationUpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.RegistrationUpdatedOn)
+            RegistrationUpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.RegistrationUpdatedOn),
+            VaultToken = reader.GetGuid(os.VaultToken),
+            VaultTokenExpiresOn = reader.GetFieldValue<DateTimeOffset>(os.VaultTokenExpiresOn),
+            VaultTokenConsumedOn = reader.GetFieldValue<DateTimeOffset?>(os.VaultTokenConsumedOn)
+        };
+    }
+
+    /// <summary>
+    /// Maps the current row of <paramref name="reader"/> — the RETURNING clause of
+    /// <see cref="AddBySourceInformationSql"/> — to a newly created <see cref="SourceMachineRegistrations"/>.
+    /// That INSERT only touches the <c>SourceMachineRegistrations</c> table, so there is no
+    /// linked <c>Registrations</c> (OTP) row yet; registration-specific fields are defaulted here
+    /// and populated moments later once <see cref="AddRegistrationBySourceMachineUuidSql"/> runs.
+    /// </summary>
+    public static SourceMachineRegistrations ToNewSourceMachineRegistration(this NpgsqlDataReader reader)
+    {
+        return new SourceMachineRegistrations
+        {
+            RegistrationId = 0,
+            SourceMachineId = reader.GetInt32(os.SourceMachineId),
+            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
+            SourceMachineName = reader.GetString(os.SourceMachineName),
+            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+            EmailAddress = reader.GetString(os.EmailAddress),
+            CellPhoneNumber = reader.GetString(os.CellPhoneNumber)!,
+            FirstName = reader.GetString(os.FirstName),
+            LastName = reader.GetString(os.LastName),
+            HasRegistration = false,
+            IsEmailVerified = false,
+            IsSmsVerified = false,
+            OperatingSystem = reader.GetString(os.OperatingSystem),
+            InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
+            UpdatedOn = null,
+            IsActive = reader.GetFieldValue<bool>(os.IsActive),
+            OtpEmail = string.Empty,
+            OtpCellPhone = string.Empty,
+            RegistrationInsertedOn = null,
+            RegistrationUpdatedOn = null,
+            VaultToken = reader.GetGuid(os.VaultToken),
+            VaultTokenExpiresOn = reader.GetFieldValue<DateTimeOffset>(os.VaultTokenExpiresOn),
+            VaultTokenConsumedOn = reader.GetFieldValue<DateTimeOffset?>(os.VaultTokenConsumedOn)
         };
     }
 
@@ -404,6 +479,12 @@ public static class QueryRegistrations
             CellPhoneNumber = reader.GetString(os.CellPhoneNumber),
             OtpSmsVerified = reader.GetFieldValue<bool>(os.IsSmsVerified)
         };
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> — the RETURNING clause of <see cref="ConsumeVaultTokenSql"/> — to the device's source machine UUID.</summary>
+    public static Guid ToVaultRevealUuid(this NpgsqlDataReader reader)
+    {
+        return reader.GetGuid(os.SourceMachineUuid);
     }
 
     public static async Task<SortedSet<int>> ToRegistrationIds(this NpgsqlDataReader reader)

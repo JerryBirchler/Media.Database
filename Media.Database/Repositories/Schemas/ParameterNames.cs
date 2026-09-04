@@ -38,6 +38,9 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
     public static readonly string UpdatedOn = x();
+    public static readonly string VaultToken = x();
+    public static readonly string VaultTokenConsumedOn = x();
+    public static readonly string VaultTokenExpiresOn = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();
 

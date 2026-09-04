@@ -37,7 +37,10 @@ public class SourceMachineRegistrationsTests
             OtpEmail = string.Empty,
             OtpCellPhone = string.Empty,
             RegistrationInsertedOn = registrationInsertedOn,
-            RegistrationUpdatedOn = registrationUpdatedOn
+            RegistrationUpdatedOn = registrationUpdatedOn,
+            VaultToken = Guid.Empty,
+            VaultTokenExpiresOn = default,
+            VaultTokenConsumedOn = null
         };
     }
 
@@ -79,7 +82,10 @@ public class SourceMachineRegistrationsTests
         string otpEmail,
         string otpCellPhone,
         DateTimeOffset registrationInsertedOn,
-        DateTimeOffset registrationUpdatedOn)
+        DateTimeOffset registrationUpdatedOn,
+        Guid vaultToken,
+        DateTimeOffset vaultTokenExpiresOn,
+        DateTimeOffset vaultTokenConsumedOn)
     {
         // Act
         var registration = new SourceMachineRegistrations
@@ -103,7 +109,10 @@ public class SourceMachineRegistrationsTests
             OtpEmail = otpEmail,
             OtpCellPhone = otpCellPhone,
             RegistrationInsertedOn = registrationInsertedOn,
-            RegistrationUpdatedOn = registrationUpdatedOn
+            RegistrationUpdatedOn = registrationUpdatedOn,
+            VaultToken = vaultToken,
+            VaultTokenExpiresOn = vaultTokenExpiresOn,
+            VaultTokenConsumedOn = vaultTokenConsumedOn
         };
 
         // Assert
@@ -127,6 +136,9 @@ public class SourceMachineRegistrationsTests
         registration.OtpCellPhone.ShouldBe(otpCellPhone);
         registration.RegistrationInsertedOn.ShouldBe(registrationInsertedOn);
         registration.RegistrationUpdatedOn.ShouldBe(registrationUpdatedOn);
+        registration.VaultToken.ShouldBe(vaultToken);
+        registration.VaultTokenExpiresOn.ShouldBe(vaultTokenExpiresOn);
+        registration.VaultTokenConsumedOn.ShouldBe(vaultTokenConsumedOn);
     }
 
     [Test]
@@ -212,5 +224,19 @@ public class SourceMachineRegistrationsTests
         registration.ShouldNotBeNull();
         registration.SourceMachineName.ShouldNotBeNullOrEmpty();
         registration.SourceMachineUuid.ShouldNotBe(Guid.Empty);
+    }
+
+    [Test]
+    public void SourceMachineRegistrations_Should_Not_Serialize_SourceMachineUuid()
+    {
+        // Arrange
+        var registration = CreateMinimal();
+
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(registration);
+
+        // Assert
+        json.ShouldNotContain("sourceMachineUuid");
+        json.ShouldNotContain("SourceMachineUuid");
     }
 }

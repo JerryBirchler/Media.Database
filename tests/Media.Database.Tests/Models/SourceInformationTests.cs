@@ -179,4 +179,15 @@ public class SourceInformationResponseTests
         response.InsertedOn.ShouldBe(insertedOn);
         response.IsActive.ShouldBe(isActive);
     }
+
+    [Test, AutoData]
+    public void SourceInformationResponse_Should_Not_Serialize_SourceMachineUuid(SourceInformationResponse response)
+    {
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(response);
+
+        // Assert
+        json.ShouldNotContain("sourceMachineUuid");
+        json.ShouldNotContain("SourceMachineUuid");
+    }
 }

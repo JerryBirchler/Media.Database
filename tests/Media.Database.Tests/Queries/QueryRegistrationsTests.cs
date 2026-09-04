@@ -1,6 +1,7 @@
 using Media.Database.Repositories.Queries;
 using NUnit.Framework;
 using Shouldly;
+using System;
 
 namespace Media.Database.Tests.Queries;
 
@@ -14,6 +15,15 @@ public class QueryRegistrationsTests
         sql.ShouldContain("INSERT INTO");
         sql.ShouldContain("VALUES");
         sql.ShouldContain("RETURNING");
+    }
+
+    [Test]
+    public void AddBySourceInformationSql_Should_Contain_VaultTokenColumns()
+    {
+        var sql = QueryRegistrations.AddBySourceInformationSql;
+        sql.ShouldContain("@VaultToken");
+        sql.ShouldContain("@VaultTokenExpiresOn");
+        sql.ShouldContain("\"VaultTokenConsumedOn\"");
     }
 
     [Test]
@@ -46,6 +56,39 @@ public class QueryRegistrationsTests
         sql.ShouldContain("WHERE");
         sql.ShouldContain("LIMIT 1");
         sql.ShouldContain("@SourceMachineUuid");
+    }
+
+    [Test]
+    public void GetBySourceMachineUuidSql_Should_Select_OtpEmail_As_A_Separate_Column_From_UpdatedOn()
+    {
+        // Regression test for a missing comma that made "UpdatedOn" an implicit alias for the
+        // real OtpEmail column, so the query never actually selected OtpEmail.
+        var sql = QueryRegistrations.GetBySourceMachineUuidSql;
+        sql.ShouldContain("\"UpdatedOn\",");
+        sql.ShouldContain("\"VaultToken\"");
+        sql.ShouldContain("\"VaultTokenExpiresOn\"");
+        sql.ShouldContain("\"VaultTokenConsumedOn\"");
+    }
+
+    [Test]
+    public void GetBySourceInformationSql_Should_Contain_VaultTokenColumns()
+    {
+        var sql = QueryRegistrations.GetBySourceInformationSql;
+        sql.ShouldContain("\"VaultToken\"");
+        sql.ShouldContain("\"VaultTokenExpiresOn\"");
+        sql.ShouldContain("\"VaultTokenConsumedOn\"");
+    }
+
+    [Test]
+    public void ConsumeVaultTokenSql_Should_Contain_Update_Where_Returning()
+    {
+        var sql = QueryRegistrations.ConsumeVaultTokenSql;
+        sql.ShouldContain("UPDATE");
+        sql.ShouldContain("WHERE");
+        sql.ShouldContain("RETURNING");
+        sql.ShouldContain("@VaultToken");
+        sql.ShouldContain("IS NULL");
+        sql.ShouldContain("\"SourceMachineUuid\"");
     }
 
     [Test]
@@ -97,6 +140,18 @@ public class QueryRegistrationsTests
         var cql = QueryRegistrations.UpsertRegistrationCql;
         cql.ShouldContain("INSERT INTO");
         cql.ShouldContain("VALUES");
+    }
+
+    [Test]
+    public void UpsertRegistrationCql_Should_Separate_IsActive_From_IsEmailVerified_With_A_Comma()
+    {
+        // Regression test for a missing comma that made this an invalid CQL statement, never
+        // caught because it only ever runs against a mocked ICqlQueryExecutor in tests.
+        var cql = QueryRegistrations.UpsertRegistrationCql;
+        var isActiveIndex = cql.IndexOf("is_active", StringComparison.Ordinal);
+        var isEmailVerifiedIndex = cql.IndexOf("is_email_verified", StringComparison.Ordinal);
+
+        cql.Substring(isActiveIndex, isEmailVerifiedIndex - isActiveIndex).ShouldContain(",");
     }
 
     // ToSourceMachineRegistration/ToRegistrationIds/ToSourceInformationResponse/ToAddRegistrationResponse

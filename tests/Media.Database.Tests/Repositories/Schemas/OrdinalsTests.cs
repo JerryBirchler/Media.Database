@@ -167,6 +167,27 @@ public class OrdinalsTests
     }
 
     [Test]
+    public void Ordinals_Should_Have_VaultToken_Field()
+    {
+        // Assert
+        Ordinals.VaultToken.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void Ordinals_Should_Have_VaultTokenExpiresOn_Field()
+    {
+        // Assert
+        Ordinals.VaultTokenExpiresOn.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void Ordinals_Should_Have_VaultTokenConsumedOn_Field()
+    {
+        // Assert
+        Ordinals.VaultTokenConsumedOn.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
     public void Ordinals_Should_Have_Word_Field()
     {
         // Assert
@@ -382,6 +403,27 @@ public class OrdinalsSqlTests
     {
         // Assert
         OrdinalsSql.UpdatedOn.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void OrdinalsSql_Should_Have_VaultToken_Field()
+    {
+        // Assert
+        OrdinalsSql.VaultToken.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void OrdinalsSql_Should_Have_VaultTokenExpiresOn_Field()
+    {
+        // Assert
+        OrdinalsSql.VaultTokenExpiresOn.ShouldNotBeNullOrEmpty();
+    }
+
+    [Test]
+    public void OrdinalsSql_Should_Have_VaultTokenConsumedOn_Field()
+    {
+        // Assert
+        OrdinalsSql.VaultTokenConsumedOn.ShouldNotBeNullOrEmpty();
     }
 
     [Test]

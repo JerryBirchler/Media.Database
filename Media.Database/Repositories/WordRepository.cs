@@ -90,7 +90,7 @@ public class WordRepository(
     /// </summary>
     /// <param name="word">The word to search for, or null to match any word.</param>
     /// <param name="origin">The word origin to filter by, or null to match any origin.</param>
-    /// <param name="fileId">The file identifier to filter by, or null to match any file.                       
+    /// <param name="fileId">The file identifier to filter by, or null to match any file.</param>
     /// <param name="isCurrent"></param>
     /// <param name="isProperName"></param>
     /// <param name="limit"></param>
@@ -100,7 +100,7 @@ public class WordRepository(
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
+        return await GetFilePages(QueryWords.GetFilePagesByWordOriginSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
     /// <inheritdoc/>
@@ -118,7 +118,7 @@ public class WordRepository(
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
+        return await GetFilePages(QueryWords.GetFilePagesByFileIdOriginSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
     /// <inheritdoc/>
@@ -127,7 +127,7 @@ public class WordRepository(
         bool? isCurrent, bool? isProperName,
         int? limit = 10)
     {
-        return await GetFilePages(QueryWords.GetFilePagesByWordFileIdSql, word, origin, fileId, isCurrent, isProperName, limit);
+        return await GetFilePages(QueryWords.GetFilePagesByFileIdWordSql, word, origin, fileId, isCurrent, isProperName, limit);
     }
 
     /// <inheritdoc/>
@@ -173,7 +173,7 @@ public class WordRepository(
         try
         {
             await _sqlExecutor.ExecuteAsync(
-                QueryFiles.DeleteSql,
+                QueryWords.DeleteWordSql,
                 p => p.AddWithValue(pn.Id, id));
         }
         catch (Exception ex)

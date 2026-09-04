@@ -178,6 +178,15 @@ public static class QueryWords
         DELETE FROM {ts.WordFiles}
         WHERE {cswf.FileId} = {pn.FileId}";
 
+    /// <summary>
+    /// SQL to delete a word by its identifier. Dependent <see cref="Tables.WordFiles"/> rows are
+    /// removed automatically at the database level (ON DELETE CASCADE on the WordId foreign key)
+    /// — no separate cleanup query is needed. Uploaded files themselves are never touched.
+    /// </summary>
+    public static string DeleteWordSql => $@"
+        DELETE FROM {ts.Words}
+        WHERE {csw.Id} = {pn.Id}";
+
     #endregion
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Words"/>.</summary>
