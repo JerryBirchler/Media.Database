@@ -1,5 +1,3 @@
-using Media.Common.BackgroundJobs;
-using Media.Common.Providers;
 using Media.Common.Transactions;
 using Media.Database.Mappers;
 using Media.Database.Repositories;
@@ -17,11 +15,8 @@ public class FileRepositoryTests
     {
         var repo = new FileRepository(
             Mock.Of<ISqlQueryExecutor>(),
-            Mock.Of<ICqlQueryExecutor>(),
-            Mock.Of<IScyllaSessionProvider>(),
             () => Mock.Of<IUnitOfWork>(),
             Mock.Of<IMapChangeWordRequests>(),
-            Mock.Of<IBackgroundTaskQueue>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(),
             new Serilog.Core.LoggingLevelSwitch());
 

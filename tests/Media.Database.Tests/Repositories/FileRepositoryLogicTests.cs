@@ -1,5 +1,3 @@
-using Media.Common.BackgroundJobs;
-using Media.Common.Providers;
 using Media.Common.Transactions;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -27,16 +25,10 @@ public class FileRepositoryLogicTests
 {
     private static FileRepository CreateRepository(IMapChangeWordRequests mapper)
     {
-        var scyllaProviderMock = new Mock<IScyllaSessionProvider>();
-        scyllaProviderMock.Setup(p => p.MaxBatchSize).Returns(100);
-
         return new FileRepository(
             Mock.Of<ISqlQueryExecutor>(),
-            Mock.Of<ICqlQueryExecutor>(),
-            scyllaProviderMock.Object,
             () => Mock.Of<IUnitOfWork>(),
             mapper,
-            Mock.Of<IBackgroundTaskQueue>(),
             Mock.Of<ILogger<FileRepository>>(),
             new LoggingLevelSwitch());
     }

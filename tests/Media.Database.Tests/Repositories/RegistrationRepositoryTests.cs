@@ -1,7 +1,5 @@
 #nullable enable
 using AutoFixture;
-using Media.Common.BackgroundJobs;
-using Media.Common.Providers;
 using Media.Common.Settings;
 using Media.Common.Transactions;
 using Media.Database.Models;
@@ -28,17 +26,20 @@ namespace Media.Database.Tests.Repositories;
 
 /// <summary>
 /// Covers RegistrationRepository's public API against a mocked ISqlQueryExecutor, following the
-/// same pattern as FileRepositoryQueryTests. ToRegistrationIds is still declared as an async method
-/// and so still produces a nested Task (Task&lt;SortedSet&lt;int&gt;&gt; as T) when used as the `map`
-/// delegate; ToAddRegistrationResponse was fixed to map synchronously like the other single-row
-/// mappers (see QueryRegistrations), so its mocks use Func&lt;NpgsqlDataReader, AddRegistrationResponse&gt;
-/// directly.
+/// same pattern as FileRepositoryQueryTests. AddBySourceInformation/UpdateSourceInformation/
+/// ResendOtp now run inside an IUnitOfWork transaction (mocked here, not a real Postgres
+/// transaction, per the same abstraction level as FileRepositoryQueryTests' Upsert/Update tests),
+/// so their SQL executor mocks take the unit of work as their first argument.
+/// ToRegistrationIds is still declared as an async method and so still produces a nested Task
+/// (Task&lt;SortedSet&lt;int&gt;&gt; as T) when used as the `map` delegate; ToAddRegistrationResponse
+/// was fixed to map synchronously like the other single-row mappers (see QueryRegistrations), so
+/// its mocks use Func&lt;NpgsqlDataReader, AddRegistrationResponse&gt; directly.
 /// </summary>
 [TestFixture]
 public class RegistrationRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
-    private Mock<IBackgroundTaskQueue> _backgroundTaskQueueMock = null!;
+    private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
 
     [SetUp]
@@ -46,24 +47,15 @@ public class RegistrationRepositoryTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
-        _backgroundTaskQueueMock = new Mock<IBackgroundTaskQueue>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
-    private RegistrationRepository CreateRepository()
-    {
-        var scyllaProviderMock = new Mock<IScyllaSessionProvider>();
-        scyllaProviderMock.Setup(p => p.MaxBatchSize).Returns(100);
-
-        return new RegistrationRepository(
-            _sqlExecutorMock.Object,
-            Mock.Of<ICqlQueryExecutor>(),
-            scyllaProviderMock.Object,
-            () => Mock.Of<IUnitOfWork>(),
-            _backgroundTaskQueueMock.Object,
-            Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1) }),
-            Mock.Of<ILogger<RegistrationRepository>>(),
-            new LoggingLevelSwitch());
-    }
+    private RegistrationRepository CreateRepository() => new(
+        _sqlExecutorMock.Object,
+        () => _unitOfWorkMock.Object,
+        Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1) }),
+        Mock.Of<ILogger<RegistrationRepository>>(),
+        new LoggingLevelSwitch());
 
     private SourceMachineRegistrations CreateRegistration(Guid? sourceMachineUuid = null, string? emailAddress = null, string? cellPhoneNumber = null) =>
         new()
@@ -94,12 +86,6 @@ public class RegistrationRepositoryTests
     public void RegistrationRepository_Should_Implement_IRegistrationRepository()
     {
         CreateRepository().ShouldBeAssignableTo<IRegistrationRepository>();
-    }
-
-    [Test]
-    public void RegistrationRepository_Should_Inherit_From_BaseRepository()
-    {
-        CreateRepository().ShouldBeAssignableTo<BaseRepository>();
     }
 
     [Test]
@@ -158,14 +144,15 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_ReturnNull_And_NotAddRegistration_When_NoMatchingSourceMachine()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
         var result = await CreateRepository().AddBySourceInformation(request);
 
         result.ShouldBeNull();
-        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
     }
 
     [Test]
@@ -174,10 +161,10 @@ public class RegistrationRepositoryTests
         var sourceMachine = CreateRegistration();
         var added = CreateRegistration(sourceMachineUuid: sourceMachine.SourceMachineUuid);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(added);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
@@ -189,6 +176,7 @@ public class RegistrationRepositoryTests
         result.RegistrationId.ShouldBe(added.RegistrationId);
         result.RegistrationInsertedOn.ShouldBe(added.RegistrationInsertedOn);
         result.RegistrationUpdatedOn.ShouldBe(added.RegistrationUpdatedOn);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -196,8 +184,8 @@ public class RegistrationRepositoryTests
     {
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
@@ -219,11 +207,11 @@ public class RegistrationRepositoryTests
         var sourceMachine = CreateRegistration();
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
@@ -239,24 +227,25 @@ public class RegistrationRepositoryTests
     {
         var sourceMachine = CreateRegistration();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
         var result = await CreateRepository().AddBySourceInformation(request);
 
         result.ShouldBeNull();
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
     public void AddBySourceInformation_Should_Rethrow_When_ExecutorThrows()
     {
+        _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)null!);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var request = _fixture.Create<AddSourceInformationRequest>();
 
@@ -267,14 +256,15 @@ public class RegistrationRepositoryTests
     public async Task UpdateSourceInformation_Should_ReturnNull_When_ExistingRegistrationNotFound()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = _fixture.Create<UpdateSourceInformationRequest>();
 
         var result = await CreateRepository().UpdateSourceInformation(request);
 
         result.ShouldBeNull();
-        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
     }
 
     [Test]
@@ -282,10 +272,10 @@ public class RegistrationRepositoryTests
     {
         var existing = CreateRegistration();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = new UpdateSourceInformationRequest
         {
@@ -298,18 +288,19 @@ public class RegistrationRepositoryTests
         var result = await CreateRepository().UpdateSourceInformation(request);
 
         result.ShouldBeNull();
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
-    public async Task UpdateSourceInformation_Should_QueueBackgroundUpdate_When_ContactInformationUnchanged()
+    public async Task UpdateSourceInformation_Should_Commit_When_ContactInformationUnchanged()
     {
         var existing = CreateRegistration();
         var updated = existing with { OperatingSystem = "updated-os" };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(updated);
         var request = new UpdateSourceInformationRequest
         {
@@ -322,7 +313,8 @@ public class RegistrationRepositoryTests
         var result = await CreateRepository().UpdateSourceInformation(request);
 
         result.ShouldBe(updated);
-        _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<System.Collections.Generic.SortedSet<int>>>>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
     }
 
     [Test]
@@ -341,16 +333,16 @@ public class RegistrationRepositoryTests
             UpdatedOn = null
         };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(updated);
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<System.Collections.Generic.SortedSet<int>>>>()))
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
             .ReturnsAsync([]);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync(addResponse);
         var request = new UpdateSourceInformationRequest
         {
@@ -366,15 +358,16 @@ public class RegistrationRepositoryTests
         result!.OtpEmail.ShouldBe(addResponse.OtpEmail);
         result.OtpCellPhone.ShouldBe(addResponse.OtpCellPhone);
         result.RegistrationId.ShouldBe(addResponse.Id);
-        _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<System.Collections.Generic.SortedSet<int>>>>()), Times.Once);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
     public void UpdateSourceInformation_Should_Rethrow_When_ExecutorThrows()
     {
+        _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)null!);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var request = _fixture.Create<UpdateSourceInformationRequest>();
 
@@ -397,18 +390,18 @@ public class RegistrationRepositoryTests
             UpdatedOn = null
         };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(updated);
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
             .ReturnsAsync([]);
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(addResponse);
         var request = new UpdateSourceInformationRequest
         {
@@ -438,16 +431,16 @@ public class RegistrationRepositoryTests
         var existing = CreateRegistration();
         var updated = existing with { EmailAddress = "new3@example.com", CellPhoneNumber = "555-0201" };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(updated);
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
             .ReturnsAsync([]);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync((AddRegistrationResponse?)null);
         var request = new UpdateSourceInformationRequest
         {
@@ -460,19 +453,21 @@ public class RegistrationRepositoryTests
         var result = await CreateRepository().UpdateSourceInformation(request);
 
         result.ShouldBeNull();
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
     public async Task ResendOtp_Should_ReturnNull_When_RegistrationNotFound()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
 
         var result = await CreateRepository().ResendOtp(Guid.NewGuid());
 
         result.ShouldBeNull();
-        _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
     }
 
     [Test]
@@ -480,7 +475,7 @@ public class RegistrationRepositoryTests
     {
         var existing = CreateRegistration() with { IsEmailVerified = true, IsSmsVerified = true };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
 
         var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
@@ -488,7 +483,8 @@ public class RegistrationRepositoryTests
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeFalse();
         result.SmsOtpSent.ShouldBeFalse();
-        _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
     }
 
     [Test]
@@ -506,15 +502,15 @@ public class RegistrationRepositoryTests
             UpdatedOn = null
         };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
             .ReturnsAsync([]);
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(addResponse);
 
         var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
@@ -534,81 +530,29 @@ public class RegistrationRepositoryTests
     {
         var existing = CreateRegistration();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
             .ReturnsAsync([]);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync((AddRegistrationResponse?)null);
 
         var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
 
         result.ShouldBeNull();
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
     public void ResendOtp_Should_Rethrow_When_ExecutorThrows()
     {
+        _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)null!);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ResendOtp(Guid.NewGuid()));
-    }
-
-    [Test]
-    public async Task Delete_Should_ReturnFile_And_QueueBackgroundDelete_When_ExecutorFindsMatch()
-    {
-        var expected = _fixture.Create<Files>();
-        _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync(expected);
-
-        var result = await CreateRepository().Delete(Guid.NewGuid());
-
-        result.ShouldBe(expected);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
-    }
-
-    [Test]
-    public async Task Delete_Should_ReturnNull_And_NotQueueBackgroundDelete_When_ExecutorFindsNoMatch()
-    {
-        _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync((Files?)null);
-
-        var result = await CreateRepository().Delete(Guid.NewGuid());
-
-        result.ShouldBeNull();
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
-    }
-
-    [Test]
-    public async Task DeleteHistoryBySourceMachineId_Should_QueueBackgroundDelete_When_FilesFound()
-    {
-        var files = _fixture.CreateMany<Files>(2).ToList();
-        _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryFiles.DeleteHistorySql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync(files);
-
-        var result = await CreateRepository().DeleteHistoryBySourceMachineId(1, "path");
-
-        result.ShouldBe(files);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
-    }
-
-    [Test]
-    public async Task DeleteHistoryBySourceMachineId_Should_NotQueueBackgroundDelete_When_NoFilesFound()
-    {
-        _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryFiles.DeleteHistorySql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync([]);
-
-        var result = await CreateRepository().DeleteHistoryBySourceMachineId(1, "path");
-
-        result.ShouldBeEmpty();
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
     }
 }

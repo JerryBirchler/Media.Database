@@ -1,7 +1,5 @@
 #nullable enable
 using AutoFixture;
-using Media.Common.BackgroundJobs;
-using Media.Common.Providers;
 using Media.Common.Transactions;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -26,13 +24,13 @@ namespace Media.Database.Tests.Repositories;
 /// <summary>
 /// Covers FileRepository's public API against a mocked ISqlQueryExecutor. This is the payoff of
 /// routing all Postgres access through ISqlQueryExecutor instead of opening a real NpgsqlConnection:
-/// every branch (found/not-found, commit/rollback, background-queue triggers) is now testable.
+/// every branch (found/not-found, commit/rollback) is now testable. Scylla sync no longer happens
+/// here at all -- it is Media.Worker's CDC pipeline's job, reading Postgres's write-ahead log.
 /// </summary>
 [TestFixture]
 public class FileRepositoryQueryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
-    private Mock<IBackgroundTaskQueue> _backgroundTaskQueueMock = null!;
     private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
 
@@ -41,22 +39,15 @@ public class FileRepositoryQueryTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
-        _backgroundTaskQueueMock = new Mock<IBackgroundTaskQueue>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
     private FileRepository CreateRepository()
     {
-        var scyllaProviderMock = new Mock<IScyllaSessionProvider>();
-        scyllaProviderMock.Setup(p => p.MaxBatchSize).Returns(100);
-
         return new FileRepository(
             _sqlExecutorMock.Object,
-            Mock.Of<ICqlQueryExecutor>(),
-            scyllaProviderMock.Object,
             () => _unitOfWorkMock.Object,
             Mock.Of<IMapChangeWordRequests>(),
-            _backgroundTaskQueueMock.Object,
             Mock.Of<ILogger<FileRepository>>(),
             new LoggingLevelSwitch());
     }
@@ -143,7 +134,7 @@ public class FileRepositoryQueryTests
     }
 
     [Test]
-    public async Task Delete_Should_ReturnFile_And_QueueBackgroundDelete_When_ExecutorFindsMatch()
+    public async Task Delete_Should_ReturnFile_When_ExecutorFindsMatch()
     {
         var expected = _fixture.Create<Files>();
         _sqlExecutorMock
@@ -153,11 +144,10 @@ public class FileRepositoryQueryTests
         var result = await CreateRepository().Delete(Guid.NewGuid());
 
         result.ShouldBe(expected);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
     }
 
     [Test]
-    public async Task Delete_Should_ReturnNull_And_NotQueueBackgroundDelete_When_ExecutorFindsNoMatch()
+    public async Task Delete_Should_ReturnNull_When_ExecutorFindsNoMatch()
     {
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(QueryFiles.DeleteSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
@@ -166,11 +156,10 @@ public class FileRepositoryQueryTests
         var result = await CreateRepository().Delete(Guid.NewGuid());
 
         result.ShouldBeNull();
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
     }
 
     [Test]
-    public async Task DeleteHistoryBySourceMachineId_Should_QueueBackgroundDelete_When_FilesFound()
+    public async Task DeleteHistoryBySourceMachineId_Should_ReturnFiles_When_FilesFound()
     {
         var files = _fixture.CreateMany<Files>(2).ToList();
         _sqlExecutorMock
@@ -180,11 +169,10 @@ public class FileRepositoryQueryTests
         var result = await CreateRepository().DeleteHistoryBySourceMachineId(1, "path");
 
         result.ShouldBe(files);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
     }
 
     [Test]
-    public async Task DeleteHistoryBySourceMachineId_Should_NotQueueBackgroundDelete_When_NoFilesFound()
+    public async Task DeleteHistoryBySourceMachineId_Should_ReturnEmpty_When_NoFilesFound()
     {
         _sqlExecutorMock
             .Setup(e => e.QueryManyAsync(QueryFiles.DeleteHistorySql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
@@ -193,7 +181,6 @@ public class FileRepositoryQueryTests
         var result = await CreateRepository().DeleteHistoryBySourceMachineId(1, "path");
 
         result.ShouldBeEmpty();
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
     }
 
     [Test]
@@ -217,7 +204,7 @@ public class FileRepositoryQueryTests
     }
 
     [Test]
-    public async Task Upsert_Should_CommitAndQueueBackgroundUpdate_When_NewFileInserted()
+    public async Task Upsert_Should_Commit_When_NewFileInserted()
     {
         var insertedFile = _fixture.Create<Files>();
         var previousIds = _fixture.CreateMany<Guid>(2).ToList();
@@ -238,7 +225,6 @@ public class FileRepositoryQueryTests
         result.ShouldBe(insertedFile);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
     }
 
     [Test]
@@ -261,7 +247,6 @@ public class FileRepositoryQueryTests
         result.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
     }
 
     [Test]
@@ -404,7 +389,7 @@ public class FileRepositoryQueryTests
     }
 
     [Test]
-    public async Task Update_Should_CommitAndQueueBackgroundMetadataUpdate_When_FileUpdated()
+    public async Task Update_Should_Commit_When_FileUpdated()
     {
         var currentFile = _fixture.Create<Files>();
         var updatedFile = _fixture.Create<Files>();
@@ -420,7 +405,6 @@ public class FileRepositoryQueryTests
 
         response.File.ShouldBe(updatedFile);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Once);
     }
 
     [Test]
@@ -488,6 +472,5 @@ public class FileRepositoryQueryTests
         response.File.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _backgroundTaskQueueMock.Verify(q => q.QueueBackgroundWorkItemAsync(It.IsAny<Func<CancellationToken, ValueTask>>()), Times.Never);
     }
 }
