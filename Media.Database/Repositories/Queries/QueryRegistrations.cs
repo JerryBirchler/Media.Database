@@ -1,4 +1,4 @@
-﻿using Media.Database.Helpers;
+using Media.Database.Helpers;
 using Media.Database.Models;
 using Npgsql;
 
@@ -154,8 +154,49 @@ public static class QueryRegistrations
             AND r.{csr.IsCurrent} = True
             AND smr.{cssmr.EmailAddress} = r.{csr.EmailAddress}
             AND smr.{cssmr.CellPhoneNumber} = r.{csr.CellPhoneNumber}
-        WHERE 
-            smr.{cssmr.SourceMachineUuid} = {pn.SourceMachineUuid} 
+        WHERE
+            smr.{cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
+        LIMIT 1
+        ;";
+
+    /// <summary>
+    /// Gets the joined source-machine/current-registration state by source machine id -- the same
+    /// shape as <see cref="GetBySourceMachineUuidSql"/>, but keyed by id since that's what a CDC
+    /// change event for either the Registrations or SourceMachineRegistrations table carries.
+    /// </summary>
+    public static string GetBySourceMachineIdSql => $@"
+        SELECT
+            {csr.Id},
+            {cssmr.SourceMachineId},
+            {cssmr.SourceMachineUuid},
+            {cssmr.SourceMachineName},
+            {cssmr.DeviceTypeId},
+            {cssmr.EmailAddress},
+            {cssmr.CellPhoneNumber},
+            {cssmr.FirstName},
+            {cssmr.LastName},
+            CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
+            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
+            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
+            {cssmr.OperatingSystem},
+            {cssmr.IsActive},
+            {cssmr.InsertedOn},
+            {cssmr.UpdatedOn}
+            {csr.OtpEmail},
+            {csr.OtpCellPhone},
+            {csr.InsertedOn} As ""RegistrationInsertedOn"",
+            {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
+        FROM
+            {ts.SourceMachineRegistrations} AS smr
+        LEFT JOIN
+            {ts.Registrations} AS r
+        ON
+            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
+            AND r.{csr.IsCurrent} = True
+            AND smr.{cssmr.EmailAddress} = r.{csr.EmailAddress}
+            AND smr.{cssmr.CellPhoneNumber} = r.{csr.CellPhoneNumber}
+        WHERE
+            smr.{cssmr.SourceMachineId} = {pn.SourceMachineId}
         LIMIT 1
         ;";
 
@@ -294,7 +335,7 @@ public static class QueryRegistrations
             {ccr.CellPhoneNumber},
             {ccr.SourceInsertedOn},
             {ccr.SourceUpdatedOn},
-            {ccr.IsActive}
+            {ccr.IsActive},
             {ccr.IsEmailVerified},
             {ccr.IsSmsVerified},
             {ccr.OtpEmail},
