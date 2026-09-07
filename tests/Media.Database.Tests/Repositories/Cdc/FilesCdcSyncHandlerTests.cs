@@ -67,8 +67,8 @@ public class FilesCdcSyncHandlerTests
 
         await sut.ApplyAsync(UpsertRecord(id), CancellationToken.None);
 
-        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Once);
-        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Never);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<Dictionary<string, object>>>()), Times.Once);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<Dictionary<string, object>>>()), Times.Never);
     }
 
     [Test]
@@ -76,12 +76,12 @@ public class FilesCdcSyncHandlerTests
     {
         var id = Guid.NewGuid();
         var sut = CreateHandler();
-        SortedDictionary<string, object>? captured = null;
+        Dictionary<string, object>? captured = null;
         _cqlExecutorMock
-            .Setup(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<SortedDictionary<string, object>>>()))
-            .Callback<string, Action<SortedDictionary<string, object>>>((_, configure) =>
+            .Setup(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<Dictionary<string, object>>>()))
+            .Callback<string, Action<Dictionary<string, object>>>((_, configure) =>
             {
-                captured = new SortedDictionary<string, object>();
+                captured = new Dictionary<string, object>();
                 configure(captured);
             })
             .Returns(Task.CompletedTask);
@@ -100,12 +100,12 @@ public class FilesCdcSyncHandlerTests
     {
         var id = Guid.NewGuid();
         var sut = CreateHandler();
-        SortedDictionary<string, object>? captured = null;
+        Dictionary<string, object>? captured = null;
         _cqlExecutorMock
-            .Setup(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<SortedDictionary<string, object>>>()))
-            .Callback<string, Action<SortedDictionary<string, object>>>((_, configure) =>
+            .Setup(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<Dictionary<string, object>>>()))
+            .Callback<string, Action<Dictionary<string, object>>>((_, configure) =>
             {
-                captured = new SortedDictionary<string, object>();
+                captured = new Dictionary<string, object>();
                 configure(captured);
             })
             .Returns(Task.CompletedTask);
@@ -121,19 +121,19 @@ public class FilesCdcSyncHandlerTests
     {
         var id = Guid.NewGuid();
         var sut = CreateHandler();
-        SortedDictionary<string, object>? captured = null;
+        Dictionary<string, object>? captured = null;
         _cqlExecutorMock
-            .Setup(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<SortedDictionary<string, object>>>()))
-            .Callback<string, Action<SortedDictionary<string, object>>>((_, configure) =>
+            .Setup(e => e.ExecuteAsync(QueryFiles.DeleteCql, It.IsAny<Action<Dictionary<string, object>>>()))
+            .Callback<string, Action<Dictionary<string, object>>>((_, configure) =>
             {
-                captured = new SortedDictionary<string, object>();
+                captured = new Dictionary<string, object>();
                 configure(captured);
             })
             .Returns(Task.CompletedTask);
 
         await sut.ApplyAsync(DeleteRecord(id), CancellationToken.None);
 
-        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Never);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.UpsertCql, It.IsAny<Action<Dictionary<string, object>>>()), Times.Never);
         captured.ShouldNotBeNull();
         captured!["@ID"].ShouldBe(id);
     }

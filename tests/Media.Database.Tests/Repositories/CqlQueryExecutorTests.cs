@@ -75,7 +75,7 @@ public class CqlQueryExecutorTests
     [Test]
     public async Task ExecuteAsync_Should_InvokeConfigureParameters_And_ExecuteAgainstSession()
     {
-        SortedDictionary<string, object>? captured = null;
+        Dictionary<string, object>? captured = null;
 
         await _executor.ExecuteAsync("DELETE FROM t WHERE id = @id", p =>
         {

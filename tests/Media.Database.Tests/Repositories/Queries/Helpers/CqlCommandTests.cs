@@ -167,13 +167,13 @@ public class CqlCommandTests
     }
 
     [Test]
-    public void Parameters_Should_Be_SortedDictionary()
+    public void Parameters_Should_Be_Dictionary()
     {
         // Arrange
         var command = new CqlCommand(_mockSession.Object, "SELECT * FROM table");
 
         // Assert
-        command.Parameters.ShouldBeOfType<SortedDictionary<string, object>>();
+        command.Parameters.ShouldBeOfType<Dictionary<string, object>>();
     }
 
     [Test]

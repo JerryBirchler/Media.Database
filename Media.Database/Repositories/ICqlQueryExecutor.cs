@@ -23,7 +23,7 @@ public interface ICqlQueryExecutor
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map a row to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing the result.</returns>
-    Task<T?> QuerySingleAsync<T>(string cql, Action<SortedDictionary<string, object>> configureParameters, Func<Row, T> map) where T : class;
+    Task<T?> QuerySingleAsync<T>(string cql, Action<Dictionary<string, object>> configureParameters, Func<Row, T> map) where T : class;
 
     /// <summary>
     /// Executes a query that returns a single value asynchronously.
@@ -33,7 +33,7 @@ public interface ICqlQueryExecutor
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map a row to the value type.</param>
     /// <returns>A task representing the asynchronous operation, containing the value.</returns>
-    Task<T?> QuerySingleValueAsync<T>(string cql, Action<SortedDictionary<string, object>> configureParameters, Func<Row, T> map) where T : struct;
+    Task<T?> QuerySingleValueAsync<T>(string cql, Action<Dictionary<string, object>> configureParameters, Func<Row, T> map) where T : struct;
 
     /// <summary>
     /// Executes a query that returns multiple results asynchronously.
@@ -43,7 +43,7 @@ public interface ICqlQueryExecutor
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map a row to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing the list of results.</returns>
-    Task<List<T>> QueryManyAsync<T>(string cql, Action<SortedDictionary<string, object>> configureParameters, Func<Row, T> map);
+    Task<List<T>> QueryManyAsync<T>(string cql, Action<Dictionary<string, object>> configureParameters, Func<Row, T> map);
 
     /// <summary>
     /// Executes a command that does not return any rows asynchronously.
@@ -51,5 +51,5 @@ public interface ICqlQueryExecutor
     /// <param name="cql">The CQL command to execute, with named (<c>@name</c>) parameters.</param>
     /// <param name="configureParameters">A delegate to configure the command parameters.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task ExecuteAsync(string cql, Action<SortedDictionary<string, object>> configureParameters);
+    Task ExecuteAsync(string cql, Action<Dictionary<string, object>> configureParameters);
 }

@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Media.Database.Models;
 
@@ -8,28 +8,33 @@ namespace Media.Database.Models;
 public record SourceMachineRegistrations
 {
     /// <summary>
-    /// Gets the integer identifier for the registration.
+    /// Gets the integer identifier for the registration. Not <c>required</c>: System.Text.Json
+    /// refuses to build type metadata for a <c>required</c> member that is also
+    /// <see cref="JsonIgnoreAttribute"/>-decorated, since JSON could never satisfy it. Every
+    /// construction site in this codebase still sets this explicitly via object initializer.
     /// </summary>
     [JsonIgnore]
-    public required int RegistrationId { get; set; }
+    public int RegistrationId { get; set; }
     /// <summary>
-    /// Gets the integer identifier for the source machine.
+    /// Gets the integer identifier for the source machine. See <see cref="RegistrationId"/> for
+    /// why this isn't <c>required</c>.
     /// </summary>
     [JsonIgnore]
-    public required int SourceMachineId { get; init; }
-
+    public int SourceMachineId { get; init; }
     /// <summary>
-    /// Gets the unique identifier for the source machine.
+    /// Gets the unique identifier for the source machine. This is also the device's permanent
+    /// API key (X-API-KEY) — it is never serialized to a client. See <see cref="RegistrationId"/>
+    /// for why this isn't <c>required</c>.
     /// </summary>
-    [JsonPropertyName("sourceMachineUuid")]
-    public required Guid SourceMachineUuid { get; init; }
+    [JsonIgnore]
+    public Guid SourceMachineUuid { get; init; }
 
     /// <summary>
     /// Gets the name of the source machine.
     /// </summary>
     [JsonPropertyName("sourceMachineName")]
     public required string SourceMachineName { get; init; } = string.Empty;
-    
+
     /// <summary>
     /// Gets the device type identifier for the source machine.
     /// </summary>
@@ -50,7 +55,7 @@ public record SourceMachineRegistrations
 
     /// <summary>
     /// Gets the last name of the source machine owner.
-    /// </summary>  
+    /// </summary>
     [JsonPropertyName("lastName")]
     public required string LastName { get; init; } = string.Empty;
 
@@ -67,7 +72,7 @@ public record SourceMachineRegistrations
     public required string CellPhoneNumber { get; init; } = string.Empty;
 
     /// <summary>
-    /// Initialized to true if the current registration matches both the 
+    /// Initialized to true if the current registration matches both the
     /// email address and the cell phone number.
     /// </summary>
     [JsonPropertyName("hasRegistration")]
@@ -103,26 +108,30 @@ public record SourceMachineRegistrations
     public required bool IsActive { get; init; } = false;
 
     /// <summary>
-    /// Gets the one-time password (OTP) email address for the source machine owner.
+    /// Gets the one-time password (OTP) email address for the source machine owner. See
+    /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
     /// </summary>
     [JsonIgnore]
-    public required string OtpEmail { get; set; }
-    
-    /// <summary>
-    /// Gets the one-time password (OTP) cell phone number for the source machine owner.
-    /// </summary>  
-    [JsonIgnore]
-    public required string OtpCellPhone { get; set; }
+    public string OtpEmail { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets the timestamp when the registration record was inserted.
+    /// Gets the one-time password (OTP) cell phone number for the source machine owner. See
+    /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
     /// </summary>
     [JsonIgnore]
-    public required DateTimeOffset? RegistrationInsertedOn { get; set; }
+    public string OtpCellPhone { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets the timestamp when the registration record was last updated.
+    /// Gets the timestamp when the registration record was inserted. See
+    /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
     /// </summary>
-    [JsonIgnore] 
-    public required DateTimeOffset? RegistrationUpdatedOn { get; set; }
+    [JsonIgnore]
+    public DateTimeOffset? RegistrationInsertedOn { get; set; }
+
+    /// <summary>
+    /// Gets the timestamp when the registration record was last updated. See
+    /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
+    /// </summary>
+    [JsonIgnore]
+    public DateTimeOffset? RegistrationUpdatedOn { get; set; }
 }

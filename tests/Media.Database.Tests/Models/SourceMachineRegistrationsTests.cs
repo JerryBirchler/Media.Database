@@ -37,7 +37,7 @@ public class SourceMachineRegistrationsTests
             OtpEmail = string.Empty,
             OtpCellPhone = string.Empty,
             RegistrationInsertedOn = registrationInsertedOn,
-            RegistrationUpdatedOn = registrationUpdatedOn
+            RegistrationUpdatedOn = registrationUpdatedOn,
         };
     }
 
@@ -103,7 +103,7 @@ public class SourceMachineRegistrationsTests
             OtpEmail = otpEmail,
             OtpCellPhone = otpCellPhone,
             RegistrationInsertedOn = registrationInsertedOn,
-            RegistrationUpdatedOn = registrationUpdatedOn
+            RegistrationUpdatedOn = registrationUpdatedOn,
         };
 
         // Assert
@@ -212,5 +212,19 @@ public class SourceMachineRegistrationsTests
         registration.ShouldNotBeNull();
         registration.SourceMachineName.ShouldNotBeNullOrEmpty();
         registration.SourceMachineUuid.ShouldNotBe(Guid.Empty);
+    }
+
+    [Test]
+    public void SourceMachineRegistrations_Should_Not_Serialize_SourceMachineUuid()
+    {
+        // Arrange
+        var registration = CreateMinimal();
+
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(registration);
+
+        // Assert
+        json.ShouldNotContain("sourceMachineUuid");
+        json.ShouldNotContain("SourceMachineUuid");
     }
 }

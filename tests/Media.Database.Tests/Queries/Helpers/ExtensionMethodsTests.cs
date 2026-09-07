@@ -87,7 +87,7 @@ public class ExtensionMethodsTests
     [Test, AutoData]
     public void AddWithKeyUpper_Should_Add_Key_In_Uppercase(string key, int value)
     {
-        var dict = new SortedDictionary<string, object>();
+        var dict = new Dictionary<string, object>();
         dict.AddWithValue(key, value);
         dict.ContainsKey(key.ToUpperInvariant()).ShouldBeTrue();
         dict[key.ToUpperInvariant()].ShouldBe(value);

@@ -10,7 +10,7 @@ using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
 using tc = Media.Database.Repositories.Schemas.TablesCql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
-#pragma warning restore CS8981 
+#pragma warning restore CS8981
 
 namespace Media.Database.Repositories.Queries;
 
@@ -25,23 +25,24 @@ public static class QueryRegistrations
     /// </summary>
     public static string AddBySourceInformationSql => $@"
         INSERT INTO {ts.SourceMachineRegistrations} (
-            {cssmr.SourceMachineName}, 
-            {cssmr.DeviceTypeId}, 
-            {cssmr.EmailAddress}, 
-            {cssmr.CellPhoneNumber}, 
-            {cssmr.FirstName}, 
-            {cssmr.LastName}, 
+            {cssmr.SourceMachineName},
+            {cssmr.DeviceTypeId},
+            {cssmr.EmailAddress},
+            {cssmr.CellPhoneNumber},
+            {cssmr.FirstName},
+            {cssmr.LastName},
             {cssmr.OperatingSystem}
         ) VALUES (
-            {pn.SourceMachineName}, 
-            {pn.DeviceTypeId}, 
-            {pn.EmailAddress}, 
-            {pn.CellPhoneNumber}, 
-            {pn.FirstName}, 
-            {pn.LastName}, 
+            {pn.SourceMachineName},
+            {pn.DeviceTypeId},
+            {pn.EmailAddress},
+            {pn.CellPhoneNumber},
+            {pn.FirstName},
+            {pn.LastName},
             {pn.OperatingSystem}
         )
         RETURNING
+            {cssmr.SourceMachineId},
             {cssmr.SourceMachineUuid},
             {cssmr.SourceMachineName},
             {cssmr.DeviceTypeId},
@@ -59,8 +60,8 @@ public static class QueryRegistrations
     /// </summary>
     public static string UpdateSourceInformationSql => $@"
         UPDATE {ts.SourceMachineRegistrations} SET
-            {cssmr.EmailAddress} = {pn.EmailAddress}, 
-            {cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}, 
+            {cssmr.EmailAddress} = {pn.EmailAddress},
+            {cssmr.CellPhoneNumber} = {pn.CellPhoneNumber},
             {cssmr.OperatingSystem} = {pn.OperatingSystem}
         WHERE
             {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
@@ -81,75 +82,75 @@ public static class QueryRegistrations
     /// SQL to select a SourceMachine by its source machine name, device type, email address, cell phone number, first name, and last name.
     /// </summary>
     public static string GetBySourceInformationSql => $@"
-        SELECT  
+        SELECT
             {csr.Id},
-            {cssmr.SourceMachineId}, 
-            {cssmr.SourceMachineUuid}, 
-            {cssmr.SourceMachineName}, 
-            {cssmr.DeviceTypeId}, 
-            {cssmr.EmailAddress}, 
-            {cssmr.CellPhoneNumber}, 
-            {cssmr.FirstName}, 
-            {cssmr.LastName}, 
+            {cssmr.SourceMachineId},
+            {cssmr.SourceMachineUuid},
+            {cssmr.SourceMachineName},
+            {cssmr.DeviceTypeId},
+            {cssmr.EmailAddress},
+            {cssmr.CellPhoneNumber},
+            {cssmr.FirstName},
+            {cssmr.LastName},
             CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
-            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"", 
-            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"", 
-            {cssmr.OperatingSystem}, 
-            {cssmr.IsActive}, 
-            {cssmr.InsertedOn}, 
+            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
+            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
+            {cssmr.OperatingSystem},
+            {cssmr.IsActive},
+            {cssmr.InsertedOn},
             {cssmr.UpdatedOn},
             {csr.OtpEmail},
             {csr.OtpCellPhone},
             {csr.InsertedOn} As ""RegistrationInsertedOn"",
             {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
-        FROM 
+        FROM
             {ts.SourceMachineRegistrations} AS smr
-        LEFT JOIN 
+        LEFT JOIN
             {ts.Registrations} AS r
-        ON  
+        ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
             AND r.{csr.IsCurrent} = True
             AND smr.{cssmr.EmailAddress} = r.{csr.EmailAddress}
             AND smr.{cssmr.CellPhoneNumber} = r.{csr.CellPhoneNumber}
-        WHERE 
-            smr.{cssmr.SourceMachineName} = {pn.SourceMachineName} 
-            AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId} 
-            AND smr.{cssmr.EmailAddress} = {pn.EmailAddress} 
+        WHERE
+            smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
+            AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
+            AND smr.{cssmr.EmailAddress} = {pn.EmailAddress}
             AND smr.{cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}
             AND smr.{cssmr.FirstName} = {pn.FirstName}
             AND smr.{cssmr.LastName} = {pn.LastName}
-        LIMIT 1 
+        LIMIT 1
         ;";
 
 
     /// <summary>SQL to select a SourceMachine by its unique identifier.</summary>
     public static string GetBySourceMachineUuidSql => $@"
-        SELECT 
+        SELECT
             {csr.Id},
-            {cssmr.SourceMachineId}, 
-            {cssmr.SourceMachineUuid}, 
-            {cssmr.SourceMachineName}, 
-            {cssmr.DeviceTypeId}, 
-            {cssmr.EmailAddress}, 
-            {cssmr.CellPhoneNumber}, 
-            {cssmr.FirstName}, 
-            {cssmr.LastName}, 
+            {cssmr.SourceMachineId},
+            {cssmr.SourceMachineUuid},
+            {cssmr.SourceMachineName},
+            {cssmr.DeviceTypeId},
+            {cssmr.EmailAddress},
+            {cssmr.CellPhoneNumber},
+            {cssmr.FirstName},
+            {cssmr.LastName},
             CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
-            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"", 
-            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"", 
-            {cssmr.OperatingSystem}, 
-            {cssmr.IsActive}, 
-            {cssmr.InsertedOn}, 
-            {cssmr.UpdatedOn}
+            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
+            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
+            {cssmr.OperatingSystem},
+            {cssmr.IsActive},
+            {cssmr.InsertedOn},
+            {cssmr.UpdatedOn},
             {csr.OtpEmail},
             {csr.OtpCellPhone},
             {csr.InsertedOn} As ""RegistrationInsertedOn"",
             {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
-        FROM 
+        FROM
             {ts.SourceMachineRegistrations} AS smr
-        LEFT JOIN 
+        LEFT JOIN
             {ts.Registrations} AS r
-        ON  
+        ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
             AND r.{csr.IsCurrent} = True
             AND smr.{cssmr.EmailAddress} = r.{csr.EmailAddress}
@@ -181,7 +182,7 @@ public static class QueryRegistrations
             {cssmr.OperatingSystem},
             {cssmr.IsActive},
             {cssmr.InsertedOn},
-            {cssmr.UpdatedOn}
+            {cssmr.UpdatedOn},
             {csr.OtpEmail},
             {csr.OtpCellPhone},
             {csr.InsertedOn} As ""RegistrationInsertedOn"",
@@ -201,23 +202,23 @@ public static class QueryRegistrations
         ;";
 
     /// <summary>
-    /// Inactivate current registrations by source machine UUID, 
+    /// Inactivate current registrations by source machine UUID,
     /// and return the updated registration Ids.
     /// </summary>
     public static string InactivateRegistrationsBySourceMachineUuidSql => $@"
-        UPDATE r SET 
+        UPDATE r SET
             {csr.IsCurrent} = False,
             {csr.UpdatedOn} = {pn.UpdatedOn}
-        FROM 
+        FROM
             {ts.Registrations} AS r
-        INNER JOIN 
+        INNER JOIN
             {ts.SourceMachineRegistrations} AS smr
-        ON  
+        ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
-        WHERE 
+        WHERE
             smr.{cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
             AND r.{csr.IsCurrent} = True
-        RETURNING 
+        RETURNING
             r.{csr.Id}
         ;";
 
@@ -226,23 +227,23 @@ public static class QueryRegistrations
     /// </summary>
     public static string AddRegistrationBySourceMachineUuidSql => $@"
         INSERT INTO {ts.Registrations} (
-            {csr.SourceMachineId}, 
-            {csr.EmailAddress}, 
-            {csr.OtpEmail}, 
+            {csr.SourceMachineId},
+            {csr.EmailAddress},
+            {csr.OtpEmail},
             {csr.IsEmailVerified},
-            {csr.CellPhoneNumber}, 
+            {csr.CellPhoneNumber},
             {csr.OtpCellPhone},
             {csr.IsSmsVerified}
-        ) 
+        )
         SELECT
-            {cssmr.SourceMachineId}, 
-            {cssmr.EmailAddress}, 
-            {pn.OtpEmail}, 
+            {cssmr.SourceMachineId},
+            {cssmr.EmailAddress},
+            {pn.OtpEmail},
             CASE WHEN {pn.OtpEmail} = '' THEN True ELSE False END,
-            {cssmr.CellPhoneNumber}, 
+            {cssmr.CellPhoneNumber},
             {pn.OtpCellPhone},
             CASE WHEN {pn.OtpCellPhone} = '' THEN True ELSE False END
-        WHERE 
+        WHERE
             {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
         RETURNING
             {csr.Id},
@@ -270,7 +271,9 @@ public static class QueryRegistrations
         ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
         WHERE
-            {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
+            smr.{cssmr.EmailAddress} = {pn.EmailAddress}
+            AND smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
+            AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
             AND {csr.IsCurrent} = True
             AND {csr.EmailAddress} = {cssmr.EmailAddress}
             AND {csr.CellPhoneNumber} = {cssmr.CellPhoneNumber}
@@ -283,7 +286,8 @@ public static class QueryRegistrations
             smr.{cssmr.FirstName},
             smr.{cssmr.LastName},
             r.{csr.EmailAddress},
-            r.{csr.IsEmailVerified}
+            r.{csr.IsEmailVerified},
+            r.{csr.IsSmsVerified}
         ;";
 
     /// <summary>
@@ -302,7 +306,9 @@ public static class QueryRegistrations
         ON
             r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
         WHERE
-            {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
+            smr.{cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}
+            AND smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
+            AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
             AND {csr.IsCurrent} = True
             AND {csr.EmailAddress} = {cssmr.EmailAddress}
             AND {csr.CellPhoneNumber} = {cssmr.CellPhoneNumber}
@@ -315,7 +321,8 @@ public static class QueryRegistrations
             smr.{cssmr.FirstName},
             smr.{cssmr.LastName},
             r.{csr.CellPhoneNumber},
-            r.{csr.IsSmsVerified}
+            r.{csr.IsSmsVerified},
+            r.{csr.IsEmailVerified}
         ;";
 
     #endregion
@@ -394,6 +401,40 @@ public static class QueryRegistrations
     }
 
     /// <summary>
+    /// Maps the current row of <paramref name="reader"/> — the RETURNING clause of
+    /// <see cref="AddBySourceInformationSql"/> — to a newly created <see cref="SourceMachineRegistrations"/>.
+    /// That INSERT only touches the <c>SourceMachineRegistrations</c> table, so there is no
+    /// linked <c>Registrations</c> (OTP) row yet; registration-specific fields are defaulted here
+    /// and populated moments later once <see cref="AddRegistrationBySourceMachineUuidSql"/> runs.
+    /// </summary>
+    public static SourceMachineRegistrations ToNewSourceMachineRegistration(this NpgsqlDataReader reader)
+    {
+        return new SourceMachineRegistrations
+        {
+            RegistrationId = 0,
+            SourceMachineId = reader.GetInt32(os.SourceMachineId),
+            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
+            SourceMachineName = reader.GetString(os.SourceMachineName),
+            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+            EmailAddress = reader.GetString(os.EmailAddress),
+            CellPhoneNumber = reader.GetString(os.CellPhoneNumber)!,
+            FirstName = reader.GetString(os.FirstName),
+            LastName = reader.GetString(os.LastName),
+            HasRegistration = false,
+            IsEmailVerified = false,
+            IsSmsVerified = false,
+            OperatingSystem = reader.GetString(os.OperatingSystem),
+            InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
+            UpdatedOn = null,
+            IsActive = reader.GetFieldValue<bool>(os.IsActive),
+            OtpEmail = string.Empty,
+            OtpCellPhone = string.Empty,
+            RegistrationInsertedOn = null,
+            RegistrationUpdatedOn = null
+        };
+    }
+
+    /// <summary>
     /// Maps the current row of <paramref name="reader"/> onto <paramref name="baseline"/>, for result
     /// sets — like <see cref="UpdateSourceInformationSql"/>'s — that only return the
     /// <c>SourceMachineRegistrations</c> table's own columns. Verification state, OTP codes, and the
@@ -417,36 +458,6 @@ public static class QueryRegistrations
         };
     }
 
-    /// <summary>Maps the current row of <paramref name="reader"/> to an <see cref="OtpEmailResponse"/>.</summary>
-    public static OtpEmailResponse ToOtpEmailResponse(this NpgsqlDataReader reader)
-    {
-        return new OtpEmailResponse
-        {
-            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
-            SourceMachineName = reader.GetString(os.SourceMachineName),
-            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
-            FirstName = reader.GetString(os.FirstName),
-            LastName = reader.GetString(os.LastName),
-            EmailAddress = reader.GetString(os.EmailAddress),
-            OtpEmailVerified = reader.GetFieldValue<bool>(os.IsEmailVerified)
-        };
-    }
-
-    /// <summary>Maps the current row of <paramref name="reader"/> to an <see cref="OtpSmsResponse"/>.</summary>
-    public static OtpSmsResponse ToOtpSmsResponse(this NpgsqlDataReader reader)
-    {
-        return new OtpSmsResponse
-        {
-            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
-            SourceMachineName = reader.GetString(os.SourceMachineName),
-            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
-            FirstName = reader.GetString(os.FirstName),
-            LastName = reader.GetString(os.LastName),
-            CellPhoneNumber = reader.GetString(os.CellPhoneNumber),
-            OtpSmsVerified = reader.GetFieldValue<bool>(os.IsSmsVerified)
-        };
-    }
-
     public static async Task<SortedSet<int>> ToRegistrationIds(this NpgsqlDataReader reader)
     {
         SortedSet<int> ids = [];
@@ -462,7 +473,7 @@ public static class QueryRegistrations
     {
         if (!await reader.ReadAsync())
             return null;
-        
+
         return new SourceInformationResponse
         {
             SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),

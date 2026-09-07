@@ -19,7 +19,7 @@ public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQuery
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map a row to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing the result.</returns>
-    public async Task<T?> QuerySingleAsync<T>(string cql, Action<SortedDictionary<string, object>> configureParameters, Func<Row, T> map) where T : class
+    public async Task<T?> QuerySingleAsync<T>(string cql, Action<Dictionary<string, object>> configureParameters, Func<Row, T> map) where T : class
     {
         var (found, value) = await TryReadSingleAsync(cql, configureParameters, map);
         return found ? value : null;
@@ -33,7 +33,7 @@ public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQuery
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map a row to the value type.</param>
     /// <returns>A task representing the asynchronous operation, containing the value.</returns>
-    public async Task<T?> QuerySingleValueAsync<T>(string cql, Action<SortedDictionary<string, object>> configureParameters, Func<Row, T> map) where T : struct
+    public async Task<T?> QuerySingleValueAsync<T>(string cql, Action<Dictionary<string, object>> configureParameters, Func<Row, T> map) where T : struct
     {
         var (found, value) = await TryReadSingleAsync(cql, configureParameters, map);
         return found ? value : null;
@@ -47,7 +47,7 @@ public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQuery
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map a row to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing a list of results.</returns>
-    public async Task<List<T>> QueryManyAsync<T>(string cql, Action<SortedDictionary<string, object>> configureParameters, Func<Row, T> map)
+    public async Task<List<T>> QueryManyAsync<T>(string cql, Action<Dictionary<string, object>> configureParameters, Func<Row, T> map)
     {
         var rowSet = await ExecuteRowSetAsync(cql, configureParameters);
         return [.. rowSet.Select(map)];
@@ -59,7 +59,7 @@ public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQuery
     /// <param name="cql">The CQL command to execute, with named (<c>@name</c>) parameters.</param>
     /// <param name="configureParameters">A delegate to configure the command parameters.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task ExecuteAsync(string cql, Action<SortedDictionary<string, object>> configureParameters)
+    public async Task ExecuteAsync(string cql, Action<Dictionary<string, object>> configureParameters)
     {
         var command = GetSession().GetCqlCommand(cql);
         configureParameters(command.Parameters);
@@ -78,7 +78,7 @@ public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQuery
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map a row to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing whether a row was found and, if so, its mapped value.</returns>
-    private async Task<(bool Found, T Value)> TryReadSingleAsync<T>(string cql, Action<SortedDictionary<string, object>> configureParameters, Func<Row, T> map)
+    private async Task<(bool Found, T Value)> TryReadSingleAsync<T>(string cql, Action<Dictionary<string, object>> configureParameters, Func<Row, T> map)
     {
         var rowSet = await ExecuteRowSetAsync(cql, configureParameters);
         var row = rowSet.FirstOrDefault();
@@ -91,7 +91,7 @@ public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQuery
     /// <param name="cql">The CQL query to execute, with named (<c>@name</c>) parameters.</param>
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <returns>A task representing the asynchronous operation, containing the row set.</returns>
-    private async Task<RowSet> ExecuteRowSetAsync(string cql, Action<SortedDictionary<string, object>> configureParameters)
+    private async Task<RowSet> ExecuteRowSetAsync(string cql, Action<Dictionary<string, object>> configureParameters)
     {
         var command = GetSession().GetCqlCommand(cql);
         configureParameters(command.Parameters);

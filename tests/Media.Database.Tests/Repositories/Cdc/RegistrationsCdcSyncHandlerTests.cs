@@ -71,7 +71,7 @@ public class RegistrationsCdcSyncHandlerTests
 
         await sut.ApplyAsync(record, CancellationToken.None);
 
-        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryRegistrations.UpsertRegistrationCql, It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Once);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(QueryRegistrations.UpsertRegistrationCql, It.IsAny<Action<Dictionary<string, object>>>()), Times.Once);
     }
 
     [Test]
@@ -85,12 +85,12 @@ public class RegistrationsCdcSyncHandlerTests
                 It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(registration);
 
-        SortedDictionary<string, object>? captured = null;
+        Dictionary<string, object>? captured = null;
         _cqlExecutorMock
-            .Setup(e => e.ExecuteAsync(QueryRegistrations.UpsertRegistrationCql, It.IsAny<Action<SortedDictionary<string, object>>>()))
-            .Callback<string, Action<SortedDictionary<string, object>>>((_, configure) =>
+            .Setup(e => e.ExecuteAsync(QueryRegistrations.UpsertRegistrationCql, It.IsAny<Action<Dictionary<string, object>>>()))
+            .Callback<string, Action<Dictionary<string, object>>>((_, configure) =>
             {
-                captured = new SortedDictionary<string, object>();
+                captured = new Dictionary<string, object>();
                 configure(captured);
             })
             .Returns(Task.CompletedTask);
@@ -123,7 +123,7 @@ public class RegistrationsCdcSyncHandlerTests
 
         await Should.NotThrowAsync(() => sut.ApplyAsync(record, CancellationToken.None));
 
-        _cqlExecutorMock.Verify(e => e.ExecuteAsync(It.IsAny<string>(), It.IsAny<Action<SortedDictionary<string, object>>>()), Times.Never);
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(It.IsAny<string>(), It.IsAny<Action<Dictionary<string, object>>>()), Times.Never);
     }
 
     [Test]

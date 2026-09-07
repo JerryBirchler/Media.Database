@@ -8,10 +8,22 @@ namespace Media.Database.Models
     public record BaseOtpVerificationResponse
     {
         /// <summary>
-        /// The unique identifier of the source machine.
+        /// The unique identifier of the source machine. This is also the device's permanent API
+        /// key (X-API-KEY) and is never serialized to a client. Not <c>required</c>:
+        /// System.Text.Json refuses to build type metadata for a <c>required</c> member that is
+        /// also <see cref="JsonIgnoreAttribute"/>-decorated, since JSON could never satisfy it.
         /// </summary>
-        [property: JsonPropertyName("sourceMachineUuid")]
-        public required Guid SourceMachineUuid { get; set; } = Guid.Empty;
+        [property: JsonIgnore]
+        public Guid SourceMachineUuid { get; set; } = Guid.Empty;
+
+        /// <summary>
+        /// The device's permanent API key (X-API-KEY), populated only once both email and SMS OTP
+        /// verification have succeeded -- null otherwise. This is the only place in the
+        /// verification flow the real key is ever exposed to a client; the device is expected to
+        /// use it as X-API-KEY for all future requests.
+        /// </summary>
+        [property: JsonPropertyName("apiKey")]
+        public Guid? ApiKey { get; set; }
 
         /// <summary>
         /// The source machine name, as reported by the source machine itself. 

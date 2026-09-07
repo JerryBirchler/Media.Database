@@ -1,7 +1,9 @@
+using Media.Database.Helpers;
 using Media.Common.Helpers;
 using Media.Common.Helpers.Fluent;
 using Media.Common.Settings;
 using Media.Common.Transactions;
+using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
@@ -11,6 +13,7 @@ using Serilog.Core;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
+using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 #pragma warning restore CS8981
 
 namespace Media.Database.Repositories;
@@ -26,6 +29,7 @@ public class RegistrationRepository(
     Func<IUnitOfWork> unitOfWorkFactory,
     IOptions<RegistrationSettings> registrationSettings,
     ILogger<RegistrationRepository> logger,
+    IMapRegistrationResponses registrationResponseMapper,
     LoggingLevelSwitch levelSwitch)
     : IRegistrationRepository
 {
@@ -33,6 +37,7 @@ public class RegistrationRepository(
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly IOptions<RegistrationSettings> _registrationSettings = registrationSettings;
     private readonly FluentLogger<RegistrationRepository> _logger = logger.Initializer();
+    private readonly IMapRegistrationResponses _registrationResponseMapper = registrationResponseMapper;
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
 
@@ -59,6 +64,24 @@ public class RegistrationRepository(
                     p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
                 },
                 reader => reader.ToSourceMachineRegistration()
+            );
+
+            // No existing row matched — this is a genuinely new device. GetBySourceInformationSql
+            // is a lookup only; it never creates a row, so a brand-new device must be inserted here.
+            addSourceResponse ??= await _sqlExecutor.QuerySingleAsync
+            (
+                QueryRegistrations.AddBySourceInformationSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
+                    p.AddWithValue(pn.DeviceTypeId, request.DeviceTypeId);
+                    p.AddWithValue(pn.EmailAddress, request.EmailAddress);
+                    p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
+                    p.AddWithValue(pn.FirstName, request.FirstName);
+                    p.AddWithValue(pn.LastName, request.LastName);
+                    p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
+                },
+                reader => reader.ToNewSourceMachineRegistration()
             );
 
             if (addSourceResponse is null)
@@ -128,6 +151,12 @@ public class RegistrationRepository(
         }
     }
 
+    /// <summary>
+    /// Updates the source information for a given source machine UUID. If the email address or cell phone number has changed,
+    /// a new registration is created and the old one is inactivated.
+    /// </summary>
+    /// <param name="request">The request containing the updated source information.</param>
+    /// <returns>The updated source machine registration, or null if the registration does not exist.</returns>
     public async Task<SourceMachineRegistrations?> UpdateSourceInformation(UpdateSourceInformationRequest request)
     {
         await using var uow = _unitOfWorkFactory();
@@ -232,7 +261,7 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task<ResendOtpResult?> ResendOtp(Guid sourceMachineUuid)
+    public async Task<ResendOtpResult?> ResendOtp(string sourceMachineName, DeviceTypes deviceTypeId, string emailAddress, string cellPhoneNumber)
     {
         await using var uow = _unitOfWorkFactory();
 
@@ -243,8 +272,14 @@ public class RegistrationRepository(
             var existingRegistration = await _sqlExecutor.QuerySingleAsync
             (
                 uow,
-                QueryRegistrations.GetBySourceMachineUuidSql,
-                p => p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid),
+                QueryRegistrations.GetBySourceInformationSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineName, sourceMachineName);
+                    p.AddWithValue(pn.DeviceTypeId, deviceTypeId);
+                    p.AddWithValue(pn.EmailAddress, emailAddress);
+                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                },
                 reader => reader.ToSourceMachineRegistration()
             );
 
@@ -270,7 +305,7 @@ public class RegistrationRepository(
                 QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.SourceMachineUuid, existingRegistration.SourceMachineUuid);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
                 },
                 reader => reader.ToRegistrationIds()
@@ -285,7 +320,7 @@ public class RegistrationRepository(
                 QueryRegistrations.AddRegistrationBySourceMachineUuidSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.SourceMachineUuid, existingRegistration.SourceMachineUuid);
                     p.AddWithValue(pn.OtpEmail, otpEmail);
                     p.AddWithValue(pn.OtpCellPhone, otpCellPhone);
                 },
@@ -310,7 +345,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ResendOtp failed for SourceMachineUuid {SourceMachineUuid}", sourceMachineUuid);
+            _logger.LogError(ex, "ResendOtp failed for SourceMachineName {SourceMachineName}", sourceMachineName);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -319,7 +354,7 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task<OtpEmailResponse?> VerifyOtpEmail(Guid sourceMachineUuid, string otp)
+    public async Task<OtpEmailResponse?> VerifyOtpEmail(string emailAddress, string sourceMachineName, DeviceTypes deviceTypeId, string otp)
     {
         try
         {
@@ -328,22 +363,32 @@ public class RegistrationRepository(
                 QueryRegistrations.VerifyOtpEmailSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.EmailAddress, emailAddress);
+                    p.AddWithValue(pn.SourceMachineName, sourceMachineName);
+                    p.AddWithValue(pn.DeviceTypeId, deviceTypeId);
                     p.AddWithValue(pn.OtpEmail, otp);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
                     p.AddWithValue(pn.OtpWindowStart, DateTimeOffset.UtcNow - _registrationSettings.Value.OtpWindow);
                 },
-                reader => reader.ToOtpEmailResponse()
+                reader => _registrationResponseMapper.ToOtpEmailResponse(
+                    reader.GetGuid(os.SourceMachineUuid),
+                    reader.GetString(os.SourceMachineName),
+                    (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+                    reader.GetString(os.FirstName),
+                    reader.GetString(os.LastName),
+                    reader.GetString(os.EmailAddress),
+                    reader.GetFieldValue<bool>(os.IsEmailVerified),
+                    reader.GetFieldValue<bool>(os.IsSmsVerified))
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "VerifyOtpEmail failed for SourceMachineUuid {SourceMachineUuid}", sourceMachineUuid);
+            _logger.LogError(ex, "VerifyOtpEmail failed for EmailAddress {EmailAddress}", emailAddress);
             throw;
         }
     }
 
-    public async Task<OtpSmsResponse?> VerifyOtpCellPhone(Guid sourceMachineUuid, string otp)
+    public async Task<OtpSmsResponse?> VerifyOtpCellPhone(string cellPhoneNumber, string sourceMachineName, DeviceTypes deviceTypeId, string otp)
     {
         try
         {
@@ -352,17 +397,27 @@ public class RegistrationRepository(
                 QueryRegistrations.VerifyOtpCellPhoneSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineUuid, sourceMachineUuid);
+                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                    p.AddWithValue(pn.SourceMachineName, sourceMachineName);
+                    p.AddWithValue(pn.DeviceTypeId, deviceTypeId);
                     p.AddWithValue(pn.OtpCellPhone, otp);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
                     p.AddWithValue(pn.OtpWindowStart, DateTimeOffset.UtcNow - _registrationSettings.Value.OtpWindow);
                 },
-                reader => reader.ToOtpSmsResponse()
+                reader => _registrationResponseMapper.ToOtpSmsResponse(
+                    reader.GetGuid(os.SourceMachineUuid),
+                    reader.GetString(os.SourceMachineName),
+                    (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+                    reader.GetString(os.FirstName),
+                    reader.GetString(os.LastName),
+                    reader.GetString(os.CellPhoneNumber),
+                    reader.GetFieldValue<bool>(os.IsSmsVerified),
+                    reader.GetFieldValue<bool>(os.IsEmailVerified))
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "VerifyOtpCellPhone failed for SourceMachineUuid {SourceMachineUuid}", sourceMachineUuid);
+            _logger.LogError(ex, "VerifyOtpCellPhone failed for CellPhoneNumber {CellPhoneNumber}", cellPhoneNumber);
             throw;
         }
     }

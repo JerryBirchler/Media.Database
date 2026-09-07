@@ -16,7 +16,7 @@ public static class ExtensionMethods
     /// <param name="parameters">The parameter dictionary to add to.</param>
     /// <param name="name">The parameter name.</param>
     /// <param name="value">The parameter value.</param>
-    public static void AddWithValue(this SortedDictionary<string, object> parameters, string name, object value)
+    public static void AddWithValue(this Dictionary<string, object> parameters, string name, object value)
     {
         parameters[name.ToUpperInvariant()] = value;
     }

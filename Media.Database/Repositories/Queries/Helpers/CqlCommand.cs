@@ -31,7 +31,7 @@ public class CqlCommand(ISession session, string parameterizedQuery, int batchSi
     /// <summary>
     /// Gets or sets the parameter values to bind, keyed by upper-invariant <c>@NAME</c>.
     /// </summary>
-    public SortedDictionary<string, object> Parameters { get; set; } = [];
+    public Dictionary<string, object> Parameters { get; set; } = [];
 
     /// <summary>
     /// Binds <see cref="Parameters"/> and executes the query as a single statement.

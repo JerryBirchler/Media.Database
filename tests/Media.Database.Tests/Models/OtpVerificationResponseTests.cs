@@ -54,6 +54,17 @@ public class BaseOtpVerificationResponseTests
         response.FirstName.ShouldBe(firstName);
         response.LastName.ShouldBe(lastName);
     }
+
+    [Test, AutoData]
+    public void BaseOtpVerificationResponse_Should_Not_Serialize_SourceMachineUuid(OtpEmailResponse response)
+    {
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(response);
+
+        // Assert
+        json.ShouldNotContain("sourceMachineUuid");
+        json.ShouldNotContain("SourceMachineUuid");
+    }
 }
 
 [TestFixture]

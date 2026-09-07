@@ -2,6 +2,7 @@
 using AutoFixture;
 using Media.Common.Settings;
 using Media.Common.Transactions;
+using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories;
 using Media.Database.Repositories.Queries;
@@ -55,6 +56,7 @@ public class RegistrationRepositoryTests
         () => _unitOfWorkMock.Object,
         Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1) }),
         Mock.Of<ILogger<RegistrationRepository>>(),
+        new MapRegistrationResponses(),
         new LoggingLevelSwitch());
 
     private SourceMachineRegistrations CreateRegistration(Guid? sourceMachineUuid = null, string? emailAddress = null, string? cellPhoneNumber = null) =>
@@ -79,7 +81,7 @@ public class RegistrationRepositoryTests
             OtpEmail = _fixture.Create<string>(),
             OtpCellPhone = _fixture.Create<string>(),
             RegistrationInsertedOn = DateTimeOffset.UtcNow,
-            RegistrationUpdatedOn = null
+            RegistrationUpdatedOn = null,
         };
 
     [Test]
@@ -153,6 +155,29 @@ public class RegistrationRepositoryTests
         result.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
         _sqlExecutorMock.Verify(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task AddBySourceInformation_Should_InsertNewSourceMachine_When_NoExistingRowMatches()
+    {
+        var newMachine = CreateRegistration();
+        var added = CreateRegistration(sourceMachineUuid: newMachine.SourceMachineUuid);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(newMachine);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(added);
+        var request = _fixture.Create<AddSourceInformationRequest>();
+
+        var result = await CreateRepository().AddBySourceInformation(request);
+
+        result.ShouldNotBeNull();
+        result.SourceMachineUuid.ShouldBe(newMachine.SourceMachineUuid);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Once);
     }
 
     [Test]
@@ -460,10 +485,10 @@ public class RegistrationRepositoryTests
     public async Task ResendOtp_Should_ReturnNull_When_RegistrationNotFound()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
 
-        var result = await CreateRepository().ResendOtp(Guid.NewGuid());
+        var result = await CreateRepository().ResendOtp(_fixture.Create<string>(), DeviceTypes.PC, _fixture.Create<string>(), _fixture.Create<string>());
 
         result.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -475,10 +500,10 @@ public class RegistrationRepositoryTests
     {
         var existing = CreateRegistration() with { IsEmailVerified = true, IsSmsVerified = true };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
 
-        var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
 
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeFalse();
@@ -502,7 +527,7 @@ public class RegistrationRepositoryTests
             UpdatedOn = null
         };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
             .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
@@ -513,7 +538,7 @@ public class RegistrationRepositoryTests
             .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(addResponse);
 
-        var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
 
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeFalse();
@@ -530,7 +555,7 @@ public class RegistrationRepositoryTests
     {
         var existing = CreateRegistration();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
             .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
@@ -539,7 +564,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync((AddRegistrationResponse?)null);
 
-        var result = await CreateRepository().ResendOtp(existing.SourceMachineUuid);
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
 
         result.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -550,9 +575,139 @@ public class RegistrationRepositoryTests
     {
         _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)null!);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ResendOtp(Guid.NewGuid()));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ResendOtp(_fixture.Create<string>(), DeviceTypes.PC, _fixture.Create<string>(), _fixture.Create<string>()));
+    }
+
+    [Test]
+    public async Task VerifyOtpEmail_Should_ReturnResponse_When_ExecutorFindsMatch()
+    {
+        var expected = new OtpEmailResponse
+        {
+            SourceMachineName = _fixture.Create<string>(),
+            DeviceTypeId = DeviceTypes.PC,
+            FirstName = _fixture.Create<string>(),
+            LastName = _fixture.Create<string>(),
+            EmailAddress = _fixture.Create<string>(),
+            OtpEmailVerified = true
+        };
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().VerifyOtpEmail(expected.EmailAddress, expected.SourceMachineName, expected.DeviceTypeId, "123456");
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task VerifyOtpEmail_Should_ReturnNull_When_ExecutorFindsNoMatch()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
+            .ReturnsAsync((OtpEmailResponse?)null);
+
+        var result = await CreateRepository().VerifyOtpEmail(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456");
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task VerifyOtpEmail_Should_ConfigureEmailSourceMachineNameDeviceTypeAndOtpParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, OtpEmailResponse>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((OtpEmailResponse?)null);
+        var emailAddress = _fixture.Create<string>();
+        var sourceMachineName = _fixture.Create<string>();
+        var otp = "654321";
+
+        await CreateRepository().VerifyOtpEmail(emailAddress, sourceMachineName, DeviceTypes.PC, otp);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.EmailAddress].Value.ShouldBe(emailAddress);
+        command.Parameters[pn.SourceMachineName].Value.ShouldBe(sourceMachineName);
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBe(DeviceTypes.PC);
+        command.Parameters[pn.OtpEmail].Value.ShouldBe(otp);
+    }
+
+    [Test]
+    public void VerifyOtpEmail_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().VerifyOtpEmail(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456"));
+    }
+
+    [Test]
+    public async Task VerifyOtpCellPhone_Should_ReturnResponse_When_ExecutorFindsMatch()
+    {
+        var expected = new OtpSmsResponse
+        {
+            SourceMachineName = _fixture.Create<string>(),
+            DeviceTypeId = DeviceTypes.PC,
+            FirstName = _fixture.Create<string>(),
+            LastName = _fixture.Create<string>(),
+            CellPhoneNumber = _fixture.Create<string>(),
+            OtpSmsVerified = true
+        };
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().VerifyOtpCellPhone(expected.CellPhoneNumber, expected.SourceMachineName, expected.DeviceTypeId, "123456");
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task VerifyOtpCellPhone_Should_ReturnNull_When_ExecutorFindsNoMatch()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
+            .ReturnsAsync((OtpSmsResponse?)null);
+
+        var result = await CreateRepository().VerifyOtpCellPhone(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456");
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task VerifyOtpCellPhone_Should_ConfigureCellPhoneSourceMachineNameDeviceTypeAndOtpParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, OtpSmsResponse>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((OtpSmsResponse?)null);
+        var cellPhoneNumber = _fixture.Create<string>();
+        var sourceMachineName = _fixture.Create<string>();
+        var otp = "654321";
+
+        await CreateRepository().VerifyOtpCellPhone(cellPhoneNumber, sourceMachineName, DeviceTypes.PC, otp);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(cellPhoneNumber);
+        command.Parameters[pn.SourceMachineName].Value.ShouldBe(sourceMachineName);
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBe(DeviceTypes.PC);
+        command.Parameters[pn.OtpCellPhone].Value.ShouldBe(otp);
+    }
+
+    [Test]
+    public void VerifyOtpCellPhone_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().VerifyOtpCellPhone(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456"));
     }
 }
