@@ -374,12 +374,21 @@ public static class QueryRegistrations
         );";
     #endregion
 
-    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="SourceMachineRegistrations"/>.</summary>
+    /// <summary>
+    /// Maps the current row of <paramref name="reader"/> to a <see cref="SourceMachineRegistrations"/>.
+    /// The Registrations side of the LEFT JOIN this reads from (Id, OtpEmail, OtpCellPhone,
+    /// RegistrationInsertedOn, RegistrationUpdatedOn) is null whenever a SourceMachineRegistrations
+    /// row exists with no current Registrations row yet -- HasRegistration (itself a CASE
+    /// expression, never null) is read first and used to guard those columns rather than reading
+    /// them unconditionally, which would throw on the all-null row a LEFT JOIN produces.
+    /// </summary>
     public static SourceMachineRegistrations ToSourceMachineRegistration(this NpgsqlDataReader reader)
     {
+        var hasRegistration = reader.GetFieldValue<bool>(os.HasRegistration);
+
         return new SourceMachineRegistrations
         {
-            RegistrationId = reader.GetInt32(os.Id),
+            RegistrationId = hasRegistration ? reader.GetInt32(os.Id) : 0,
             SourceMachineId = reader.GetInt32(os.SourceMachineId),
             SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
             SourceMachineName = reader.GetString(os.SourceMachineName),
@@ -388,17 +397,17 @@ public static class QueryRegistrations
             CellPhoneNumber = reader.GetString(os.CellPhoneNumber)!,
             FirstName = reader.GetString(os.FirstName),
             LastName = reader.GetString(os.LastName),
-            HasRegistration = reader.GetFieldValue<bool>(os.HasRegistration),
+            HasRegistration = hasRegistration,
             IsEmailVerified = reader.GetFieldValue<bool>(os.IsEmailVerified),
             IsSmsVerified = reader.GetFieldValue<bool>(os.IsSmsVerified),
             OperatingSystem = reader.GetString(os.OperatingSystem),
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
             IsActive = reader.GetFieldValue<bool>(os.IsActive),
-            OtpEmail = reader.GetString(os.OtpEmail),
-            OtpCellPhone = reader.GetString(os.OtpCellPhone),
-            RegistrationInsertedOn = reader.GetFieldValue<DateTimeOffset?>(os.RegistrationInsertedOn),
-            RegistrationUpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.RegistrationUpdatedOn)
+            OtpEmail = hasRegistration ? reader.GetString(os.OtpEmail) : string.Empty,
+            OtpCellPhone = hasRegistration ? reader.GetString(os.OtpCellPhone) : string.Empty,
+            RegistrationInsertedOn = hasRegistration ? reader.GetFieldValue<DateTimeOffset?>(os.RegistrationInsertedOn) : null,
+            RegistrationUpdatedOn = hasRegistration ? reader.GetFieldValue<DateTimeOffset?>(os.RegistrationUpdatedOn) : null
         };
     }
 
