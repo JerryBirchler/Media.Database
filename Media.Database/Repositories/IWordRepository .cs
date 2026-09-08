@@ -85,4 +85,19 @@ public interface IWordRepository
     /// <param name="fileId">The unique identifier of the file.</param>
     Task DeleteFile(Guid fileId);
 
+    /// <summary>
+    /// Retrieves every word currently linked to a file, with each link's own origin.
+    /// </summary>
+    /// <param name="fileId">The file identifier.</param>
+    /// <returns>The file's currently-indexed word links.</returns>
+    Task<List<(int WordId, string Word, WordOrigin Origin)>> GetWordsByFileId(Guid fileId);
+
+    /// <summary>
+    /// Removes a single word's link to a file, without deleting the shared word record --
+    /// other files may still reference the same word.
+    /// </summary>
+    /// <param name="fileId">The file identifier.</param>
+    /// <param name="wordId">The word's unique identifier.</param>
+    Task DeleteWordFileLink(Guid fileId, int wordId);
+
 }

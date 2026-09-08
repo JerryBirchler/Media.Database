@@ -92,15 +92,13 @@ public class SchemaMetadataTests
 public class UpdateFileResponseTests
 {
     [Test]
-    public void UpdateFileResponse_Should_Initialize_With_Empty_Updates()
+    public void UpdateFileResponse_Should_Initialize_With_Null_File()
     {
         // Act
         var response = new UpdateFileResponse();
 
         // Assert
         response.File.ShouldBeNull();
-        response.Updates.ShouldNotBeNull();
-        response.Updates.ShouldBeEmpty();
     }
 
     [Test, AutoData]
@@ -111,57 +109,6 @@ public class UpdateFileResponseTests
 
         // Assert
         response.File.ShouldBe(file);
-    }
-
-    [Test]
-    public void UpdateFileResponse_Should_Allow_Adding_Updates()
-    {
-        // Arrange
-        var response = new UpdateFileResponse();
-        var update1 = new ChangeWordRequest
-        {
-            NewSpan = "new1",
-            Origin = WordOrigin.Name,
-            CameFromFileId = Guid.NewGuid()
-        };
-        var update2 = new ChangeWordRequest
-        {
-            NewSpan = "new2",
-            Origin = WordOrigin.FromTitle,
-            CameFromFileId = Guid.NewGuid()
-        };
-
-        // Act
-        response.Updates.Add(update1);
-        response.Updates.Add(update2);
-
-        // Assert
-        response.Updates.Count.ShouldBe(2);
-        response.Updates[0].ShouldBe(update1);
-        response.Updates[1].ShouldBe(update2);
-    }
-
-    [Test]
-    public void UpdateFileResponse_Should_Support_Null_File_With_Updates()
-    {
-        // Arrange
-        var update = new ChangeWordRequest
-        {
-            NewSpan = "test",
-            Origin = WordOrigin.Name,
-            CameFromFileId = Guid.NewGuid()
-        };
-
-        // Act
-        var response = new UpdateFileResponse
-        {
-            File = null,
-            Updates = new List<ChangeWordRequest> { update }
-        };
-
-        // Assert
-        response.File.ShouldBeNull();
-        response.Updates.Count.ShouldBe(1);
     }
 }
 

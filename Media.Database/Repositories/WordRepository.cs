@@ -198,4 +198,41 @@ public class WordRepository(
             throw;
         }
     }
+
+    /// <inheritdoc/>
+    public async Task<List<(int WordId, string Word, WordOrigin Origin)>> GetWordsByFileId(Guid fileId)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryWords.GetWordsByFileIdSql,
+                p => p.AddWithValue(pn.FileId, fileId),
+                reader => reader.ToWordFileLink());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetWordsByFileId failed for FileId: [{FileId}]", fileId);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task DeleteWordFileLink(Guid fileId, int wordId)
+    {
+        try
+        {
+            await _sqlExecutor.ExecuteAsync(
+                QueryWords.DeleteWordFileLinkSql,
+                p =>
+                {
+                    p.AddWithValue(pn.FileId, fileId);
+                    p.AddWithValue(pn.WordId, wordId);
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DeleteWordFileLink failed for FileId: [{FileId}], WordId: [{WordId}]", fileId, wordId);
+            throw;
+        }
+    }
 }

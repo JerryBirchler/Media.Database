@@ -1,7 +1,6 @@
 #nullable enable
 using AutoFixture;
 using Media.Common.Transactions;
-using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories;
 using Media.Database.Repositories.Queries;
@@ -47,7 +46,6 @@ public class FileRepositoryQueryTests
         return new FileRepository(
             _sqlExecutorMock.Object,
             () => _unitOfWorkMock.Object,
-            Mock.Of<IMapChangeWordRequests>(),
             Mock.Of<ILogger<FileRepository>>(),
             new LoggingLevelSwitch());
     }
@@ -350,7 +348,7 @@ public class FileRepositoryQueryTests
     {
         _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(NpgsqlTransaction)));
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var request = _fixture.Create<UpdateFileRequest>();
 
@@ -364,7 +362,7 @@ public class FileRepositoryQueryTests
     {
         _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)null!);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var request = _fixture.Create<UpdateFileRequest>();
 
@@ -374,28 +372,9 @@ public class FileRepositoryQueryTests
     }
 
     [Test]
-    public async Task Update_Should_ReturnNullFile_And_Rollback_When_FileNotFound()
-    {
-        _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync((Files?)null);
-        var request = _fixture.Create<UpdateFileRequest>();
-
-        var response = await CreateRepository().Update(Guid.NewGuid(), request);
-
-        response.File.ShouldBeNull();
-        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Test]
     public async Task Update_Should_Commit_When_FileUpdated()
     {
-        var currentFile = _fixture.Create<Files>();
         var updatedFile = _fixture.Create<Files>();
-        _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync(currentFile);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
             .ReturnsAsync(updatedFile);
@@ -410,11 +389,7 @@ public class FileRepositoryQueryTests
     [Test]
     public async Task Update_Should_ConfigureMetadataAsJson_When_MetadataProvided()
     {
-        var currentFile = _fixture.Create<Files>();
         var updatedFile = _fixture.Create<Files>();
-        _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync(currentFile);
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
@@ -434,11 +409,7 @@ public class FileRepositoryQueryTests
     [Test]
     public async Task Update_Should_ConfigureMetadataAsDbNull_When_MetadataNull()
     {
-        var currentFile = _fixture.Create<Files>();
         var updatedFile = _fixture.Create<Files>();
-        _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync(currentFile);
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
@@ -458,10 +429,6 @@ public class FileRepositoryQueryTests
     [Test]
     public async Task Update_Should_ReturnNullFile_And_Rollback_When_UpdateSql_ReturnsNoRow()
     {
-        var currentFile = _fixture.Create<Files>();
-        _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync(currentFile);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryFiles.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
             .ReturnsAsync((Files?)null);

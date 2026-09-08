@@ -1,7 +1,6 @@
 using Media.Common.Helpers.Fluent;
 using Media.Common.Transactions;
 using Media.Database.Helpers;
-using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
@@ -16,20 +15,19 @@ namespace Media.Database.Repositories;
 
 /// <summary>
 /// PostgreSQL-backed implementation of IFileRepository. Writes go to PostgreSQL synchronously
-/// within a transaction; Scylla is kept in sync separately and asynchronously by the CDC
-/// pipeline (Media.Common.Cdc.CdcConsumerService dispatching to Cdc.FilesCdcSyncHandler),
-/// reading Postgres own write-ahead log rather than this repository writing to both stores.
+/// within a transaction; Scylla and the word index are kept in sync separately and asynchronously
+/// by the CDC pipeline (Media.Common.Cdc.CdcConsumerService dispatching to
+/// Cdc.FilesCdcSyncHandler and Media.Worker's word-index handler), reading Postgres's own
+/// write-ahead log rather than this repository fanning out to those stores itself.
 /// </summary>
 public class FileRepository(
     ISqlQueryExecutor sqlExecutor,
     Func<IUnitOfWork> unitOfWorkFactory,
-    IMapChangeWordRequests changeWordMapper,
     ILogger<FileRepository> logger,
     LoggingLevelSwitch levelSwitch)
     : IFileRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
-    private readonly IMapChangeWordRequests _changeWordMapper = changeWordMapper;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly FluentLogger<FileRepository> _logger = logger.Initializer();
 
@@ -190,24 +188,7 @@ public class FileRepository(
         {
             await uow.BeginTransactionAsync();
 
-            var currentFile = await _sqlExecutor.QuerySingleAsync(
-                uow,
-                QueryFiles.GetByIdSql,
-                p => p.AddWithValue(pn.Id, id),
-                reader => reader.ToFile());
-
-            if (currentFile == null)
-            {
-                await uow.RollbackAsync();
-                return new UpdateFileResponse { File = null };
-            }
-
-            UpdateFileResponse response = new()
-            {
-                Updates = GetUpdates(currentFile, request)
-            };
-
-            response.File = await _sqlExecutor.QuerySingleAsync(
+            var file = await _sqlExecutor.QuerySingleAsync(
                 uow,
                 QueryFiles.UpdateSql,
                 p =>
@@ -219,15 +200,15 @@ public class FileRepository(
                 },
                 reader => reader.ToFile());
 
-            if (response.File == null)
+            if (file == null)
             {
                 await uow.RollbackAsync();
-                return response;
+                return new UpdateFileResponse { File = null };
             }
 
             await uow.CommitAsync();
 
-            return response;
+            return new UpdateFileResponse { File = file };
         }
         catch (Exception ex)
         {
@@ -238,26 +219,6 @@ public class FileRepository(
 
             throw;
         }
-    }
-
-    private List<ChangeWordRequest> GetUpdates(Files current, UpdateFileRequest request)
-    {
-        var updates = new List<ChangeWordRequest>();
-        var curMeta = current.Metadata;
-        var newMeta = request.Metadata;
-
-        if (curMeta is null && newMeta is null)
-            return updates;
-
-        updates.ProcessList(curMeta?.Names, newMeta?.Names, current, WordOrigin.Name, _changeWordMapper);
-        updates.ProcessList(curMeta?.KeyWords, newMeta?.KeyWords, current, WordOrigin.Keyword, _changeWordMapper);
-
-        updates.ProcessScalar(curMeta?.Title, newMeta?.Title, current, WordOrigin.FromTitle, _changeWordMapper);
-        updates.ProcessScalar(curMeta?.Description, newMeta?.Description, current, WordOrigin.FromDescription, _changeWordMapper);
-        updates.ProcessScalar(curMeta?.Event, newMeta?.Event, current, WordOrigin.FromEvent, _changeWordMapper);
-        updates.ProcessScalar(curMeta?.Location, newMeta?.Location, current, WordOrigin.FromLocation, _changeWordMapper);
-
-        return updates;
     }
 
     public async Task<Files?> Delete(Guid id)

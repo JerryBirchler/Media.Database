@@ -1,5 +1,4 @@
 using Media.Common.Transactions;
-using Media.Database.Mappers;
 using Media.Database.Repositories;
 using Moq;
 using NUnit.Framework;
@@ -16,7 +15,6 @@ public class FileRepositoryTests
         var repo = new FileRepository(
             Mock.Of<ISqlQueryExecutor>(),
             () => Mock.Of<IUnitOfWork>(),
-            Mock.Of<IMapChangeWordRequests>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(),
             new Serilog.Core.LoggingLevelSwitch());
 

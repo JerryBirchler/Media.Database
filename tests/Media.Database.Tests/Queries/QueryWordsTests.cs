@@ -270,4 +270,41 @@ public class QueryWordsTests
         sql.ShouldContain("\"Words\"");
         sql.ShouldContain("\"Id\" = @Id");
     }
+
+    [Test]
+    public void GetWordsByFileIdSql_Should_Select_WordId_Word_And_Origin()
+    {
+        var sql = QueryWords.GetWordsByFileIdSql;
+        sql.ShouldContain("Select", Case.Insensitive);
+        sql.ShouldContain("WordId", Case.Insensitive);
+        sql.ShouldContain("Word", Case.Insensitive);
+        sql.ShouldContain("Origin", Case.Insensitive);
+    }
+
+    [Test]
+    public void GetWordsByFileIdSql_Should_Join_WordFiles_To_Words_And_Filter_By_FileId()
+    {
+        var sql = QueryWords.GetWordsByFileIdSql;
+        sql.ShouldContain("\"WordFiles\"");
+        sql.ShouldContain("JOIN", Case.Insensitive);
+        sql.ShouldContain("\"Words\"");
+        sql.ShouldContain("\"FileId\" = @FileId");
+    }
+
+    [Test]
+    public void DeleteWordFileLinkSql_Should_Contain_Delete_From_Where()
+    {
+        var sql = QueryWords.DeleteWordFileLinkSql;
+        sql.ShouldContain("DELETE FROM");
+        sql.ShouldContain("WHERE");
+    }
+
+    [Test]
+    public void DeleteWordFileLinkSql_Should_Delete_From_WordFiles_By_FileId_And_WordId()
+    {
+        var sql = QueryWords.DeleteWordFileLinkSql;
+        sql.ShouldContain("\"WordFiles\"");
+        sql.ShouldContain("\"FileId\" = @FileId");
+        sql.ShouldContain("\"WordId\" = @WordId");
+    }
 }

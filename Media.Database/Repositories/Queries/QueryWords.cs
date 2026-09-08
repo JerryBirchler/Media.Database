@@ -187,6 +187,27 @@ public static class QueryWords
         DELETE FROM {ts.Words}
         WHERE {csw.Id} = {pn.Id}";
 
+    /// <summary>SQL to select every word currently linked to a file, with each link's own origin.</summary>
+    public static string GetWordsByFileIdSql => $@"
+        SELECT
+            {cswf.WordId},
+            {csw.Word},
+            {cswf.Origin}
+        FROM {ts.WordFiles}
+        JOIN {ts.Words} ON {csw.Id} = {cswf.WordId}
+        WHERE {cswf.FileId} = {pn.FileId}
+        ;";
+
+    /// <summary>
+    /// SQL to remove a single word's link to a file (one WordFiles row), without touching the
+    /// shared Words row -- other files may still reference the same word.
+    /// </summary>
+    public static string DeleteWordFileLinkSql => $@"
+        DELETE FROM {ts.WordFiles}
+        WHERE {cswf.FileId} = {pn.FileId}
+          AND {cswf.WordId} = {pn.WordId}
+        ;";
+
     #endregion
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Words"/>.</summary>
@@ -238,5 +259,14 @@ public static class QueryWords
             IsCurrent = reader.GetFieldValue<bool?>(os.IsCurrent),
             IsProperName = reader.GetFieldValue<bool?>(os.IsProperName)
         };
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to a word/file link (a word's id and text, and the origin it's linked to a file under).</summary>
+    public static (int WordId, string Word, WordOrigin Origin) ToWordFileLink(this NpgsqlDataReader reader)
+    {
+        return (
+            reader.GetInt32(os.WordId),
+            reader.GetString(os.Word),
+            (WordOrigin)reader.GetInt32(os.Origin));
     }
 }

@@ -214,4 +214,57 @@ public class WordRepositoryQueryTests
 
         _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryWords.DeleteFileSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
     }
+
+    [Test]
+    public async Task GetWordsByFileId_Should_ReturnLinks_When_ExecutorFindsMatches()
+    {
+        var expected = new List<(int WordId, string Word, WordOrigin Origin)>
+        {
+            (1, "alice", WordOrigin.Name),
+            (2, "paris", WordOrigin.FromLocation)
+        };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int WordId, string Word, WordOrigin Origin)>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetWordsByFileId(Guid.NewGuid());
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetWordsByFileId_Should_ConfigureFileIdParameter()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int WordId, string Word, WordOrigin Origin)>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int WordId, string Word, WordOrigin Origin)>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+        var fileId = Guid.NewGuid();
+
+        await CreateRepository().GetWordsByFileId(fileId);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.FileId].Value.ShouldBe(fileId);
+    }
+
+    [Test]
+    public async Task DeleteWordFileLink_Should_ConfigureFileIdAndWordIdParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryWords.DeleteWordFileLinkSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>>((_, configure) => captured = configure);
+        var fileId = Guid.NewGuid();
+
+        await CreateRepository().DeleteWordFileLink(fileId, 42);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.FileId].Value.ShouldBe(fileId);
+        command.Parameters[pn.WordId].Value.ShouldBe(42);
+
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryWords.DeleteWordFileLinkSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+    }
 }

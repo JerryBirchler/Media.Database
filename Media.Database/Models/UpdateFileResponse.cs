@@ -9,9 +9,4 @@ public record UpdateFileResponse
     /// Gets or sets the updated file, or null if the file was not found.
     /// </summary>
     public Files? File { get; set; }
-
-    /// <summary>
-    /// Gets or sets the word-level changes derived from comparing the file's previous and new metadata.
-    /// </summary>
-    public List<ChangeWordRequest> Updates { get; set; } = [];
 }
