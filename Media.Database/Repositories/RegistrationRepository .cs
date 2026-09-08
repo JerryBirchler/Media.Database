@@ -103,7 +103,7 @@ public class RegistrationRepository(
                     p.AddWithValue(pn.OtpEmail, otpEmail);
                     p.AddWithValue(pn.OtpCellPhone, otpCellPhone);
                 },
-                reader => reader.ToSourceMachineRegistration()
+                reader => reader.ToAddRegistrationResponse()
             );
 
             if (addRegistrationResponse is null)
@@ -114,9 +114,9 @@ public class RegistrationRepository(
 
             addSourceResponse.OtpEmail = addRegistrationResponse.OtpEmail;
             addSourceResponse.OtpCellPhone = addRegistrationResponse.OtpCellPhone;
-            addSourceResponse.RegistrationId = addRegistrationResponse.RegistrationId;
-            addSourceResponse.RegistrationInsertedOn = addRegistrationResponse.RegistrationInsertedOn;
-            addSourceResponse.RegistrationUpdatedOn = addRegistrationResponse.RegistrationUpdatedOn;
+            addSourceResponse.RegistrationId = addRegistrationResponse.Id;
+            addSourceResponse.RegistrationInsertedOn = addRegistrationResponse.InsertedOn;
+            addSourceResponse.RegistrationUpdatedOn = addRegistrationResponse.UpdatedOn;
 
             await uow.CommitAsync();
 

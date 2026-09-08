@@ -161,7 +161,7 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_InsertNewSourceMachine_When_NoExistingRowMatches()
     {
         var newMachine = CreateRegistration();
-        var added = CreateRegistration(sourceMachineUuid: newMachine.SourceMachineUuid);
+        var added = _fixture.Create<AddRegistrationResponse>();
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
@@ -169,7 +169,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(newMachine);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync(added);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
@@ -209,12 +209,12 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_ReturnAddedRegistration_When_SourceMachineFound()
     {
         var sourceMachine = CreateRegistration();
-        var added = CreateRegistration(sourceMachineUuid: sourceMachine.SourceMachineUuid);
+        var added = _fixture.Create<AddRegistrationResponse>();
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync(added);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
@@ -223,9 +223,9 @@ public class RegistrationRepositoryTests
         result.ShouldNotBeNull();
         result.OtpEmail.ShouldBe(added.OtpEmail);
         result.OtpCellPhone.ShouldBe(added.OtpCellPhone);
-        result.RegistrationId.ShouldBe(added.RegistrationId);
-        result.RegistrationInsertedOn.ShouldBe(added.RegistrationInsertedOn);
-        result.RegistrationUpdatedOn.ShouldBe(added.RegistrationUpdatedOn);
+        result.RegistrationId.ShouldBe(added.Id);
+        result.RegistrationInsertedOn.ShouldBe(added.InsertedOn);
+        result.RegistrationUpdatedOn.ShouldBe(added.UpdatedOn);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -261,9 +261,9 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
-            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, _, configure, _) => captured = configure)
-            .ReturnsAsync((SourceMachineRegistrations?)null);
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, _, configure, _) => captured = configure)
+            .ReturnsAsync((AddRegistrationResponse?)null);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
         await CreateRepository().AddBySourceInformation(request);
@@ -281,8 +281,8 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
-            .ReturnsAsync((SourceMachineRegistrations?)null);
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .ReturnsAsync((AddRegistrationResponse?)null);
         var request = _fixture.Create<AddSourceInformationRequest>();
 
         var result = await CreateRepository().AddBySourceInformation(request);
