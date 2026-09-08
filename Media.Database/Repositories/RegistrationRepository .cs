@@ -295,7 +295,8 @@ public class RegistrationRepository(
                 return new ResendOtpResult
                 {
                     EmailOtpSent = false,
-                    SmsOtpSent = false
+                    SmsOtpSent = false,
+                    OtpEmail = string.Empty
                 };
             }
 
@@ -333,14 +334,13 @@ public class RegistrationRepository(
                 return null;
             }
 
-            ///TODO: Add background process to send OTP to email and cell phone number asynchronously
-
             await uow.CommitAsync();
 
             return new ResendOtpResult
             {
                 EmailOtpSent = !existingRegistration.IsEmailVerified,
-                SmsOtpSent = !existingRegistration.IsSmsVerified
+                SmsOtpSent = !existingRegistration.IsSmsVerified,
+                OtpEmail = addRegistrationResponse.OtpEmail
             };
         }
         catch (Exception ex)

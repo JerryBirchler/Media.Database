@@ -54,7 +54,7 @@ public class RegistrationRepositoryTests
     private RegistrationRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
         () => _unitOfWorkMock.Object,
-        Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1) }),
+        Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1), VerifyBaseUrl = "http://192.168.4.32:5267" }),
         Mock.Of<ILogger<RegistrationRepository>>(),
         new MapRegistrationResponses(),
         new LoggingLevelSwitch());
@@ -508,6 +508,7 @@ public class RegistrationRepositoryTests
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeFalse();
         result.SmsOtpSent.ShouldBeFalse();
+        result.OtpEmail.ShouldBe(string.Empty);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
         _sqlExecutorMock.Verify(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()), Times.Never);
     }
@@ -543,11 +544,44 @@ public class RegistrationRepositoryTests
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeFalse();
         result.SmsOtpSent.ShouldBeTrue();
+        result.OtpEmail.ShouldBe(string.Empty);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.OtpEmail].Value.ShouldBe(string.Empty);
         command.Parameters[pn.OtpCellPhone].Value.ShouldNotBe(string.Empty);
+    }
+
+    [Test]
+    public async Task ResendOtp_Should_ReturnGeneratedOtpEmail_When_EmailChannelIsUnverified()
+    {
+        var existing = CreateRegistration() with { IsEmailVerified = false, IsSmsVerified = true };
+        var addResponse = new AddRegistrationResponse
+        {
+            Id = 43,
+            OtpEmail = "123456",
+            OtpCellPhone = string.Empty,
+            IsEmailVerified = false,
+            IsSmsVerified = true,
+            InsertedOn = DateTimeOffset.UtcNow,
+            UpdatedOn = null
+        };
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(_unitOfWorkMock.Object, QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Task<SortedSet<int>>>>()))
+            .ReturnsAsync([]);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .ReturnsAsync(addResponse);
+
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
+
+        result.ShouldNotBeNull();
+        result!.EmailOtpSent.ShouldBeTrue();
+        result.SmsOtpSent.ShouldBeFalse();
+        result.OtpEmail.ShouldBe("123456");
     }
 
     [Test]
