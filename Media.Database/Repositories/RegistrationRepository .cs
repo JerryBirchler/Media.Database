@@ -56,7 +56,7 @@ public class RegistrationRepository(
                 p =>
                 {
                     p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
-                    p.AddWithValue(pn.DeviceTypeId, request.DeviceTypeId);
+                    p.AddWithValue(pn.DeviceTypeId, (int)request.DeviceTypeId);
                     p.AddWithValue(pn.EmailAddress, request.EmailAddress);
                     p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
                     p.AddWithValue(pn.FirstName, request.FirstName);
@@ -74,7 +74,7 @@ public class RegistrationRepository(
                 p =>
                 {
                     p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
-                    p.AddWithValue(pn.DeviceTypeId, request.DeviceTypeId);
+                    p.AddWithValue(pn.DeviceTypeId, (int)request.DeviceTypeId);
                     p.AddWithValue(pn.EmailAddress, request.EmailAddress);
                     p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
                     p.AddWithValue(pn.FirstName, request.FirstName);
@@ -276,7 +276,7 @@ public class RegistrationRepository(
                 p =>
                 {
                     p.AddWithValue(pn.SourceMachineName, sourceMachineName);
-                    p.AddWithValue(pn.DeviceTypeId, deviceTypeId);
+                    p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
                     p.AddWithValue(pn.EmailAddress, emailAddress);
                     p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
                 },
@@ -365,7 +365,7 @@ public class RegistrationRepository(
                 {
                     p.AddWithValue(pn.EmailAddress, emailAddress);
                     p.AddWithValue(pn.SourceMachineName, sourceMachineName);
-                    p.AddWithValue(pn.DeviceTypeId, deviceTypeId);
+                    p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
                     p.AddWithValue(pn.OtpEmail, otp);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
                     p.AddWithValue(pn.OtpWindowStart, DateTimeOffset.UtcNow - _registrationSettings.Value.OtpWindow);
@@ -399,7 +399,7 @@ public class RegistrationRepository(
                 {
                     p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
                     p.AddWithValue(pn.SourceMachineName, sourceMachineName);
-                    p.AddWithValue(pn.DeviceTypeId, deviceTypeId);
+                    p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
                     p.AddWithValue(pn.OtpCellPhone, otp);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
                     p.AddWithValue(pn.OtpWindowStart, DateTimeOffset.UtcNow - _registrationSettings.Value.OtpWindow);

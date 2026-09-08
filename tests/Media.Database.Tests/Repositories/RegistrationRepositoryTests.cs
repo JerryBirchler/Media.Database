@@ -181,6 +181,31 @@ public class RegistrationRepositoryTests
     }
 
     [Test]
+    public async Task AddBySourceInformation_Should_ConfigureDeviceTypeIdAsInt_When_InsertingNewSourceMachine()
+    {
+        // Regression test: DeviceTypeId was previously bound as the raw enum value, which Npgsql
+        // rejects at runtime with "Writing values of 'DeviceTypes' is not supported..." since it
+        // has no native type mapping -- only surfaces against a real connection, invisible to the
+        // mocked ISqlQueryExecutor every other test here uses.
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        var request = _fixture.Create<AddSourceInformationRequest>() with { DeviceTypeId = DeviceTypes.PC };
+
+        await CreateRepository().AddBySourceInformation(request);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)DeviceTypes.PC);
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBeOfType<int>();
+    }
+
+    [Test]
     public async Task AddBySourceInformation_Should_ReturnAddedRegistration_When_SourceMachineFound()
     {
         var sourceMachine = CreateRegistration();
@@ -219,6 +244,7 @@ public class RegistrationRepositoryTests
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(request.SourceMachineName);
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)request.DeviceTypeId);
         command.Parameters[pn.EmailAddress].Value.ShouldBe(request.EmailAddress);
         command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(request.CellPhoneNumber);
         command.Parameters[pn.FirstName].Value.ShouldBe(request.FirstName);
@@ -666,7 +692,7 @@ public class RegistrationRepositoryTests
         captured!(command.Parameters);
         command.Parameters[pn.EmailAddress].Value.ShouldBe(emailAddress);
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(sourceMachineName);
-        command.Parameters[pn.DeviceTypeId].Value.ShouldBe(DeviceTypes.PC);
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)DeviceTypes.PC);
         command.Parameters[pn.OtpEmail].Value.ShouldBe(otp);
     }
 
@@ -731,7 +757,7 @@ public class RegistrationRepositoryTests
         captured!(command.Parameters);
         command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(cellPhoneNumber);
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(sourceMachineName);
-        command.Parameters[pn.DeviceTypeId].Value.ShouldBe(DeviceTypes.PC);
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)DeviceTypes.PC);
         command.Parameters[pn.OtpCellPhone].Value.ShouldBe(otp);
     }
 
