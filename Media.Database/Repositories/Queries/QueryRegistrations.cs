@@ -83,26 +83,26 @@ public static class QueryRegistrations
     /// </summary>
     public static string GetBySourceInformationSql => $@"
         SELECT
-            {csr.Id},
-            {cssmr.SourceMachineId},
-            {cssmr.SourceMachineUuid},
-            {cssmr.SourceMachineName},
-            {cssmr.DeviceTypeId},
-            {cssmr.EmailAddress},
-            {cssmr.CellPhoneNumber},
-            {cssmr.FirstName},
-            {cssmr.LastName},
+            r.{csr.Id},
+            smr.{cssmr.SourceMachineId},
+            smr.{cssmr.SourceMachineUuid},
+            smr.{cssmr.SourceMachineName},
+            smr.{cssmr.DeviceTypeId},
+            smr.{cssmr.EmailAddress},
+            smr.{cssmr.CellPhoneNumber},
+            smr.{cssmr.FirstName},
+            smr.{cssmr.LastName},
             CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
-            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
-            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
-            {cssmr.OperatingSystem},
-            {cssmr.IsActive},
-            {cssmr.InsertedOn},
-            {cssmr.UpdatedOn},
-            {csr.OtpEmail},
-            {csr.OtpCellPhone},
-            {csr.InsertedOn} As ""RegistrationInsertedOn"",
-            {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
+            COALESCE(r.{csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
+            COALESCE(r.{csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
+            smr.{cssmr.OperatingSystem},
+            smr.{cssmr.IsActive},
+            smr.{cssmr.InsertedOn},
+            smr.{cssmr.UpdatedOn},
+            r.{csr.OtpEmail},
+            r.{csr.OtpCellPhone},
+            r.{csr.InsertedOn} As ""RegistrationInsertedOn"",
+            r.{csr.UpdatedOn} AS ""RegistrationUpdatedOn""
         FROM
             {ts.SourceMachineRegistrations} AS smr
         LEFT JOIN
@@ -126,26 +126,26 @@ public static class QueryRegistrations
     /// <summary>SQL to select a SourceMachine by its unique identifier.</summary>
     public static string GetBySourceMachineUuidSql => $@"
         SELECT
-            {csr.Id},
-            {cssmr.SourceMachineId},
-            {cssmr.SourceMachineUuid},
-            {cssmr.SourceMachineName},
-            {cssmr.DeviceTypeId},
-            {cssmr.EmailAddress},
-            {cssmr.CellPhoneNumber},
-            {cssmr.FirstName},
-            {cssmr.LastName},
+            r.{csr.Id},
+            smr.{cssmr.SourceMachineId},
+            smr.{cssmr.SourceMachineUuid},
+            smr.{cssmr.SourceMachineName},
+            smr.{cssmr.DeviceTypeId},
+            smr.{cssmr.EmailAddress},
+            smr.{cssmr.CellPhoneNumber},
+            smr.{cssmr.FirstName},
+            smr.{cssmr.LastName},
             CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
-            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
-            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
-            {cssmr.OperatingSystem},
-            {cssmr.IsActive},
-            {cssmr.InsertedOn},
-            {cssmr.UpdatedOn},
-            {csr.OtpEmail},
-            {csr.OtpCellPhone},
-            {csr.InsertedOn} As ""RegistrationInsertedOn"",
-            {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
+            COALESCE(r.{csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
+            COALESCE(r.{csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
+            smr.{cssmr.OperatingSystem},
+            smr.{cssmr.IsActive},
+            smr.{cssmr.InsertedOn},
+            smr.{cssmr.UpdatedOn},
+            r.{csr.OtpEmail},
+            r.{csr.OtpCellPhone},
+            r.{csr.InsertedOn} As ""RegistrationInsertedOn"",
+            r.{csr.UpdatedOn} AS ""RegistrationUpdatedOn""
         FROM
             {ts.SourceMachineRegistrations} AS smr
         LEFT JOIN
@@ -167,26 +167,26 @@ public static class QueryRegistrations
     /// </summary>
     public static string GetBySourceMachineIdSql => $@"
         SELECT
-            {csr.Id},
-            {cssmr.SourceMachineId},
-            {cssmr.SourceMachineUuid},
-            {cssmr.SourceMachineName},
-            {cssmr.DeviceTypeId},
-            {cssmr.EmailAddress},
-            {cssmr.CellPhoneNumber},
-            {cssmr.FirstName},
-            {cssmr.LastName},
+            r.{csr.Id},
+            smr.{cssmr.SourceMachineId},
+            smr.{cssmr.SourceMachineUuid},
+            smr.{cssmr.SourceMachineName},
+            smr.{cssmr.DeviceTypeId},
+            smr.{cssmr.EmailAddress},
+            smr.{cssmr.CellPhoneNumber},
+            smr.{cssmr.FirstName},
+            smr.{cssmr.LastName},
             CASE WHEN r.Id IS NULL THEN False ELSE True END AS ""HasRegistration"",
-            COALESCE({csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
-            COALESCE({csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
-            {cssmr.OperatingSystem},
-            {cssmr.IsActive},
-            {cssmr.InsertedOn},
-            {cssmr.UpdatedOn},
-            {csr.OtpEmail},
-            {csr.OtpCellPhone},
-            {csr.InsertedOn} As ""RegistrationInsertedOn"",
-            {csr.UpdatedOn} AS ""RegistrationUpdatedOn""
+            COALESCE(r.{csr.IsEmailVerified}, False) AS ""IsEmailVerified"",
+            COALESCE(r.{csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
+            smr.{cssmr.OperatingSystem},
+            smr.{cssmr.IsActive},
+            smr.{cssmr.InsertedOn},
+            smr.{cssmr.UpdatedOn},
+            r.{csr.OtpEmail},
+            r.{csr.OtpCellPhone},
+            r.{csr.InsertedOn} As ""RegistrationInsertedOn"",
+            r.{csr.UpdatedOn} AS ""RegistrationUpdatedOn""
         FROM
             {ts.SourceMachineRegistrations} AS smr
         LEFT JOIN
@@ -243,6 +243,8 @@ public static class QueryRegistrations
             {cssmr.CellPhoneNumber},
             {pn.OtpCellPhone},
             CASE WHEN {pn.OtpCellPhone} = '' THEN True ELSE False END
+        FROM
+            {ts.SourceMachineRegistrations}
         WHERE
             {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
         RETURNING
@@ -274,11 +276,11 @@ public static class QueryRegistrations
             smr.{cssmr.EmailAddress} = {pn.EmailAddress}
             AND smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
             AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
-            AND {csr.IsCurrent} = True
-            AND {csr.EmailAddress} = {cssmr.EmailAddress}
-            AND {csr.CellPhoneNumber} = {cssmr.CellPhoneNumber}
-            AND {csr.OtpEmail} = {pn.OtpEmail}
-            AND {csr.InsertedOn} > {pn.OtpWindowStart}
+            AND r.{csr.IsCurrent} = True
+            AND r.{csr.EmailAddress} = smr.{cssmr.EmailAddress}
+            AND r.{csr.CellPhoneNumber} = smr.{cssmr.CellPhoneNumber}
+            AND r.{csr.OtpEmail} = {pn.OtpEmail}
+            AND r.{csr.InsertedOn} > {pn.OtpWindowStart}
         RETURNING
             smr.{cssmr.SourceMachineUuid},
             smr.{cssmr.SourceMachineName},
@@ -309,11 +311,11 @@ public static class QueryRegistrations
             smr.{cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}
             AND smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
             AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
-            AND {csr.IsCurrent} = True
-            AND {csr.EmailAddress} = {cssmr.EmailAddress}
-            AND {csr.CellPhoneNumber} = {cssmr.CellPhoneNumber}
-            AND {csr.OtpCellPhone} = {pn.OtpCellPhone}
-            AND {csr.InsertedOn} > {pn.OtpWindowStart}
+            AND r.{csr.IsCurrent} = True
+            AND r.{csr.EmailAddress} = smr.{cssmr.EmailAddress}
+            AND r.{csr.CellPhoneNumber} = smr.{cssmr.CellPhoneNumber}
+            AND r.{csr.OtpCellPhone} = {pn.OtpCellPhone}
+            AND r.{csr.InsertedOn} > {pn.OtpWindowStart}
         RETURNING
             smr.{cssmr.SourceMachineUuid},
             smr.{cssmr.SourceMachineName},

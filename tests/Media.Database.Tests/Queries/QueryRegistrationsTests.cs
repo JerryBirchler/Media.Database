@@ -58,6 +58,19 @@ public class QueryRegistrationsTests
         sql.ShouldContain("\"UpdatedOn\",");
     }
 
+    [TestCase(nameof(QueryRegistrations.GetBySourceInformationSql))]
+    [TestCase(nameof(QueryRegistrations.GetBySourceMachineUuidSql))]
+    [TestCase(nameof(QueryRegistrations.GetBySourceMachineIdSql))]
+    public void JoinedSelectQuery_Should_Qualify_SourceMachineId_With_Table_Alias(string queryName)
+    {
+        // Regression test: "SourceMachineId" exists on both joined tables (Registrations and
+        // SourceMachineRegistrations). An unqualified reference in the SELECT list is rejected by
+        // Postgres at runtime as ambiguous -- only ever surfaces against a real connection, since
+        // every test here mocks ISqlQueryExecutor.
+        var sql = (string)typeof(QueryRegistrations).GetProperty(queryName)!.GetValue(null)!;
+        sql.ShouldContain("smr.\"SourceMachineId\"");
+    }
+
     [Test]
     public void InactivateRegistrationsBySourceMachineUuidSql_Should_Contain_Update_Where_Returning()
     {
@@ -80,6 +93,16 @@ public class QueryRegistrationsTests
     }
 
     [Test]
+    public void AddRegistrationBySourceMachineUuidSql_Should_Contain_A_From_Clause()
+    {
+        // Regression test: the INSERT...SELECT had no FROM clause at all, so its SELECT-list
+        // columns (sourced from SourceMachineRegistrations) referenced no table in scope --
+        // Postgres would reject this at runtime; only ever surfaces against a real connection.
+        var sql = QueryRegistrations.AddRegistrationBySourceMachineUuidSql;
+        sql.ShouldContain("FROM");
+    }
+
+    [Test]
     public void VerifyOtpEmailSql_Should_Contain_Update_Where_Returning_OtpEmail()
     {
         var sql = QueryRegistrations.VerifyOtpEmailSql;
@@ -99,6 +122,18 @@ public class QueryRegistrationsTests
         sql.ShouldContain("RETURNING");
         sql.ShouldContain("@OtpCellPhone");
         sql.ShouldContain("@OtpWindowStart");
+    }
+
+    [TestCase(nameof(QueryRegistrations.VerifyOtpEmailSql))]
+    [TestCase(nameof(QueryRegistrations.VerifyOtpCellPhoneSql))]
+    public void VerifyOtpQuery_Should_Qualify_EmailAddress_And_InsertedOn_With_Table_Alias(string queryName)
+    {
+        // Regression test: EmailAddress/CellPhoneNumber/InsertedOn all exist on both joined
+        // tables. Several WHERE-clause references were unqualified, which Postgres rejects at
+        // runtime as ambiguous -- only ever surfaces against a real connection.
+        var sql = (string)typeof(QueryRegistrations).GetProperty(queryName)!.GetValue(null)!;
+        sql.ShouldContain("r.\"EmailAddress\" = smr.\"EmailAddress\"");
+        sql.ShouldContain("r.\"InsertedOn\" > @OtpWindowStart");
     }
 
     [Test]
