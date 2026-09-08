@@ -71,6 +71,21 @@ public class QueryRegistrationsTests
         sql.ShouldContain("smr.\"SourceMachineId\"");
     }
 
+    [TestCase(nameof(QueryRegistrations.GetBySourceInformationSql))]
+    [TestCase(nameof(QueryRegistrations.GetBySourceMachineUuidSql))]
+    [TestCase(nameof(QueryRegistrations.GetBySourceMachineIdSql))]
+    public void JoinedSelectQuery_Should_Reference_A_Properly_Quoted_Id_Column(string queryName)
+    {
+        // Regression test: "CASE WHEN r.Id IS NULL..." was a hand-typed, unquoted column
+        // reference -- Postgres folds unquoted identifiers to lowercase ("r.id"), which doesn't
+        // match the real quoted "Id" column, so this failed with "column r.id does not exist" at
+        // runtime. Every other column in this file goes through the quoted schema constants; this
+        // one didn't.
+        var sql = (string)typeof(QueryRegistrations).GetProperty(queryName)!.GetValue(null)!;
+        sql.ShouldContain("r.\"Id\" IS NULL");
+        sql.ShouldNotContain("r.Id IS NULL");
+    }
+
     [Test]
     public void InactivateRegistrationsBySourceMachineUuidSql_Should_Contain_Update_Where_Returning()
     {
