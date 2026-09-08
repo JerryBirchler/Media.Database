@@ -233,7 +233,8 @@ public static class QueryRegistrations
             {csr.IsEmailVerified},
             {csr.CellPhoneNumber},
             {csr.OtpCellPhone},
-            {csr.IsSmsVerified}
+            {csr.IsSmsVerified},
+            {csr.IsCurrent}
         )
         SELECT
             {cssmr.SourceMachineId},
@@ -242,7 +243,8 @@ public static class QueryRegistrations
             CASE WHEN {pn.OtpEmail} = '' THEN True ELSE False END,
             {cssmr.CellPhoneNumber},
             {pn.OtpCellPhone},
-            CASE WHEN {pn.OtpCellPhone} = '' THEN True ELSE False END
+            CASE WHEN {pn.OtpCellPhone} = '' THEN True ELSE False END,
+            True
         FROM
             {ts.SourceMachineRegistrations}
         WHERE

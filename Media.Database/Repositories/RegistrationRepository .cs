@@ -90,6 +90,18 @@ public class RegistrationRepository(
                 return null;
             }
 
+            await _sqlExecutor.QueryManyAsync
+            (
+                uow,
+                QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineUuid, addSourceResponse.SourceMachineUuid);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToRegistrationIds()
+            );
+
             var otpEmail = OneTimePassword.Generate();
             var otpCellPhone = OneTimePassword.Generate();
 
@@ -112,6 +124,7 @@ public class RegistrationRepository(
                 return null;
             }
 
+            addSourceResponse = addSourceResponse with { HasRegistration = true };
             addSourceResponse.OtpEmail = addRegistrationResponse.OtpEmail;
             addSourceResponse.OtpCellPhone = addRegistrationResponse.OtpCellPhone;
             addSourceResponse.RegistrationId = addRegistrationResponse.Id;
