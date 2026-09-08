@@ -58,6 +58,23 @@ public class QueryRegistrationsTests
         sql.ShouldContain("\"UpdatedOn\",");
     }
 
+    [TestCase(nameof(QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql))]
+    [TestCase(nameof(QueryRegistrations.VerifyOtpEmailSql))]
+    [TestCase(nameof(QueryRegistrations.VerifyOtpCellPhoneSql))]
+    public void UpdateFromJoinQuery_Should_Name_The_Target_Table_Before_The_Alias(string queryName)
+    {
+        // Regression test: "UPDATE r SET ... FROM Registrations AS r ..." is invalid Postgres --
+        // the bare "r" right after UPDATE must already be a real relation name, since the alias
+        // defined moments later in FROM doesn't exist yet at that point in the statement. Postgres
+        // rejects it with "relation "r" does not exist". The target table has to be named directly
+        // after UPDATE ("UPDATE "Registrations" AS r"), with FROM introducing only the other
+        // (joined) table. Only surfaces against a real connection, since every test here mocks
+        // ISqlQueryExecutor.
+        var sql = (string)typeof(QueryRegistrations).GetProperty(queryName)!.GetValue(null)!;
+        sql.ShouldContain("UPDATE public.\"Registrations\" AS r SET");
+        sql.ShouldNotContain("UPDATE r SET");
+    }
+
     [TestCase(nameof(QueryRegistrations.GetBySourceInformationSql))]
     [TestCase(nameof(QueryRegistrations.GetBySourceMachineUuidSql))]
     [TestCase(nameof(QueryRegistrations.GetBySourceMachineIdSql))]

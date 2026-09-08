@@ -206,17 +206,14 @@ public static class QueryRegistrations
     /// and return the updated registration Ids.
     /// </summary>
     public static string InactivateRegistrationsBySourceMachineUuidSql => $@"
-        UPDATE r SET
+        UPDATE {ts.Registrations} AS r SET
             {csr.IsCurrent} = False,
             {csr.UpdatedOn} = {pn.UpdatedOn}
         FROM
-            {ts.Registrations} AS r
-        INNER JOIN
             {ts.SourceMachineRegistrations} AS smr
-        ON
-            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
         WHERE
-            smr.{cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
+            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
+            AND smr.{cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
             AND r.{csr.IsCurrent} = True
         RETURNING
             r.{csr.Id}
@@ -265,17 +262,14 @@ public static class QueryRegistrations
     /// past that window this matches no row, the same as an incorrect code.
     /// </summary>
     public static string VerifyOtpEmailSql => $@"
-        UPDATE r SET
+        UPDATE {ts.Registrations} AS r SET
             {csr.IsEmailVerified} = True,
             {csr.UpdatedOn} = {pn.UpdatedOn}
         FROM
-            {ts.Registrations} AS r
-        INNER JOIN
             {ts.SourceMachineRegistrations} AS smr
-        ON
-            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
         WHERE
-            smr.{cssmr.EmailAddress} = {pn.EmailAddress}
+            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
+            AND smr.{cssmr.EmailAddress} = {pn.EmailAddress}
             AND smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
             AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
             AND r.{csr.IsCurrent} = True
@@ -300,17 +294,14 @@ public static class QueryRegistrations
     /// past that window this matches no row, the same as an incorrect code.
     /// </summary>
     public static string VerifyOtpCellPhoneSql => $@"
-        UPDATE r SET
+        UPDATE {ts.Registrations} AS r SET
             {csr.IsSmsVerified} = True,
             {csr.UpdatedOn} = {pn.UpdatedOn}
         FROM
-            {ts.Registrations} AS r
-        INNER JOIN
             {ts.SourceMachineRegistrations} AS smr
-        ON
-            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
         WHERE
-            smr.{cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}
+            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
+            AND smr.{cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}
             AND smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
             AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
             AND r.{csr.IsCurrent} = True
