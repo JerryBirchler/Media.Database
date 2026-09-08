@@ -79,27 +79,28 @@ public static class QueryFiles
         LIMIT 1
         ;";
 
-    /// <summary>SQL to select a keyset-paged page of current files, ordered by source machine and path.</summary>
+    /// <summary>
+    /// SQL to select a keyset-paged page of current files for a single source machine, ordered by
+    /// path. Scoped to exactly one device via an equality filter -- not a cursor tuple -- since
+    /// there is no group/shared-device authorization model yet to legitimately widen this beyond
+    /// the authenticated caller's own device.
+    /// </summary>
     public static string GetCurrentPagesBySourceMachineIdSql => $@"
-        SELECT 
-            {csf.Id}, 
-            {csf.SourceMachineId}, 
-            {csf.OriginalFilePath}, 
-            {csf.InsertedOn}, 
-            {csf.UpdatedOn}, 
-            {csf.LastFileUpdate}, 
-            {csf.IsCurrent}, 
+        SELECT
+            {csf.Id},
+            {csf.SourceMachineId},
+            {csf.OriginalFilePath},
+            {csf.InsertedOn},
+            {csf.UpdatedOn},
+            {csf.LastFileUpdate},
+            {csf.IsCurrent},
             {csf.Metadata}
-        FROM 
+        FROM
             {ts.View_Current_Files}
-        WHERE 
-            ({csf.SourceMachineId}, {csf.OriginalFilePath}) > 
-            (
-                COALESCE({pn.SourceMachineId}, 0),
-                COALESCE({pn.OriginalFilePath}, '')
-            )
+        WHERE
+            {csf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csf.OriginalFilePath} > COALESCE({pn.OriginalFilePath}, '')
         ORDER BY
-            {csf.SourceMachineId} ASC,
             {csf.OriginalFilePath} ASC
         LIMIT @Limit
         ;";

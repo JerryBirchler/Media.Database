@@ -58,6 +58,17 @@ public class QueryFilesTests
     }
 
     [Test]
+    public void GetCurrentPagesBySourceMachineIdSql_Should_Scope_To_A_Single_SourceMachineId()
+    {
+        // Regression test: this query must equality-filter on SourceMachineId, not just use it as
+        // part of a keyset cursor tuple -- otherwise a caller pages across every device's current
+        // files, not just their own, since there is no group/shared-device authorization model to
+        // legitimately widen this yet.
+        var sql = QueryFiles.GetCurrentPagesBySourceMachineIdSql;
+        sql.ShouldContain("\"SourceMachineId\" = @SourceMachineId");
+    }
+
+    [Test]
     public void GetPreviousIdsSql_Should_Contain_Update_Where_Returning()
     {
         var sql = QueryFiles.GetPreviousIdsSql;
