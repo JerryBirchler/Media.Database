@@ -184,7 +184,7 @@ public class WordRepository(
     }
 
     /// <inheritdoc/>
-    public async Task<List<(int WordId, string Word, WordOrigin Origin)>> GetWordsByFileId(Guid fileId)
+    public async Task<List<WordFileLink>> GetWordsByFileId(Guid fileId)
     {
         try
         {

@@ -210,13 +210,13 @@ public class WordRepositoryQueryTests
     [Test]
     public async Task GetWordsByFileId_Should_ReturnLinks_When_ExecutorFindsMatches()
     {
-        var expected = new List<(int WordId, string Word, WordOrigin Origin)>
+        var expected = new List<WordFileLink>
         {
-            (1, "alice", WordOrigin.Name),
-            (2, "paris", WordOrigin.FromLocation)
+            new(1, "alice", WordOrigin.Name),
+            new(2, "paris", WordOrigin.FromLocation)
         };
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int WordId, string Word, WordOrigin Origin)>>()))
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileLink>>()))
             .ReturnsAsync(expected);
 
         var result = await CreateRepository().GetWordsByFileId(Guid.NewGuid());
@@ -229,8 +229,8 @@ public class WordRepositoryQueryTests
     {
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int WordId, string Word, WordOrigin Origin)>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int WordId, string Word, WordOrigin Origin)>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileLink>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, WordFileLink>>((_, configure, _) => captured = configure)
             .ReturnsAsync([]);
         var fileId = Guid.NewGuid();
 

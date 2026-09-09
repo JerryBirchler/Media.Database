@@ -84,7 +84,7 @@ public interface IWordRepository
     /// </summary>
     /// <param name="fileId">The file identifier.</param>
     /// <returns>The file's currently-indexed word links.</returns>
-    Task<List<(int WordId, string Word, WordOrigin Origin)>> GetWordsByFileId(Guid fileId);
+    Task<List<WordFileLink>> GetWordsByFileId(Guid fileId);
 
     /// <summary>
     /// Removes a single word's link to a file, without deleting the shared word record --

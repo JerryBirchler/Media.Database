@@ -262,9 +262,9 @@ public static class QueryWords
     }
 
     /// <summary>Maps the current row of <paramref name="reader"/> to a word/file link (a word's id and text, and the origin it's linked to a file under).</summary>
-    public static (int WordId, string Word, WordOrigin Origin) ToWordFileLink(this NpgsqlDataReader reader)
+    public static WordFileLink ToWordFileLink(this NpgsqlDataReader reader)
     {
-        return (
+        return new WordFileLink(
             reader.GetInt32(os.WordId),
             reader.GetString(os.Word),
             (WordOrigin)reader.GetInt32(os.Origin));
