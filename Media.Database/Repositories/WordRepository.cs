@@ -59,7 +59,7 @@ public class WordRepository(
     public async Task<List<ViewWordFiles>> GetFilePages(
         string sql, string? word, WordOrigin? origin, Guid? fileId,
         bool? isCurrent, bool? isProperName,
-        int? limit = 10)
+        int? limit = 10, string? filePath = null)
     {
         try
         {
@@ -67,14 +67,13 @@ public class WordRepository(
                 sql,
                 p =>
                 {
-         
-                    
                     p.AddWithValue(pn.Word, (object)word! ?? DBNull.Value);
                     p.AddWithValue(pn.Origin, (object)origin! ?? DBNull.Value);
                     p.AddWithValue(pn.FileId, (object)fileId! ?? DBNull.Value);
                     p.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent! ?? DBNull.Value);
                     p.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName! ?? DBNull.Value);
                     p.AddWithValue(pn.Limit, limit ?? 10);
+                    p.AddWithValue(pn.OriginalFilePath, (object)filePath! ?? DBNull.Value);
                 },
                 reader => reader.ToWordFile());
         }
@@ -128,6 +127,33 @@ public class WordRepository(
         int? limit = 10)
     {
         return await GetFilePages(QueryWords.GetFilePagesByFileIdWordSql, word, origin, fileId, isCurrent, isProperName, limit);
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<ViewWordFiles>> GetFilePagesByFilePathOrigin(
+        string? word, WordOrigin? origin, Guid? fileId, string? filePath,
+        bool? isCurrent, bool? isProperName,
+        int? limit = 10)
+    {
+        return await GetFilePages(QueryWords.GetFilePagesByFilePathOriginSql, word, origin, fileId, isCurrent, isProperName, limit, filePath);
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<ViewWordFiles>> GetFilePagesByFilePathWord(
+        string? word, WordOrigin? origin, Guid? fileId, string? filePath,
+        bool? isCurrent, bool? isProperName,
+        int? limit = 10)
+    {
+        return await GetFilePages(QueryWords.GetFilePagesByFilePathWordSql, word, origin, fileId, isCurrent, isProperName, limit, filePath);
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<ViewWordFiles>> GetFilePagesByWordFilePath(
+        string? word, WordOrigin? origin, Guid? fileId, string? filePath,
+        bool? isCurrent, bool? isProperName,
+        int? limit = 10)
+    {
+        return await GetFilePages(QueryWords.GetFilePagesByWordFilePathSql, word, origin, fileId, isCurrent, isProperName, limit, filePath);
     }
 
     /// <inheritdoc/>

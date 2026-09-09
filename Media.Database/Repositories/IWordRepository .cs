@@ -63,6 +63,45 @@ public interface IWordRepository
     Task<List<ViewWordFiles>> GetFilePagesByFileIdWord(string? word, WordOrigin? origin, Guid? fileId, bool? isCurrent, bool? isProperName, int? limit = 10);
 
     /// <summary>
+    /// Retrieves a page of word/file rows ordered by file path, then origin.
+    /// </summary>
+    /// <param name="word">The word to search for, or null to match any word.</param>
+    /// <param name="origin">The word origin to filter by, or null to match any origin.</param>
+    /// <param name="fileId">The file identifier to filter by, or null to match any file.</param>
+    /// <param name="filePath">The file path to search for, or null to match any path.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching word/file rows.</returns>
+    Task<List<ViewWordFiles>> GetFilePagesByFilePathOrigin(string? word, WordOrigin? origin, Guid? fileId, string? filePath, bool? isCurrent, bool? isProperName, int? limit = 10);
+
+    /// <summary>
+    /// Retrieves a page of word/file rows ordered by file path, then word.
+    /// </summary>
+    /// <param name="word">The word to search for, or null to match any word.</param>
+    /// <param name="origin">The word origin to filter by, or null to match any origin.</param>
+    /// <param name="fileId">The file identifier to filter by, or null to match any file.</param>
+    /// <param name="filePath">The file path to search for, or null to match any path.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching word/file rows.</returns>
+    Task<List<ViewWordFiles>> GetFilePagesByFilePathWord(string? word, WordOrigin? origin, Guid? fileId, string? filePath, bool? isCurrent, bool? isProperName, int? limit = 10);
+
+    /// <summary>
+    /// Retrieves a page of word/file rows ordered by word, then file path.
+    /// </summary>
+    /// <param name="word">The word to search for, or null to match any word.</param>
+    /// <param name="origin">The word origin to filter by, or null to match any origin.</param>
+    /// <param name="fileId">The file identifier to filter by, or null to match any file.</param>
+    /// <param name="filePath">The file path to search for, or null to match any path.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching word/file rows.</returns>
+    Task<List<ViewWordFiles>> GetFilePagesByWordFilePath(string? word, WordOrigin? origin, Guid? fileId, string? filePath, bool? isCurrent, bool? isProperName, int? limit = 10);
+
+    /// <summary>
     /// Inserts a new word, or updates it if it already exists, and links it to the originating file.
     /// </summary>
     /// <param name="request">The upsert request describing the word.</param>

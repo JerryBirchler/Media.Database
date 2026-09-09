@@ -38,6 +38,12 @@ public class ViewWordFiles
     public bool? IsCurrent { get; set; }
 
     /// <summary>
+    /// Gets or sets the original path of the file the word was found in.
+    /// </summary>
+    [JsonPropertyName("originalFilePath")]
+    public string OriginalFilePath { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets a value indicating whether the word is a proper name.
     /// </summary>
     [JsonPropertyName("isProperName")]

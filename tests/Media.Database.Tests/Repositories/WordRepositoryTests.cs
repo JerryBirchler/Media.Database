@@ -65,7 +65,7 @@ public class WordRepositoryTests
         method.ShouldNotBeNull();
         method.ReturnType.ShouldBe(typeof(Task<List<ViewWordFiles>>));
         var parameters = method.GetParameters();
-        parameters.Length.ShouldBe(7);
+        parameters.Length.ShouldBe(8);
         parameters[0].ParameterType.ShouldBe(typeof(string));
         parameters[1].ParameterType.ShouldBe(typeof(string));
         parameters[2].ParameterType.ShouldBe(typeof(WordOrigin?));
@@ -73,6 +73,7 @@ public class WordRepositoryTests
         parameters[4].ParameterType.ShouldBe(typeof(bool?));
         parameters[5].ParameterType.ShouldBe(typeof(bool?));
         parameters[6].ParameterType.ShouldBe(typeof(int?));
+        parameters[7].ParameterType.ShouldBe(typeof(string));
     }
 
     [Test]

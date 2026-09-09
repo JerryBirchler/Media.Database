@@ -38,14 +38,15 @@ public static class QueryWords
 
     /// <summary>Shared SELECT clause for the word/file materialized view, reused by the keyset page queries below.</summary>
     public static string SelectFilePages => $@"
-        SELECT 
-            {csvwf.Origin}, 
-            {csvwf.WordId}, 
-            {csvwf.Word}, 
+        SELECT
+            {csvwf.Origin},
+            {csvwf.WordId},
+            {csvwf.Word},
             {csvwf.FileId},
             {csvwf.IsCurrent},
-            {csvwf.IsProperName}
-        FROM 
+            {csvwf.IsProperName},
+            {csvwf.OriginalFilePath}
+        FROM
             {ts.View_WordFiles}";
 
     /// <summary>Shared WHERE-clause fragment for filtering the word/file view by current-ness and proper-name status.</summary>
@@ -126,6 +127,69 @@ public static class QueryWords
             {csvwf.FileId} ASC,
             {csvwf.Origin} ASC,
             {csvwf.Word} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file path, then origin.</summary>
+    public static string GetFilePagesByFilePathOriginSql => $@"
+        {SelectFilePages}
+        WHERE
+            ({csvwf.OriginalFilePath}, {csvwf.Origin}, {csvwf.Word}, {csvwf.FileId}) >
+            (
+                COALESCE({pn.OriginalFilePath}, ''),
+                COALESCE({pn.Origin}, -1),
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.OriginalFilePath} ASC,
+            {csvwf.Origin} ASC,
+            {csvwf.Word} ASC,
+            {csvwf.FileId} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file path, then word.</summary>
+    public static string GetFilePagesByFilePathWordSql => $@"
+        {SelectFilePages}
+        WHERE
+            ({csvwf.OriginalFilePath}, {csvwf.Word}, {csvwf.Origin}, {csvwf.FileId}) >
+            (
+                COALESCE({pn.OriginalFilePath}, ''),
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.Origin}, -1),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.OriginalFilePath} ASC,
+            {csvwf.Word} ASC,
+            {csvwf.Origin} ASC,
+            {csvwf.FileId} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by word, then file path.</summary>
+    public static string GetFilePagesByWordFilePathSql => $@"
+        {SelectFilePages}
+        WHERE
+            ({csvwf.Word}, {csvwf.OriginalFilePath}, {csvwf.FileId}, {csvwf.Origin}) >
+            (
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.OriginalFilePath}, ''),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
+                COALESCE({pn.Origin}, -1)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.Word} ASC,
+            {csvwf.OriginalFilePath} ASC,
+            {csvwf.FileId} ASC,
+            {csvwf.Origin} ASC
         LIMIT {pn.Limit}
         ;";
 
@@ -257,7 +321,8 @@ public static class QueryWords
             Word = reader.GetString(os.Word),
             FileId = reader.GetFieldValue<Guid>(os.FileId),
             IsCurrent = reader.GetFieldValue<bool?>(os.IsCurrent),
-            IsProperName = reader.GetFieldValue<bool?>(os.IsProperName)
+            IsProperName = reader.GetFieldValue<bool?>(os.IsProperName),
+            OriginalFilePath = reader.GetString(os.OriginalFilePath)
         };
     }
 
