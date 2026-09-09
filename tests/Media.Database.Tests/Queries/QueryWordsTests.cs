@@ -103,14 +103,6 @@ public class QueryWordsTests
     }
 
     [Test]
-    public void DeleteFileSql_Should_Contain_Delete_From_Where()
-    {
-        var sql = QueryWords.DeleteFileSql;
-        sql.ShouldContain("DELETE FROM");
-        sql.ShouldContain("WHERE");
-    }
-
-    [Test]
     public void GetByIdSql_Should_Select_All_Word_Columns()
     {
         var sql = QueryWords.GetByIdSql;
@@ -230,13 +222,6 @@ public class QueryWordsTests
         var secondInsert = sql.IndexOf("INSERT INTO", firstInsert + 1);
 
         secondInsert.ShouldBeGreaterThan(firstInsert);
-    }
-
-    [Test]
-    public void DeleteFileSql_Should_Reference_FileId_Parameter()
-    {
-        var sql = QueryWords.DeleteFileSql;
-        sql.ShouldContain("@FileId", Case.Insensitive);
     }
 
     [Test]

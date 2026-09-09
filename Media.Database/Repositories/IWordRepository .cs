@@ -80,12 +80,6 @@ public interface IWordRepository
     Task Delete(int id);
 
     /// <summary>
-    /// Deletes all word/file links for the given file.
-    /// </summary>
-    /// <param name="fileId">The unique identifier of the file.</param>
-    Task DeleteFile(Guid fileId);
-
-    /// <summary>
     /// Retrieves every word currently linked to a file, with each link's own origin.
     /// </summary>
     /// <param name="fileId">The file identifier.</param>

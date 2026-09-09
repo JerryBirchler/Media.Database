@@ -208,14 +208,6 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
-    public async Task DeleteFile_Should_Execute_DeleteFileSql()
-    {
-        await CreateRepository().DeleteFile(Guid.NewGuid());
-
-        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryWords.DeleteFileSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
-    }
-
-    [Test]
     public async Task GetWordsByFileId_Should_ReturnLinks_When_ExecutorFindsMatches()
     {
         var expected = new List<(int WordId, string Word, WordOrigin Origin)>

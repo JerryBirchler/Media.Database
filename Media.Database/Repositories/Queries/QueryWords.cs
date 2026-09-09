@@ -173,11 +173,6 @@ public static class QueryWords
     public static string RefreshViewSql => $@"
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_WordFiles};";
 
-    /// <summary>SQL to delete all word/file links for a given file.</summary>
-    public static string DeleteFileSql => $@"
-        DELETE FROM {ts.WordFiles}
-        WHERE {cswf.FileId} = {pn.FileId}";
-
     /// <summary>
     /// SQL to delete a word by its identifier. Dependent <see cref="Tables.WordFiles"/> rows are
     /// removed automatically at the database level (ON DELETE CASCADE on the WordId foreign key)
@@ -190,12 +185,17 @@ public static class QueryWords
     /// <summary>SQL to select every word currently linked to a file, with each link's own origin.</summary>
     public static string GetWordsByFileIdSql => $@"
         SELECT
-            {cswf.WordId},
-            {csw.Word},
-            {cswf.Origin}
-        FROM {ts.WordFiles}
-        JOIN {ts.Words} ON {csw.Id} = {cswf.WordId}
-        WHERE {cswf.FileId} = {pn.FileId}
+            wf.{cswf.WordId},
+            w.{csw.Word},
+            wf.{cswf.Origin}
+        FROM
+            {ts.WordFiles} AS wf
+        INNER JOIN
+            {ts.Words} AS w
+        ON
+            w.{csw.Id} = wf.{cswf.WordId}
+        WHERE
+            wf.{cswf.FileId} = {pn.FileId}
         ;";
 
     /// <summary>

@@ -162,19 +162,6 @@ public class WordRepositoryTests
     }
 
     [Test]
-    public void DeleteFile_Should_Exist_With_Correct_Signature()
-    {
-        var repo = CreateRepository();
-        var method = repo.GetType().GetMethod("DeleteFile", BindingFlags.Public | BindingFlags.Instance);
-
-        method.ShouldNotBeNull();
-        method.ReturnType.ShouldBe(typeof(Task));
-        var parameters = method.GetParameters();
-        parameters.Length.ShouldBe(1);
-        parameters[0].ParameterType.ShouldBe(typeof(Guid));
-    }
-
-    [Test]
     public void GetFilePagesByWordOrigin_Should_Have_Default_Limit_Parameter()
     {
         var repo = CreateRepository();

@@ -184,22 +184,6 @@ public class WordRepository(
     }
 
     /// <inheritdoc/>
-    public async Task DeleteFile(Guid fileId)
-    {
-        try
-        {
-            await _sqlExecutor.ExecuteAsync(
-                QueryWords.DeleteFileSql,
-                p => p.AddWithValue(pn.FileId, fileId));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "DeleteFile failed for FileId: [{FileId}]", fileId);
-            throw;
-        }
-    }
-
-    /// <inheritdoc/>
     public async Task<List<(int WordId, string Word, WordOrigin Origin)>> GetWordsByFileId(Guid fileId)
     {
         try
