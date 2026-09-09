@@ -103,7 +103,7 @@ public class RegistrationRepository(
             );
 
             var otpEmail = OneTimePassword.Generate();
-            var otpCellPhone = OneTimePassword.Generate();
+            var otpCellPhone = OneTimePassword.Generate(excluding: otpEmail);
 
             var addRegistrationResponse = await _sqlExecutor.QuerySingleAsync
             (
@@ -232,7 +232,7 @@ public class RegistrationRepository(
             );
 
             var otpEmail = existingRegistration.IsEmailVerified ? string.Empty : OneTimePassword.Generate();
-            var otpCellPhone = existingRegistration.IsSmsVerified ? string.Empty : OneTimePassword.Generate();
+            var otpCellPhone = existingRegistration.IsSmsVerified ? string.Empty : OneTimePassword.Generate(excluding: otpEmail);
 
             var addRegistrationResponse = await _sqlExecutor.QuerySingleAsync
             (
@@ -326,7 +326,7 @@ public class RegistrationRepository(
             );
 
             var otpEmail = existingRegistration.IsEmailVerified ? string.Empty : OneTimePassword.Generate();
-            var otpCellPhone = existingRegistration.IsSmsVerified ? string.Empty : OneTimePassword.Generate();
+            var otpCellPhone = existingRegistration.IsSmsVerified ? string.Empty : OneTimePassword.Generate(excluding: otpEmail);
 
             var addRegistrationResponse = await _sqlExecutor.QuerySingleAsync
             (
