@@ -191,6 +191,18 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
+    public void Upsert_Should_LogAndRethrow_PostgresException_When_Not_A_ForeignKeyViolation()
+    {
+        var uniqueViolation = new PostgresException("duplicate key value violates unique constraint", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation);
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryWords.UpsertWordSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(uniqueViolation);
+        var request = _fixture.Create<UpsertWordRequest>();
+
+        Should.ThrowAsync<PostgresException>(() => CreateRepository().Upsert(request));
+    }
+
+    [Test]
     public async Task RefreshView_Should_Execute_RefreshViewSql()
     {
         await CreateRepository().RefreshView();
