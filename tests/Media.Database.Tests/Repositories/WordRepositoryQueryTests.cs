@@ -311,6 +311,16 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
+    public void GetWordsByFileIdOrderedByWord_Should_LogAndRethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetWordsByFileIdOrderedByWord(Guid.NewGuid(), 1, "after", true, false));
+    }
+
+    [Test]
     public async Task GetWordsByFileIdOrderedByOrigin_Should_ReturnResults_From_Executor()
     {
         var expected = _fixture.CreateMany<ViewWordFiles>(2).ToList();
@@ -346,6 +356,16 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
+    public void GetWordsByFileIdOrderedByOrigin_Should_LogAndRethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetWordsByFileIdOrderedByOrigin(Guid.NewGuid(), 1, WordOrigin.Name, true, false));
+    }
+
+    [Test]
     public async Task GetWordsByFilePathOrderedByWord_Should_ReturnResults_From_Executor()
     {
         var expected = _fixture.CreateMany<ViewWordFiles>(2).ToList();
@@ -377,5 +397,15 @@ public class WordRepositoryQueryTests
         command.Parameters[pn.IsCurrent].Value.ShouldBe(true);
         command.Parameters[pn.IsProperName].Value.ShouldBe(false);
         command.Parameters[pn.Limit].Value.ShouldBe(25);
+    }
+
+    [Test]
+    public void GetWordsByFilePathOrderedByWord_Should_LogAndRethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFilePathOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetWordsByFilePathOrderedByWord("/path", 1, "after", true, false));
     }
 }
