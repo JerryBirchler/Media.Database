@@ -2,7 +2,9 @@ using Media.Common.Helpers.Fluent;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using Serilog.Core;
 
 #pragma warning disable CS8981
@@ -157,6 +159,87 @@ public class WordRepository(
     }
 
     /// <inheritdoc/>
+    public async Task<List<ViewWordFiles>> GetWordsByFileIdOrderedByWord(
+        Guid fileId, int sourceMachineId, string? afterWord,
+        bool? isCurrent, bool? isProperName, int? limit = 10)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryWords.GetWordsByFileIdOrderedByWordSql,
+                p =>
+                {
+                    p.AddWithValue(pn.FileId, fileId);
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.Word, (object)afterWord! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName! ?? DBNull.Value);
+                    p.AddWithValue(pn.Limit, limit ?? 10);
+                },
+                reader => reader.ToWordFileWithSourceMachineId());
+        }
+        catch (Exception ex)
+        {
+            _logger.WithCaller().LogError(ex, "GetWordsByFileIdOrderedByWord failed for FileId: [{FileId}]", fileId);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<ViewWordFiles>> GetWordsByFileIdOrderedByOrigin(
+        Guid fileId, int sourceMachineId, WordOrigin? afterOrigin,
+        bool? isCurrent, bool? isProperName, int? limit = 10)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryWords.GetWordsByFileIdOrderedByOriginSql,
+                p =>
+                {
+                    p.AddWithValue(pn.FileId, fileId);
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.Origin, (object)afterOrigin! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName! ?? DBNull.Value);
+                    p.AddWithValue(pn.Limit, limit ?? 10);
+                },
+                reader => reader.ToWordFileWithSourceMachineId());
+        }
+        catch (Exception ex)
+        {
+            _logger.WithCaller().LogError(ex, "GetWordsByFileIdOrderedByOrigin failed for FileId: [{FileId}]", fileId);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<ViewWordFiles>> GetWordsByFilePathOrderedByWord(
+        string filePath, int sourceMachineId, string? afterWord,
+        bool? isCurrent, bool? isProperName, int? limit = 10)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryWords.GetWordsByFilePathOrderedByWordSql,
+                p =>
+                {
+                    p.AddWithValue(pn.OriginalFilePath, filePath);
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.Word, (object)afterWord! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isCurrent! ?? DBNull.Value);
+                    p.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, (object)isProperName! ?? DBNull.Value);
+                    p.AddWithValue(pn.Limit, limit ?? 10);
+                },
+                reader => reader.ToWordFileWithSourceMachineId());
+        }
+        catch (Exception ex)
+        {
+            _logger.WithCaller().LogError(ex, "GetWordsByFilePathOrderedByWord failed for FilePath: [{FilePath}]", filePath);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task Upsert(UpsertWordRequest request)
     {
         try
@@ -171,6 +254,11 @@ public class WordRepository(
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
                     p.AddWithValue(pn.CameFromFileId, request.CameFromFileId);
                 });
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.ForeignKeyViolation)
+        {
+            _logger.LogError(ex, "Upsert failed for Word: [{Word}]: ", request.Word);
+            throw new BadHttpRequestException($"CameFromFileId: [{request.CameFromFileId}] does not refer to an existing file.");
         }
         catch (Exception ex)
         {

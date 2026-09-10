@@ -4,6 +4,7 @@ using Media.Database.Models;
 using Media.Database.Repositories;
 using Media.Database.Repositories.Queries;
 using Media.Database.Tests.TestHelpers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Npgsql;
@@ -176,6 +177,20 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
+    public async Task Upsert_Should_ThrowBadHttpRequestException_When_CameFromFileIdViolatesForeignKey()
+    {
+        var fkViolation = new PostgresException("insert or update on table \"WordFiles\" violates foreign key constraint \"FK_WordFiles_FileId\"", "ERROR", "ERROR", PostgresErrorCodes.ForeignKeyViolation);
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryWords.UpsertWordSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(fkViolation);
+        var request = _fixture.Create<UpsertWordRequest>();
+
+        var ex = await Should.ThrowAsync<BadHttpRequestException>(() => CreateRepository().Upsert(request));
+
+        ex.Message.ShouldContain(request.CameFromFileId.ToString());
+    }
+
+    [Test]
     public async Task RefreshView_Should_Execute_RefreshViewSql()
     {
         await CreateRepository().RefreshView();
@@ -258,5 +273,109 @@ public class WordRepositoryQueryTests
         command.Parameters[pn.WordId].Value.ShouldBe(42);
 
         _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryWords.DeleteWordFileLinkSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task GetWordsByFileIdOrderedByWord_Should_ReturnResults_From_Executor()
+    {
+        var expected = _fixture.CreateMany<ViewWordFiles>(2).ToList();
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetWordsByFileIdOrderedByWord(Guid.NewGuid(), 1, "after", true, false);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetWordsByFileIdOrderedByWord_Should_ConfigureFileIdAndSourceMachineIdParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+        var fileId = Guid.NewGuid();
+
+        await CreateRepository().GetWordsByFileIdOrderedByWord(fileId, 7, "after", true, false, 25);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.FileId].Value.ShouldBe(fileId);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(7);
+        command.Parameters[pn.Word].Value.ShouldBe("after");
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(true);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(false);
+        command.Parameters[pn.Limit].Value.ShouldBe(25);
+    }
+
+    [Test]
+    public async Task GetWordsByFileIdOrderedByOrigin_Should_ReturnResults_From_Executor()
+    {
+        var expected = _fixture.CreateMany<ViewWordFiles>(2).ToList();
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetWordsByFileIdOrderedByOrigin(Guid.NewGuid(), 1, WordOrigin.Name, true, false);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetWordsByFileIdOrderedByOrigin_Should_ConfigureFileIdAndSourceMachineIdParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+        var fileId = Guid.NewGuid();
+
+        await CreateRepository().GetWordsByFileIdOrderedByOrigin(fileId, 7, WordOrigin.Keyword, true, false, 25);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.FileId].Value.ShouldBe(fileId);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(7);
+        command.Parameters[pn.Origin].Value.ShouldBe(WordOrigin.Keyword);
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(true);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(false);
+        command.Parameters[pn.Limit].Value.ShouldBe(25);
+    }
+
+    [Test]
+    public async Task GetWordsByFilePathOrderedByWord_Should_ReturnResults_From_Executor()
+    {
+        var expected = _fixture.CreateMany<ViewWordFiles>(2).ToList();
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFilePathOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetWordsByFilePathOrderedByWord("/path", 1, "after", true, false);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetWordsByFilePathOrderedByWord_Should_ConfigureFilePathAndSourceMachineIdParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFilePathOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetWordsByFilePathOrderedByWord("/path/to/file.txt", 7, "after", true, false, 25);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.OriginalFilePath].Value.ShouldBe("/path/to/file.txt");
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(7);
+        command.Parameters[pn.Word].Value.ShouldBe("after");
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(true);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(false);
+        command.Parameters[pn.Limit].Value.ShouldBe(25);
     }
 }

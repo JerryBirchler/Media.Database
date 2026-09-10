@@ -113,7 +113,7 @@ public class QueryFilesTests
         var sql = QueryFiles.DeleteSql;
         sql.ShouldContain("DELETE FROM");
         sql.ShouldContain("WHERE");
-        sql.ShouldContain("RETURNING 1");
+        sql.ShouldContain("RETURNING *");
     }
 
     [Test]

@@ -165,14 +165,14 @@ public static class QueryFiles
             AND {csf.LastFileUpdate} = {pn.LastFileUpdate}
         LIMIT 1;";
 
-    /// <summary>SQL to delete a file by id and refresh the current-files view.</summary>
+    /// <summary>SQL to delete a file by id, returning the deleted row, and refresh the current-files view.</summary>
     public static string DeleteSql => $@"
         WITH deleted_rows AS (
-            DELETE FROM {ts.Files} 
+            DELETE FROM {ts.Files}
             WHERE {csf.Id} = {pn.Id}
-            RETURNING 1
+            RETURNING *
         )
-        SELECT EXISTS(SELECT 1 FROM deleted_rows) AS Any;
+        SELECT * FROM deleted_rows;
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
         ;";
 

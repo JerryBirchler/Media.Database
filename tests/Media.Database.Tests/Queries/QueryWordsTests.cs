@@ -128,6 +128,51 @@ public class QueryWordsTests
     }
 
     [Test]
+    public void SelectFilePages_Should_Not_Select_SourceMachineId()
+    {
+        // The general (unscoped) keyset queries never filter on SourceMachineId, so they
+        // shouldn't depend on the view having that column -- only SelectFilePagesWithSourceMachineId
+        // (used by the fileId/filePath-scoped word lookups) needs it.
+        var sql = QueryWords.SelectFilePages;
+        sql.ShouldNotContain("SourceMachineId");
+    }
+
+    [Test]
+    public void SelectFilePagesWithSourceMachineId_Should_Select_SourceMachineId_And_Everything_Else()
+    {
+        var sql = QueryWords.SelectFilePagesWithSourceMachineId;
+        sql.ShouldContain("SourceMachineId");
+        sql.ShouldContain("Origin", Case.Insensitive);
+        sql.ShouldContain("WordId", Case.Insensitive);
+        sql.ShouldContain("Word", Case.Insensitive);
+        sql.ShouldContain("FileId", Case.Insensitive);
+        sql.ShouldContain("IsCurrent", Case.Insensitive);
+        sql.ShouldContain("IsProperName", Case.Insensitive);
+    }
+
+    [TestCase(nameof(QueryWords.GetFilePagesByWordOriginSql))]
+    [TestCase(nameof(QueryWords.GetFilePagesByWordFileIdSql))]
+    [TestCase(nameof(QueryWords.GetFilePagesByFileIdWordSql))]
+    [TestCase(nameof(QueryWords.GetFilePagesByFileIdOriginSql))]
+    [TestCase(nameof(QueryWords.GetFilePagesByFilePathOriginSql))]
+    [TestCase(nameof(QueryWords.GetFilePagesByFilePathWordSql))]
+    [TestCase(nameof(QueryWords.GetFilePagesByWordFilePathSql))]
+    public void GeneralFilePagesQueries_Should_Not_Select_SourceMachineId(string propertyName)
+    {
+        var sql = (string)typeof(QueryWords).GetProperty(propertyName)!.GetValue(null)!;
+        sql.ShouldNotContain("SourceMachineId");
+    }
+
+    [TestCase(nameof(QueryWords.GetWordsByFileIdOrderedByWordSql))]
+    [TestCase(nameof(QueryWords.GetWordsByFileIdOrderedByOriginSql))]
+    [TestCase(nameof(QueryWords.GetWordsByFilePathOrderedByWordSql))]
+    public void ScopedWordLookupQueries_Should_Filter_By_SourceMachineId(string propertyName)
+    {
+        var sql = (string)typeof(QueryWords).GetProperty(propertyName)!.GetValue(null)!;
+        sql.ShouldContain("SourceMachineId");
+    }
+
+    [Test]
     public void GetFilePagesByWordOriginSql_Should_OrderBy_IsCurrent_Word_Origin_FileId()
     {
         var sql = QueryWords.GetFilePagesByWordOriginSql;

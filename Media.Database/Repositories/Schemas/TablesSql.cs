@@ -88,6 +88,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string IsCurrent = y();
         public static readonly string IsProperName = y();
         public static readonly string OriginalFilePath = y();
+        public static readonly string SourceMachineId = y();
     }
 
     /// <summary>

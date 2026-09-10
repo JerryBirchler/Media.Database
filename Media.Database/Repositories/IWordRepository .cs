@@ -102,6 +102,48 @@ public interface IWordRepository
     Task<List<ViewWordFiles>> GetFilePagesByWordFilePath(string? word, WordOrigin? origin, Guid? fileId, string? filePath, bool? isCurrent, bool? isProperName, int? limit = 10);
 
     /// <summary>
+    /// Retrieves a keyset-paged page of a single file's words, ordered by word. Equality-scoped by
+    /// both <paramref name="fileId"/> and <paramref name="sourceMachineId"/> -- FileId alone would
+    /// be enough to identify the file (it's globally unique), but SourceMachineId proves the file
+    /// actually belongs to the caller before anything about it is returned.
+    /// </summary>
+    /// <param name="fileId">The file whose words to retrieve.</param>
+    /// <param name="sourceMachineId">The authenticated device that must own <paramref name="fileId"/>.</param>
+    /// <param name="afterWord">The keyset cursor: the last word seen on the previous page, or null for the first page.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching word/file rows.</returns>
+    Task<List<ViewWordFiles>> GetWordsByFileIdOrderedByWord(Guid fileId, int sourceMachineId, string? afterWord, bool? isCurrent, bool? isProperName, int? limit = 10);
+
+    /// <summary>
+    /// Same scoping as <see cref="GetWordsByFileIdOrderedByWord"/>, ordered by origin instead.
+    /// </summary>
+    /// <param name="fileId">The file whose words to retrieve.</param>
+    /// <param name="sourceMachineId">The authenticated device that must own <paramref name="fileId"/>.</param>
+    /// <param name="afterOrigin">The keyset cursor: the last origin seen on the previous page, or null for the first page.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching word/file rows.</returns>
+    Task<List<ViewWordFiles>> GetWordsByFileIdOrderedByOrigin(Guid fileId, int sourceMachineId, WordOrigin? afterOrigin, bool? isCurrent, bool? isProperName, int? limit = 10);
+
+    /// <summary>
+    /// Retrieves a keyset-paged page of a single file path's words, ordered by word.
+    /// Equality-scoped by both <paramref name="filePath"/> and <paramref name="sourceMachineId"/>
+    /// -- unlike a file id, a path is not globally unique across devices, so SourceMachineId is
+    /// load-bearing for correctness here, not just authorization.
+    /// </summary>
+    /// <param name="filePath">The file path whose words to retrieve.</param>
+    /// <param name="sourceMachineId">The authenticated device that must own <paramref name="filePath"/>.</param>
+    /// <param name="afterWord">The keyset cursor: the last word seen on the previous page, or null for the first page.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching word/file rows.</returns>
+    Task<List<ViewWordFiles>> GetWordsByFilePathOrderedByWord(string filePath, int sourceMachineId, string? afterWord, bool? isCurrent, bool? isProperName, int? limit = 10);
+
+    /// <summary>
     /// Inserts a new word, or updates it if it already exists, and links it to the originating file.
     /// </summary>
     /// <param name="request">The upsert request describing the word.</param>

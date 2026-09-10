@@ -48,4 +48,14 @@ public class ViewWordFiles
     /// </summary>
     [JsonPropertyName("isProperName")]
     public bool? IsProperName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the device that owns the file this word was found in. Server-side only --
+    /// used to validate that a fileId/filePath-scoped lookup actually belongs to the requesting
+    /// device before returning anything about it. Never serialized: raw internal device
+    /// identifiers were deliberately stripped from API responses elsewhere in this codebase for
+    /// the same reason.
+    /// </summary>
+    [JsonIgnore]
+    public int SourceMachineId { get; set; }
 }

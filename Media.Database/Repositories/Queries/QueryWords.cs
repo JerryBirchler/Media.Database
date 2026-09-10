@@ -36,16 +36,36 @@ public static class QueryWords
         LIMIT 1
         ;";
 
-    /// <summary>Shared SELECT clause for the word/file materialized view, reused by the keyset page queries below.</summary>
-    public static string SelectFilePages => $@"
-        SELECT
+    /// <summary>Columns shared by every SELECT against the word/file materialized view.</summary>
+    private static string SelectFilePagesColumns => $@"
             {csvwf.Origin},
             {csvwf.WordId},
             {csvwf.Word},
             {csvwf.FileId},
             {csvwf.IsCurrent},
             {csvwf.IsProperName},
-            {csvwf.OriginalFilePath}
+            {csvwf.OriginalFilePath}";
+
+    /// <summary>
+    /// Shared SELECT clause for the word/file materialized view, reused by the general (unscoped,
+    /// cross-device) keyset page queries below. Deliberately does not select SourceMachineId --
+    /// those queries never filter on it, so there's no reason to make them depend on the view
+    /// having that column. Only <see cref="SelectFilePagesWithSourceMachineId"/> needs it.
+    /// </summary>
+    public static string SelectFilePages => $@"
+        SELECT
+            {SelectFilePagesColumns}
+        FROM
+            {ts.View_WordFiles}";
+
+    /// <summary>
+    /// Same as <see cref="SelectFilePages"/>, plus SourceMachineId -- used only by the fileId/
+    /// filePath-scoped word lookups, which filter on it (see their own doc comments for why).
+    /// </summary>
+    public static string SelectFilePagesWithSourceMachineId => $@"
+        SELECT
+            {SelectFilePagesColumns},
+            {csvwf.SourceMachineId}
         FROM
             {ts.View_WordFiles}";
 
@@ -193,6 +213,66 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>
+    /// SQL to select a keyset-paged page of a single file's words, ordered by word. FileId is an
+    /// equality filter here, not a seek bound -- correct because FileId is already a globally
+    /// unique identifier, so no cross-device ambiguity is possible. SourceMachineId is still
+    /// required alongside it: it's the one equality this scheme allows, since it comes from the
+    /// caller's own X-API-KEY, not client input -- proving the file actually belongs to the
+    /// caller before returning anything about it. Uses IX_WordFiles_FileId_Word.
+    /// </summary>
+    public static string GetWordsByFileIdOrderedByWordSql => $@"
+        {SelectFilePagesWithSourceMachineId}
+        WHERE
+            {csvwf.FileId} = {pn.FileId}
+            AND {csvwf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csvwf.Word} > COALESCE({pn.Word}, '')
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.Word} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>
+    /// Same scoping as <see cref="GetWordsByFileIdOrderedByWordSql"/>, ordered by origin instead.
+    /// Uses IX_WordFiles_FileId_Origin.
+    /// </summary>
+    public static string GetWordsByFileIdOrderedByOriginSql => $@"
+        {SelectFilePagesWithSourceMachineId}
+        WHERE
+            {csvwf.FileId} = {pn.FileId}
+            AND {csvwf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csvwf.Origin} > COALESCE({pn.Origin}, -1)
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.Origin} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>
+    /// SQL to select a keyset-paged page of a single file path's words, ordered by word.
+    /// OriginalFilePath is an equality filter here, not a seek bound -- unlike FileId, a path is
+    /// NOT globally unique (different devices can have a file at the same relative path), so
+    /// SourceMachineId here is load-bearing for correctness, not just authorization: without it,
+    /// this would silently mix another device's same-path file into the results. Uses
+    /// IX_WordFiles_FilePath_Word (OriginalFilePath already leads that index, and a real path is
+    /// selective enough on its own that a SourceMachineId-leading index isn't needed for this).
+    /// </summary>
+    public static string GetWordsByFilePathOrderedByWordSql => $@"
+        {SelectFilePagesWithSourceMachineId}
+        WHERE
+            {csvwf.OriginalFilePath} = {pn.OriginalFilePath}
+            AND {csvwf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csvwf.Word} > COALESCE({pn.Word}, '')
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.Word} ASC
+        LIMIT {pn.Limit}
+        ;";
+
     /// <summary>SQL to insert a word (or update it on conflict) and link it to the originating file.</summary>
     public static string UpsertWordSql => $@"
         WITH inserted_rows AS (            
@@ -311,7 +391,13 @@ public static class QueryWords
         return wordFiles;
     }
 
-    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.ViewWordFiles"/>.</summary>
+    /// <summary>
+    /// Maps the current row of <paramref name="reader"/> to a <see cref="Models.ViewWordFiles"/>,
+    /// for a row selected via <see cref="SelectFilePages"/> -- leaves <see cref="Models.ViewWordFiles.SourceMachineId"/>
+    /// at its default, since that column isn't in the result set. Use
+    /// <see cref="ToWordFileWithSourceMachineId"/> instead for a row selected via
+    /// <see cref="SelectFilePagesWithSourceMachineId"/>.
+    /// </summary>
     public static ViewWordFiles ToWordFile(this NpgsqlDataReader reader)
     {
         return new Models.ViewWordFiles
@@ -324,6 +410,17 @@ public static class QueryWords
             IsProperName = reader.GetFieldValue<bool?>(os.IsProperName),
             OriginalFilePath = reader.GetString(os.OriginalFilePath)
         };
+    }
+
+    /// <summary>
+    /// Same as <see cref="ToWordFile"/>, plus SourceMachineId -- for a row selected via
+    /// <see cref="SelectFilePagesWithSourceMachineId"/>.
+    /// </summary>
+    public static ViewWordFiles ToWordFileWithSourceMachineId(this NpgsqlDataReader reader)
+    {
+        var wordFile = reader.ToWordFile();
+        wordFile.SourceMachineId = reader.GetInt32(os.SourceMachineId);
+        return wordFile;
     }
 
     /// <summary>Maps the current row of <paramref name="reader"/> to a word/file link (a word's id and text, and the origin it's linked to a file under).</summary>
