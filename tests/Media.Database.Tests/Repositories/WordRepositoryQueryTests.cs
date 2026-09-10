@@ -191,7 +191,7 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
-    public void Upsert_Should_LogAndRethrow_PostgresException_When_Not_A_ForeignKeyViolation()
+    public async Task Upsert_Should_LogAndRethrow_PostgresException_When_Not_A_ForeignKeyViolation()
     {
         var uniqueViolation = new PostgresException("duplicate key value violates unique constraint", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation);
         _sqlExecutorMock
@@ -199,7 +199,7 @@ public class WordRepositoryQueryTests
             .ThrowsAsync(uniqueViolation);
         var request = _fixture.Create<UpsertWordRequest>();
 
-        Should.ThrowAsync<PostgresException>(() => CreateRepository().Upsert(request));
+        await Should.ThrowAsync<PostgresException>(() => CreateRepository().Upsert(request));
     }
 
     [Test]
@@ -323,6 +323,24 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
+    public async Task GetWordsByFileIdOrderedByWord_Should_ConfigureNullOptionalParameters_As_DBNull()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetWordsByFileIdOrderedByWord(Guid.NewGuid(), 7, afterWord: null, isCurrent: null, isProperName: null);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Word].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
     public void GetWordsByFileIdOrderedByWord_Should_LogAndRethrow_When_ExecutorThrows()
     {
         _sqlExecutorMock
@@ -368,6 +386,24 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
+    public async Task GetWordsByFileIdOrderedByOrigin_Should_ConfigureNullOptionalParameters_As_DBNull()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFileIdOrderedByOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetWordsByFileIdOrderedByOrigin(Guid.NewGuid(), 7, afterOrigin: null, isCurrent: null, isProperName: null);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Origin].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
     public void GetWordsByFileIdOrderedByOrigin_Should_LogAndRethrow_When_ExecutorThrows()
     {
         _sqlExecutorMock
@@ -409,6 +445,24 @@ public class WordRepositoryQueryTests
         command.Parameters[pn.IsCurrent].Value.ShouldBe(true);
         command.Parameters[pn.IsProperName].Value.ShouldBe(false);
         command.Parameters[pn.Limit].Value.ShouldBe(25);
+    }
+
+    [Test]
+    public async Task GetWordsByFilePathOrderedByWord_Should_ConfigureNullOptionalParameters_As_DBNull()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetWordsByFilePathOrderedByWordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, ViewWordFiles>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetWordsByFilePathOrderedByWord("/path", 7, afterWord: null, isCurrent: null, isProperName: null);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Word].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsCurrent].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.IsProperName].Value.ShouldBe(DBNull.Value);
     }
 
     [Test]
