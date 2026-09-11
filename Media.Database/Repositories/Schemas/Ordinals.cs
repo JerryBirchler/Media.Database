@@ -35,6 +35,8 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
     public static readonly string OtpWindowStart = x();
+    public static readonly string PersonId = x();
+    public static readonly string PersonUuid = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();

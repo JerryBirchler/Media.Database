@@ -29,6 +29,8 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string OriginalFilePath = x();
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
+    public static readonly string PersonId = x();
+    public static readonly string PersonUuid = x();
     public static readonly string SourceMachineId = x();
     public static readonly string SourceMachineName = x();
     public static readonly string SourceMachineUuid = x();

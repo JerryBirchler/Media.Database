@@ -9,6 +9,7 @@ namespace Media.Database.Repositories.Schemas;
 public class TablesSql : BaseSchema<TablesSql, Tables>
 {
     public static readonly string Files = x();
+    public static readonly string Persons = x();
     public static readonly string Registrations = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();
@@ -26,6 +27,19 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
         public static readonly string Metadata = y();
+    }
+
+    public static class PersonsColumns
+    {
+        public static readonly string PersonId = y();
+        public static readonly string PersonUuid = y();
+        public static readonly string EmailAddress = y();
+        public static readonly string CellPhoneNumber = y();
+        public static readonly string FirstName = y();
+        public static readonly string LastName = y();
+        public static readonly string IsActive = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
     }
 
     public static class RegistrationsColumns
