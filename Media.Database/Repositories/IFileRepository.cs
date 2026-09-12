@@ -34,6 +34,27 @@ public interface IFileRepository
     Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
 
     /// <summary>
+    /// Retrieves just the ordering key (Id, OriginalFilePath) for a page of current files, from
+    /// PostgreSQL only -- cheap enough to fetch a wide look-ahead range for cursor computation
+    /// without hydrating every row's full content.
+    /// </summary>
+    /// <param name="sourceMachineId">The source machine identifier.</param>
+    /// <param name="originalFilePath">The original file path, or null to match any path.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching rows' identifiers, in the same order the full page would be returned.</returns>
+    Task<List<(Guid Id, string OriginalFilePath)>> GetCurrentPageIdentifiersBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
+
+    /// <summary>
+    /// Hydrates full file records for a set of ids, preferring Scylla's read-optimized copy and
+    /// falling back to PostgreSQL per-id when Scylla has no row yet (e.g. CDC hasn't caught up) or
+    /// is unreachable. Lookups run with bounded parallelism rather than one at a time.
+    /// </summary>
+    /// <param name="ids">The file ids to hydrate.</param>
+    /// <param name="maxDegreeOfParallelism">The maximum number of concurrent lookups.</param>
+    /// <returns>The hydrated files, in no particular order -- callers that need a specific order must reorder by id themselves.</returns>
+    Task<List<Files>> GetByIds(IEnumerable<Guid> ids, int maxDegreeOfParallelism);
+
+    /// <summary>
     /// Retrieves a page of historical (superseded) files for the given source machine and path.
     /// </summary>
     /// <param name="sourceMachineId">The source machine identifier.</param>
@@ -72,4 +93,11 @@ public interface IFileRepository
     /// <param name="originalFilePath">The original file path.</param>
     /// <returns>The deleted files.</returns>
     Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath);
+
+    /// <summary>
+    /// Refreshes the current-files materialized view. Writes (Upsert/Update/Delete/DeleteHistoryBySourceMachineId)
+    /// no longer refresh it inline -- this is called on an interval instead, only when something
+    /// actually changed (see Media.Worker's FilesViewRefreshService/IFilesViewDirtyTracker).
+    /// </summary>
+    Task RefreshView();
 }

@@ -105,6 +105,28 @@ public static class QueryFiles
         LIMIT @Limit
         ;";
 
+    /// <summary>
+    /// SQL to select just the ordering key (Id, OriginalFilePath) for a keyset-paged page of
+    /// current files -- identical WHERE/ORDER/LIMIT to <see cref="GetCurrentPagesBySourceMachineIdSql"/>,
+    /// but without the full row payload. Used to compute page identity/cursors across a wide
+    /// look-ahead range cheaply, before deciding which rows in that range actually need full
+    /// hydration (only the page actually being rendered, not every look-ahead row -- see
+    /// FilesPaginationService).
+    /// </summary>
+    public static string GetCurrentPageIdentifiersBySourceMachineIdSql => $@"
+        SELECT
+            {csf.Id},
+            {csf.OriginalFilePath}
+        FROM
+            {ts.View_Current_Files}
+        WHERE
+            {csf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csf.OriginalFilePath} > COALESCE({pn.OriginalFilePath}, '')
+        ORDER BY
+            {csf.OriginalFilePath} ASC
+        LIMIT @Limit
+        ;";
+
     /// <summary>SQL to mark all prior current rows for a source machine and path as no longer current, returning their identifiers.</summary>
     public static string GetPreviousIdsSql => $@"
         UPDATE {ts.Files} SET
@@ -117,31 +139,38 @@ public static class QueryFiles
             {csf.Id}
         ;";
 
-    /// <summary>SQL to insert a new file row (or update it on conflict) and refresh the current-files view.</summary>
+    /// <summary>
+    /// SQL to insert a new file row (or update it on conflict). Does not refresh
+    /// View_Current_Files -- that happens asynchronously on an interval, driven by CDC-marked
+    /// dirty state (see Media.Worker's FilesViewRefreshService), rather than synchronously as part
+    /// of every write.
+    /// </summary>
     public static string UpsertSql => $@"
-        INSERT INTO {ts.Files} 
+        INSERT INTO {ts.Files}
         (
-            {csf.SourceMachineId}, 
-            {csf.OriginalFilePath}, 
-            {csf.LastFileUpdate}, 
+            {csf.SourceMachineId},
+            {csf.OriginalFilePath},
+            {csf.LastFileUpdate},
             {csf.Metadata}
         )
-        VALUES 
+        VALUES
         (
-            {pn.SourceMachineId}, 
-            {pn.OriginalFilePath}, 
-            {pn.LastFileUpdate}, 
+            {pn.SourceMachineId},
+            {pn.OriginalFilePath},
+            {pn.LastFileUpdate},
             {pn.Metadata}
         )
         ON CONFLICT ({csf.SourceMachineId}, {csf.OriginalFilePath}, {csf.LastFileUpdate})
-        DO UPDATE SET 
+        DO UPDATE SET
             {csf.Metadata} = {pn.Metadata},
             {csf.UpdatedOn} = {pn.UpdatedOn}
-        RETURNING *;
-        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        RETURNING *
         ;";
 
-    /// <summary>SQL to update a file's metadata and timestamps by id, and refresh the current-files view.</summary>
+    /// <summary>
+    /// SQL to update a file's metadata and timestamps by id. Does not refresh View_Current_Files
+    /// -- see <see cref="UpsertSql"/>.
+    /// </summary>
     public static string UpdateSql => $@"
         UPDATE {ts.Files} SET
             {csf.UpdatedOn} = {pn.UpdatedOn},
@@ -149,8 +178,7 @@ public static class QueryFiles
             {csf.Metadata} = {pn.Metadata}
         WHERE
             {csf.Id} = {pn.Id}
-        RETURNING *;
-        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        RETURNING *
         ;";
 
     /// <summary>SQL to check whether a file with the given source machine, path, and last-update timestamp already exists.</summary>
@@ -165,31 +193,39 @@ public static class QueryFiles
             AND {csf.LastFileUpdate} = {pn.LastFileUpdate}
         LIMIT 1;";
 
-    /// <summary>SQL to delete a file by id, returning the deleted row, and refresh the current-files view.</summary>
+    /// <summary>
+    /// SQL to delete a file by id, returning the deleted row. Does not refresh
+    /// View_Current_Files -- see <see cref="UpsertSql"/>.
+    /// </summary>
     public static string DeleteSql => $@"
         WITH deleted_rows AS (
             DELETE FROM {ts.Files}
             WHERE {csf.Id} = {pn.Id}
             RETURNING *
         )
-        SELECT * FROM deleted_rows;
-        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        SELECT * FROM deleted_rows
         ;";
 
-    /// <summary>SQL to delete all files for a source machine and path, returning the deleted rows, and refresh the current-files view.</summary>
+    /// <summary>
+    /// SQL to delete all files for a source machine and path, returning the deleted rows. Does not
+    /// refresh View_Current_Files -- see <see cref="UpsertSql"/>.
+    /// </summary>
     public static string DeleteHistorySql => $@"
-        WITH deleted_rows AS (            
-            DELETE FROM {ts.Files} 
-            WHERE 
+        WITH deleted_rows AS (
+            DELETE FROM {ts.Files}
+            WHERE
                 {csf.SourceMachineId} = {pn.SourceMachineId}
                 AND {csf.OriginalFilePath} = {pn.OriginalFilePath}
             RETURNING *
         )
-        SELECT * 
+        SELECT *
         FROM deleted_rows
-        ORDER BY {csf.InsertedOn} DESC;
-        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files}
+        ORDER BY {csf.InsertedOn} DESC
         ;";
+
+    /// <summary>SQL to refresh the current-files materialized view.</summary>
+    public static string RefreshViewSql => $@"
+        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files};";
     #endregion
 
     #region CQL Queries
@@ -303,6 +339,23 @@ public static class QueryFiles
     public static Guid ToId(this NpgsqlDataReader reader)
     {
         return reader.GetGuid(os.Id);
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to its Id and OriginalFilePath only.</summary>
+    public static (Guid Id, string OriginalFilePath) ToFileIdentifier(this NpgsqlDataReader reader)
+    {
+        return (Id: reader.GetGuid(os.Id), OriginalFilePath: reader.GetString(os.OriginalFilePath));
+    }
+
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to its Id and OriginalFilePath.</summary>
+    public static async Task<List<(Guid Id, string OriginalFilePath)>> ToFileIdentifiers(this NpgsqlDataReader reader)
+    {
+        List<(Guid Id, string OriginalFilePath)> identifiers = [];
+
+        while (await reader.ReadAsync())
+            identifiers.Add(reader.ToFileIdentifier());
+
+        return identifiers;
     }
 
     /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Files"/>.</summary>

@@ -89,12 +89,26 @@ public class QueryFilesTests
     }
 
     [Test]
+    public void UpsertSql_Should_Not_RefreshView()
+    {
+        // View_Current_Files refreshes on an interval (Media.Worker's FilesViewRefreshService),
+        // not synchronously as part of every write.
+        QueryFiles.UpsertSql.ShouldNotContain("REFRESH MATERIALIZED VIEW");
+    }
+
+    [Test]
     public void UpdateSql_Should_Contain_Update_Where_Returning()
     {
         var sql = QueryFiles.UpdateSql;
         sql.ShouldContain("UPDATE");
         sql.ShouldContain("WHERE");
         sql.ShouldContain("RETURNING *");
+    }
+
+    [Test]
+    public void UpdateSql_Should_Not_RefreshView()
+    {
+        QueryFiles.UpdateSql.ShouldNotContain("REFRESH MATERIALIZED VIEW");
     }
 
     [Test]
@@ -117,6 +131,12 @@ public class QueryFilesTests
     }
 
     [Test]
+    public void DeleteSql_Should_Not_RefreshView()
+    {
+        QueryFiles.DeleteSql.ShouldNotContain("REFRESH MATERIALIZED VIEW");
+    }
+
+    [Test]
     public void DeleteHistorySql_Should_Contain_Delete_Where_Returning_OrderBy()
     {
         var sql = QueryFiles.DeleteHistorySql;
@@ -124,6 +144,18 @@ public class QueryFilesTests
         sql.ShouldContain("WHERE");
         sql.ShouldContain("RETURNING *");
         sql.ShouldContain("ORDER BY");
+    }
+
+    [Test]
+    public void DeleteHistorySql_Should_Not_RefreshView()
+    {
+        QueryFiles.DeleteHistorySql.ShouldNotContain("REFRESH MATERIALIZED VIEW");
+    }
+
+    [Test]
+    public void RefreshViewSql_Should_Contain_RefreshMaterializedViewConcurrently()
+    {
+        QueryFiles.RefreshViewSql.ShouldContain("REFRESH MATERIALIZED VIEW CONCURRENTLY");
     }
 
     [Test]

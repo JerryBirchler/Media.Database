@@ -1,3 +1,4 @@
+using Media.Common.Providers;
 using Media.Common.Transactions;
 using Media.Database.Repositories;
 using Moq;
@@ -14,6 +15,8 @@ public class FileRepositoryTests
     {
         var repo = new FileRepository(
             Mock.Of<ISqlQueryExecutor>(),
+            Mock.Of<ICqlQueryExecutor>(),
+            Mock.Of<IScyllaSessionProvider>(),
             () => Mock.Of<IUnitOfWork>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<FileRepository>>(),
             new Serilog.Core.LoggingLevelSwitch());

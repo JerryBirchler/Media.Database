@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Providers;
 using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories;
@@ -14,6 +15,7 @@ using Shouldly;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using ParameterNames = Media.Database.Repositories.Schemas.ParameterNames;
@@ -21,15 +23,19 @@ using ParameterNames = Media.Database.Repositories.Schemas.ParameterNames;
 namespace Media.Database.Tests.Repositories;
 
 /// <summary>
-/// Covers FileRepository's public API against a mocked ISqlQueryExecutor. This is the payoff of
-/// routing all Postgres access through ISqlQueryExecutor instead of opening a real NpgsqlConnection:
-/// every branch (found/not-found, commit/rollback) is now testable. Scylla sync no longer happens
-/// here at all -- it is Media.Worker's CDC pipeline's job, reading Postgres's write-ahead log.
+/// Covers FileRepository's public API against a mocked ISqlQueryExecutor (and, for the Scylla-first
+/// read path, a mocked ICqlQueryExecutor). This is the payoff of routing all Postgres/Scylla access
+/// through executor interfaces instead of opening real connections: every branch (found/not-found,
+/// commit/rollback, Scylla-hit/miss/failure) is now testable. Scylla *writes* still happen entirely
+/// via Media.Worker's CDC pipeline, reading Postgres's write-ahead log -- this repository never
+/// writes to Scylla, only reads from it as an optimization with a Postgres fallback.
 /// </summary>
 [TestFixture]
 public class FileRepositoryQueryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
+    private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
     private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
 
@@ -38,6 +44,8 @@ public class FileRepositoryQueryTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
+        _scyllaProviderMock = new Mock<IScyllaSessionProvider>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
@@ -45,6 +53,8 @@ public class FileRepositoryQueryTests
     {
         return new FileRepository(
             _sqlExecutorMock.Object,
+            _cqlExecutorMock.Object,
+            _scyllaProviderMock.Object,
             () => _unitOfWorkMock.Object,
             Mock.Of<ILogger<FileRepository>>(),
             new LoggingLevelSwitch());
@@ -116,6 +126,141 @@ public class FileRepositoryQueryTests
         var result = await CreateRepository().GetCurrentPagesBySourceMachineId(1, "path");
 
         result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetCurrentPageIdentifiersBySourceMachineId_Should_ReturnIdentifiers_From_Executor()
+    {
+        var expected = new List<(Guid Id, string OriginalFilePath)> { (Id: Guid.NewGuid(), OriginalFilePath: "path") };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryFiles.GetCurrentPageIdentifiersBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (Guid Id, string OriginalFilePath)>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetCurrentPageIdentifiersBySourceMachineId(1, "path");
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetByIds_Should_PreferScylla_When_RowFound()
+    {
+        var id = Guid.NewGuid();
+        var scyllaFile = new Files { Id = id, OriginalFilePath = "from-scylla" };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()))
+            .ReturnsAsync(scyllaFile);
+
+        var result = await CreateRepository().GetByIds([id], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([scyllaFile]);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIds_Should_FallBackToPostgres_When_ScyllaHasNoRowYet()
+    {
+        var id = Guid.NewGuid();
+        var postgresFile = new Files { Id = id, OriginalFilePath = "from-postgres" };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()))
+            .ReturnsAsync((Files?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync(postgresFile);
+
+        var result = await CreateRepository().GetByIds([id], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresFile]);
+    }
+
+    [Test]
+    public async Task GetByIds_Should_FallBackToPostgres_And_AttemptHeal_When_ScyllaConnectivityExceptionThrown()
+    {
+        var id = Guid.NewGuid();
+        var postgresFile = new Files { Id = id, OriginalFilePath = "from-postgres" };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()))
+            .ThrowsAsync(new Cassandra.NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync(postgresFile);
+        _scyllaProviderMock.Setup(p => p.GetCurrentSessionId()).Returns(Guid.NewGuid());
+
+        var result = await CreateRepository().GetByIds([id], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresFile]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Once);
+    }
+
+    [Test]
+    public async Task GetByIds_Should_FallBackToPostgres_When_ScyllaThrowsNonConnectivityException()
+    {
+        var id = Guid.NewGuid();
+        var postgresFile = new Files { Id = id, OriginalFilePath = "from-postgres" };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync(postgresFile);
+
+        var result = await CreateRepository().GetByIds([id], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresFile]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIds_Should_OmitId_When_NeitherStoreHasIt()
+    {
+        var id = Guid.NewGuid();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()))
+            .ReturnsAsync((Files?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
+            .ReturnsAsync((Files?)null);
+
+        var result = await CreateRepository().GetByIds([id], maxDegreeOfParallelism: 1);
+
+        result.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task GetByIds_Should_HydrateEveryId_When_MultipleIdsRequested()
+    {
+        var ids = _fixture.CreateMany<Guid>(4).ToList();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()))
+            .ReturnsAsync((string _, Action<Dictionary<string, object>> configure, Func<Cassandra.Row, Files> _) =>
+            {
+                var parameters = new Dictionary<string, object>();
+                configure(parameters);
+                var id = (Guid)parameters[ParameterNames.Id.ToUpperInvariant()];
+                return new Files { Id = id, OriginalFilePath = id.ToString() };
+            });
+
+        var result = await CreateRepository().GetByIds(ids, maxDegreeOfParallelism: 2);
+
+        result.Select(f => f.Id).ShouldBe(ids, ignoreOrder: true);
+    }
+
+    [Test]
+    public async Task RefreshView_Should_Execute_RefreshViewSql()
+    {
+        await CreateRepository().RefreshView();
+
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.RefreshViewSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+    }
+
+    [Test]
+    public void RefreshView_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryFiles.RefreshViewSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().RefreshView());
     }
 
     [Test]
