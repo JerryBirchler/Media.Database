@@ -79,7 +79,15 @@ public static class QueryRegistrations
         ;";
 
     /// <summary>
-    /// SQL to select a SourceMachine by its source machine name, device type, email address, cell phone number, first name, and last name.
+    /// SQL to select a SourceMachine by the same identity tuple as
+    /// <c>IX_SourcemachineRegistrations_SourceInformation</c> -- SourceMachineName, DeviceTypeId,
+    /// FirstName, LastName. Email/cell phone are deliberately NOT part of the match: they're
+    /// mutable contact info on an existing device (that unique index only covers the four identity
+    /// columns; email/phone are index-only INCLUDE columns, not part of uniqueness), not part of
+    /// what makes two registrations "the same device". Matching on all six here (as this used to)
+    /// let a device re-registering with a changed email/phone slip past this lookup as "not found",
+    /// then fail the INSERT below with a duplicate-key violation on that same index instead of
+    /// updating the existing row -- see <see cref="RegistrationRepository.AddBySourceInformation"/>.
     /// </summary>
     public static string GetBySourceInformationSql => $@"
         SELECT
@@ -115,8 +123,6 @@ public static class QueryRegistrations
         WHERE
             smr.{cssmr.SourceMachineName} = {pn.SourceMachineName}
             AND smr.{cssmr.DeviceTypeId} = {pn.DeviceTypeId}
-            AND smr.{cssmr.EmailAddress} = {pn.EmailAddress}
-            AND smr.{cssmr.CellPhoneNumber} = {pn.CellPhoneNumber}
             AND smr.{cssmr.FirstName} = {pn.FirstName}
             AND smr.{cssmr.LastName} = {pn.LastName}
         LIMIT 1

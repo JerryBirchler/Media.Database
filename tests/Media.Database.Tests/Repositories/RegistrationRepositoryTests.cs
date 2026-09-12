@@ -208,7 +208,8 @@ public class RegistrationRepositoryTests
     [Test]
     public async Task AddBySourceInformation_Should_ReturnAddedRegistration_When_SourceMachineFound()
     {
-        var sourceMachine = CreateRegistration();
+        var request = _fixture.Create<AddSourceInformationRequest>();
+        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
         var added = _fixture.Create<AddRegistrationResponse>();
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -216,7 +217,6 @@ public class RegistrationRepositoryTests
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync(added);
-        var request = _fixture.Create<AddSourceInformationRequest>();
 
         var result = await CreateRepository().AddBySourceInformation(request);
 
@@ -232,6 +232,9 @@ public class RegistrationRepositoryTests
     [Test]
     public async Task AddBySourceInformation_Should_ConfigureSourceInformationParameters()
     {
+        // GetBySourceInformationSql matches IX_SourcemachineRegistrations_SourceInformation's own
+        // four identity columns only -- email/phone/OS are mutable contact info, not part of what
+        // identifies "the same device" (see that query's doc comment for the bug this guards).
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -245,17 +248,67 @@ public class RegistrationRepositoryTests
         captured!(command.Parameters);
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(request.SourceMachineName);
         command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)request.DeviceTypeId);
-        command.Parameters[pn.EmailAddress].Value.ShouldBe(request.EmailAddress);
-        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(request.CellPhoneNumber);
         command.Parameters[pn.FirstName].Value.ShouldBe(request.FirstName);
         command.Parameters[pn.LastName].Value.ShouldBe(request.LastName);
+        command.Parameters.Contains(pn.EmailAddress).ShouldBeFalse();
+        command.Parameters.Contains(pn.CellPhoneNumber).ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task AddBySourceInformation_Should_UpdateContactInfo_When_ExistingSourceMachineHasDifferentEmail()
+    {
+        var request = _fixture.Create<AddSourceInformationRequest>();
+        var existing = CreateRegistration() with { OperatingSystem = request.OperatingSystem, CellPhoneNumber = request.CellPhoneNumber };
+        var updated = existing with { EmailAddress = request.EmailAddress };
+        var added = _fixture.Create<AddRegistrationResponse>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, _, configure, _) => captured = configure)
+            .ReturnsAsync(updated);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .ReturnsAsync(added);
+
+        var result = await CreateRepository().AddBySourceInformation(request);
+
+        result.ShouldNotBeNull();
+        result.EmailAddress.ShouldBe(request.EmailAddress);
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.SourceMachineUuid].Value.ShouldBe(existing.SourceMachineUuid);
+        command.Parameters[pn.EmailAddress].Value.ShouldBe(request.EmailAddress);
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(request.CellPhoneNumber);
         command.Parameters[pn.OperatingSystem].Value.ShouldBe(request.OperatingSystem);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task AddBySourceInformation_Should_NotCallUpdateSourceInformationSql_When_ContactInfoUnchanged()
+    {
+        var request = _fixture.Create<AddSourceInformationRequest>();
+        var existing = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
+        var added = _fixture.Create<AddRegistrationResponse>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(existing);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
+            .ReturnsAsync(added);
+
+        await CreateRepository().AddBySourceInformation(request);
+
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
     }
 
     [Test]
     public async Task AddBySourceInformation_Should_ConfigureSourceMachineUuidOnSecondQuery()
     {
-        var sourceMachine = CreateRegistration();
+        var request = _fixture.Create<AddSourceInformationRequest>();
+        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -264,7 +317,6 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync((AddRegistrationResponse?)null);
-        var request = _fixture.Create<AddSourceInformationRequest>();
 
         await CreateRepository().AddBySourceInformation(request);
 
@@ -276,14 +328,14 @@ public class RegistrationRepositoryTests
     [Test]
     public async Task AddBySourceInformation_Should_ReturnNull_When_AddRegistrationReturnsNoRow()
     {
-        var sourceMachine = CreateRegistration();
+        var request = _fixture.Create<AddSourceInformationRequest>();
+        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync((AddRegistrationResponse?)null);
-        var request = _fixture.Create<AddSourceInformationRequest>();
 
         var result = await CreateRepository().AddBySourceInformation(request);
 

@@ -57,14 +57,38 @@ public class RegistrationRepository(
                 {
                     p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
                     p.AddWithValue(pn.DeviceTypeId, (int)request.DeviceTypeId);
-                    p.AddWithValue(pn.EmailAddress, request.EmailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
                     p.AddWithValue(pn.FirstName, request.FirstName);
                     p.AddWithValue(pn.LastName, request.LastName);
-                    p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
                 },
                 reader => reader.ToSourceMachineRegistration()
             );
+
+            // An existing device re-registering with a changed email/phone/OS needs its stored
+            // contact info actually updated -- otherwise verification later would keep checking
+            // the OLD email/phone (see VerifyOtpEmailSql/VerifyOtpCellPhoneSql, which match against
+            // this row's own stored values). The fresh Registrations row inserted further down
+            // already resets IsEmailVerified/IsSmsVerified to false regardless, so a changed,
+            // previously-verified channel is naturally re-verified with no extra logic needed here.
+            if (addSourceResponse is not null &&
+                (addSourceResponse.EmailAddress != request.EmailAddress ||
+                 addSourceResponse.CellPhoneNumber != request.CellPhoneNumber ||
+                 addSourceResponse.OperatingSystem != request.OperatingSystem))
+            {
+                var baseline = addSourceResponse;
+                addSourceResponse = await _sqlExecutor.QuerySingleAsync
+                (
+                    uow,
+                    QueryRegistrations.UpdateSourceInformationSql,
+                    p =>
+                    {
+                        p.AddWithValue(pn.SourceMachineUuid, baseline.SourceMachineUuid);
+                        p.AddWithValue(pn.EmailAddress, request.EmailAddress);
+                        p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
+                        p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
+                    },
+                    reader => reader.ToSourceMachineRegistration(baseline)
+                );
+            }
 
             // No existing row matched — this is a genuinely new device. GetBySourceInformationSql
             // is a lookup only; it never creates a row, so a brand-new device must be inserted here.
