@@ -11,6 +11,7 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
 {
     public static readonly string Files = x();
     public static readonly string Registrations = x();
+    public static readonly string WordFiles = x();
 
     public static class FilesColumns
     {
@@ -22,6 +23,19 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
         public static readonly string Metadata = y();
+    }
+
+    public static class WordFilesColumns
+    {
+        public static readonly string WordId = y();
+        public static readonly string FileId = y();
+        public static readonly string Origin = y();
+        public static readonly string Word = y();
+        public static readonly string IsCurrent = y();
+        public static readonly string IsProperName = y();
+        public static readonly string OriginalFilePath = y();
+        public static readonly string SourceMachineId = y();
+        public static readonly string ThumbnailGeneratedOn = y();
     }
 
     public static class RegistrationsColumns

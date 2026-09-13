@@ -45,6 +45,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string SourceMachineName = x();
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
+    public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string UpdatedOn = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();

@@ -58,4 +58,11 @@ public class ViewWordFiles
     /// </summary>
     [JsonIgnore]
     public int SourceMachineId { get; set; }
+
+    /// <summary>
+    /// Gets or sets when a thumbnail was generated for the associated file, or null if none has
+    /// been generated yet.
+    /// </summary>
+    [JsonPropertyName("thumbnailGeneratedOn")]
+    public DateTimeOffset? ThumbnailGeneratedOn { get; set; }
 }

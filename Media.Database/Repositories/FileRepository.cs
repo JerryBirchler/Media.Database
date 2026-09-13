@@ -173,19 +173,30 @@ public class FileRepository(
         return await GetById(id);
     }
 
-    public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5)
+    public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5, int maxDegreeOfParallelism = 5)
     {
         try
         {
-            return await _sqlExecutor.QueryManyAsync(
-                QueryFiles.GetHistoryPagesBySourceMachineIdSql,
+            var ids = await _sqlExecutor.QueryManyAsync(
+                QueryFiles.GetHistoryIdsBySourceMachineIdSql,
                 p =>
                 {
                     p.AddWithValue(pn.SourceMachineId, sourceMachineId);
                     p.AddWithValue(pn.OriginalFilePath, originalFilePath);
                     p.AddWithValue(pn.Limit, limit);
                 },
-                reader => reader.ToFile());
+                reader => reader.ToId());
+
+            if (ids.Count == 0)
+                return [];
+
+            var hydrated = await GetByIds(ids, maxDegreeOfParallelism);
+            var hydratedById = hydrated.ToDictionary(file => file.Id);
+
+            return ids
+                .Where(id => hydratedById.ContainsKey(id))
+                .Select(id => hydratedById[id])
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -335,6 +346,25 @@ public class FileRepository(
         {
             _logger.LogError(ex, "DeleteHistoryBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
                 sourceMachineId, originalFilePath);
+            throw;
+        }
+    }
+
+    public async Task SetThumbnailGeneratedOn(Guid id, DateTimeOffset generatedOn)
+    {
+        try
+        {
+            await _sqlExecutor.ExecuteAsync(
+                QueryFiles.SetThumbnailGeneratedOnSql,
+                p =>
+                {
+                    p.AddWithValue(pn.Id, id);
+                    p.AddWithValue(pn.ThumbnailGeneratedOn, generatedOn);
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetThumbnailGeneratedOn failed for FileId {Id}", id);
             throw;
         }
     }

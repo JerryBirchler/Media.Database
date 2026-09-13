@@ -246,6 +246,36 @@ public class FileRepositoryQueryTests
     }
 
     [Test]
+    public async Task SetThumbnailGeneratedOn_Should_Execute_SetThumbnailGeneratedOnSql()
+    {
+        var id = Guid.NewGuid();
+        var generatedOn = _fixture.Create<DateTimeOffset>();
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryFiles.SetThumbnailGeneratedOnSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>>((_, configure) => captured = configure)
+            .ReturnsAsync(1);
+
+        await CreateRepository().SetThumbnailGeneratedOn(id, generatedOn);
+
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryFiles.SetThumbnailGeneratedOnSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[ParameterNames.Id].Value.ShouldBe(id);
+        command.Parameters[ParameterNames.ThumbnailGeneratedOn].Value.ShouldBe(generatedOn);
+    }
+
+    [Test]
+    public void SetThumbnailGeneratedOn_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryFiles.SetThumbnailGeneratedOnSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetThumbnailGeneratedOn(Guid.NewGuid(), DateTimeOffset.UtcNow));
+    }
+
+    [Test]
     public async Task RefreshView_Should_Execute_RefreshViewSql()
     {
         await CreateRepository().RefreshView();
@@ -264,16 +294,39 @@ public class FileRepositoryQueryTests
     }
 
     [Test]
-    public async Task GetHistoryPagesBySourceMachineId_Should_ReturnFiles_From_Executor()
+    public async Task GetHistoryPagesBySourceMachineId_Should_ReturnFiles_HydratedFromScylla()
     {
-        var expected = _fixture.CreateMany<Files>(2).ToList();
+        var files = _fixture.CreateMany<Files>(2).ToList();
+        var ids = files.Select(f => f.Id).ToList();
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QueryFiles.GetHistoryPagesBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Files>>()))
-            .ReturnsAsync(expected);
+            .Setup(e => e.QueryManyAsync(QueryFiles.GetHistoryIdsBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ReturnsAsync(ids);
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()))
+            .ReturnsAsync((string _, Action<Dictionary<string, object>> configure, Func<Cassandra.Row, Files> _) =>
+            {
+                var parameters = new Dictionary<string, object>();
+                configure(parameters);
+                var id = (Guid)parameters[ParameterNames.Id.ToUpperInvariant()];
+                return files.First(f => f.Id == id);
+            });
 
         var result = await CreateRepository().GetHistoryPagesBySourceMachineId(1, "path");
 
-        result.ShouldBe(expected);
+        result.ShouldBe(files, ignoreOrder: true);
+    }
+
+    [Test]
+    public async Task GetHistoryPagesBySourceMachineId_Should_ReturnEmpty_When_NoIdsFound()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryFiles.GetHistoryIdsBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .ReturnsAsync([]);
+
+        var result = await CreateRepository().GetHistoryPagesBySourceMachineId(1, "path");
+
+        result.ShouldBeEmpty();
+        _cqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryFiles.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Files>>()), Times.Never);
     }
 
     [Test]

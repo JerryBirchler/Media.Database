@@ -56,12 +56,15 @@ public interface IFileRepository
 
     /// <summary>
     /// Retrieves a page of historical (superseded) files for the given source machine and path.
+    /// Identifies the page from PostgreSQL, then hydrates full rows preferring Scylla (with a
+    /// PostgreSQL fallback per row), same split as <see cref="GetByIds"/> is used for elsewhere.
     /// </summary>
     /// <param name="sourceMachineId">The source machine identifier.</param>
     /// <param name="originalFilePath">The original file path.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
+    /// <param name="maxDegreeOfParallelism">The maximum number of concurrent hydration lookups.</param>
     /// <returns>The matching historical files.</returns>
-    Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5);
+    Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5, int maxDegreeOfParallelism = 5);
 
     /// <summary>
     /// Inserts a new file record, or returns the existing one if it already exists unchanged.
@@ -93,6 +96,14 @@ public interface IFileRepository
     /// <param name="originalFilePath">The original file path.</param>
     /// <returns>The deleted files.</returns>
     Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath);
+
+    /// <summary>
+    /// Records that a thumbnail was generated for a file, by id. Called by Media.Worker's
+    /// thumbnail-generation CDC handler once it has actually written a thumbnail to disk.
+    /// </summary>
+    /// <param name="id">The file's unique identifier.</param>
+    /// <param name="generatedOn">When the thumbnail was generated.</param>
+    Task SetThumbnailGeneratedOn(Guid id, DateTimeOffset generatedOn);
 
     /// <summary>
     /// Refreshes the current-files materialized view. Writes (Upsert/Update/Delete/DeleteHistoryBySourceMachineId)

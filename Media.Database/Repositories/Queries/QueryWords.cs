@@ -5,11 +5,13 @@ using Npgsql;
 using csw = Media.Database.Repositories.Schemas.TablesSql.WordsColumns;
 using cswf = Media.Database.Repositories.Schemas.TablesSql.WordFilesColumns;
 using csvwf = Media.Database.Repositories.Schemas.TablesSql.View_WordFilesColumns;
+using ccwf = Media.Database.Repositories.Schemas.TablesCql.WordFilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
+using tc = Media.Database.Repositories.Schemas.TablesCql;
 using Media.Database.Models;
-#pragma warning restore CS8981 
+#pragma warning restore CS8981
 
 namespace Media.Database.Repositories.Queries;
 
@@ -44,7 +46,8 @@ public static class QueryWords
             {csvwf.FileId},
             {csvwf.IsCurrent},
             {csvwf.IsProperName},
-            {csvwf.OriginalFilePath}";
+            {csvwf.OriginalFilePath},
+            {csvwf.ThumbnailGeneratedOn}";
 
     /// <summary>
     /// Shared SELECT clause for the word/file materialized view, reused by the general (unscoped,
@@ -273,6 +276,40 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>
+    /// SQL to select the word/file view row for a single (WordId, FileId) pair, with
+    /// SourceMachineId -- used by the word_files Scylla-sync CDC handler when a
+    /// "cdc.public.WordFiles" event names exactly one pair to refresh.
+    /// </summary>
+    public static string GetViewByWordIdAndFileIdSql => $@"
+        {SelectFilePagesWithSourceMachineId}
+        WHERE
+            {csvwf.WordId} = {pn.WordId}
+            AND {csvwf.FileId} = {pn.FileId}
+        ;";
+
+    /// <summary>
+    /// SQL to select every word/file view row for a given word, with SourceMachineId -- used by
+    /// the word_files Scylla-sync CDC handler when a "cdc.public.Words" event changes a word that
+    /// may be linked to many files.
+    /// </summary>
+    public static string GetViewByWordIdSql => $@"
+        {SelectFilePagesWithSourceMachineId}
+        WHERE
+            {csvwf.WordId} = {pn.WordId}
+        ;";
+
+    /// <summary>
+    /// SQL to select every word/file view row for a given file, with SourceMachineId -- used by
+    /// the word_files Scylla-sync CDC handler when a "cdc.public.Files" event changes a file that
+    /// may be linked to many words.
+    /// </summary>
+    public static string GetViewByFileIdSql => $@"
+        {SelectFilePagesWithSourceMachineId}
+        WHERE
+            {csvwf.FileId} = {pn.FileId}
+        ;";
+
     /// <summary>SQL to insert a word (or update it on conflict) and link it to the originating file.</summary>
     public static string UpsertWordSql => $@"
         WITH inserted_rows AS (            
@@ -352,7 +389,56 @@ public static class QueryWords
           AND {cswf.WordId} = {pn.WordId}
         ;";
 
+    /// <summary>CQL to insert (or overwrite) a word_files row keyed by (WordId, FileId).</summary>
+    public static string UpsertWordFilesCql => $@"
+        INSERT INTO {tc.WordFiles}
+        (
+            {ccwf.WordId},
+            {ccwf.FileId},
+            {ccwf.Origin},
+            {ccwf.Word},
+            {ccwf.IsCurrent},
+            {ccwf.IsProperName},
+            {ccwf.OriginalFilePath},
+            {ccwf.SourceMachineId},
+            {ccwf.ThumbnailGeneratedOn}
+        )
+        VALUES
+        (
+            {pn.WordId},
+            {pn.FileId},
+            {pn.Origin},
+            {pn.Word},
+            {pn.IsCurrent},
+            {pn.IsProperName},
+            {pn.OriginalFilePath},
+            {pn.SourceMachineId},
+            {pn.ThumbnailGeneratedOn}
+        )
+        ;";
+
+    /// <summary>CQL to delete a word_files row by its (WordId, FileId) key.</summary>
+    public static string DeleteWordFilesCql => $@"
+        DELETE FROM {tc.WordFiles} WHERE {ccwf.WordId} = {pn.WordId} AND {ccwf.FileId} = {pn.FileId};";
+
     #endregion
+
+    /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="ViewWordFiles"/>.</summary>
+    public static ViewWordFiles ToWordFile(this Cassandra.Row row)
+    {
+        return new ViewWordFiles
+        {
+            WordId = row.GetValue<int>(ccwf.WordId),
+            FileId = row.GetValue<Guid>(ccwf.FileId),
+            Origin = (WordOrigin)row.GetValue<int>(ccwf.Origin),
+            Word = row.GetValue<string>(ccwf.Word),
+            IsCurrent = row.GetValue<bool?>(ccwf.IsCurrent),
+            IsProperName = row.GetValue<bool?>(ccwf.IsProperName),
+            OriginalFilePath = row.GetValue<string>(ccwf.OriginalFilePath),
+            SourceMachineId = row.GetValue<int>(ccwf.SourceMachineId),
+            ThumbnailGeneratedOn = row.GetValue<DateTimeOffset?>(ccwf.ThumbnailGeneratedOn)
+        };
+    }
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Words"/>.</summary>
     public static async Task<List<Words>> ToWords(this NpgsqlDataReader reader)
@@ -408,7 +494,8 @@ public static class QueryWords
             FileId = reader.GetFieldValue<Guid>(os.FileId),
             IsCurrent = reader.GetFieldValue<bool?>(os.IsCurrent),
             IsProperName = reader.GetFieldValue<bool?>(os.IsProperName),
-            OriginalFilePath = reader.GetString(os.OriginalFilePath)
+            OriginalFilePath = reader.GetString(os.OriginalFilePath),
+            ThumbnailGeneratedOn = reader.GetFieldValue<DateTimeOffset?>(os.ThumbnailGeneratedOn)
         };
     }
 

@@ -27,6 +27,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
         public static readonly string Metadata = y();
+        public static readonly string ThumbnailGeneratedOn = y();
     }
 
     public static class PersonsColumns
@@ -103,6 +104,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string IsProperName = y();
         public static readonly string OriginalFilePath = y();
         public static readonly string SourceMachineId = y();
+        public static readonly string ThumbnailGeneratedOn = y();
     }
 
     /// <summary>

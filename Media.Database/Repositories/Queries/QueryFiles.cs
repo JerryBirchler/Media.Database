@@ -60,6 +60,24 @@ public static class QueryFiles
         LIMIT @Limit
         ;";
 
+    /// <summary>
+    /// SQL to select just the ids of a page of historical (superseded) files for a source machine
+    /// and path, newest first -- cheap enough to identify from PostgreSQL alone before hydrating
+    /// full rows from Scylla (with a PostgreSQL fallback), same split as the current-files path.
+    /// </summary>
+    public static string GetHistoryIdsBySourceMachineIdSql => $@"
+        SELECT
+            {csf.Id}
+        FROM
+            {ts.Files}
+        WHERE
+            {csf.SourceMachineId} = {pn.SourceMachineId}
+            AND {csf.OriginalFilePath} = COALESCE({pn.OriginalFilePath}, '')
+        ORDER BY
+            {csf.InsertedOn} DESC
+        LIMIT @Limit
+        ;";
+
     /// <summary>SQL to select the current file for a source machine and path from the current-files view.</summary>
     public static string GetCurrentBySourceMachineIdSql => $@"
         SELECT 
@@ -221,6 +239,14 @@ public static class QueryFiles
         SELECT *
         FROM deleted_rows
         ORDER BY {csf.InsertedOn} DESC
+        ;";
+
+    /// <summary>SQL to record that a thumbnail was generated for a file.</summary>
+    public static string SetThumbnailGeneratedOnSql => $@"
+        UPDATE {ts.Files} SET
+            {csf.ThumbnailGeneratedOn} = {pn.ThumbnailGeneratedOn}
+        WHERE
+            {csf.Id} = {pn.Id}
         ;";
 
     /// <summary>SQL to refresh the current-files materialized view.</summary>
