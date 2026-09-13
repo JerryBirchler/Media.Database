@@ -9,6 +9,7 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
 {
     public static readonly string CameFromFileId = x();
     public static readonly string CellPhoneNumber = x();
+    public static readonly string CreatedByPersonId = x();
     public static readonly string DeviceTypeId = x();
     public static readonly string EmailAddress = x();
     public static readonly string FileId = x();
@@ -21,14 +22,16 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string IsEmailVerified = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
+    public static readonly string IsSuperAdmin = x();
     public static readonly string LastName = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string Metadata = x();
-    public static readonly string OperatingSystem = x(); 
+    public static readonly string OperatingSystem = x();
     public static readonly string Origin = x();
     public static readonly string OriginalFilePath = x();
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
+    public static readonly string OtpWindowOverrideMinutes = x();
     public static readonly string PersonId = x();
     public static readonly string PersonUuid = x();
     public static readonly string RegistrationId = x();

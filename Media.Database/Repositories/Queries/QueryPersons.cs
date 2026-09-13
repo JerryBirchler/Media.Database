@@ -33,6 +33,11 @@ public static class QueryPersons
             {cp.FirstName},
             {cp.LastName},
             {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
             {cp.InsertedOn},
             {cp.UpdatedOn}
         FROM {ts.Persons}
@@ -41,6 +46,30 @@ public static class QueryPersons
             AND {cp.LastName} = {pn.LastName}
             AND {cp.EmailAddress} = {pn.EmailAddress}
             AND {cp.CellPhoneNumber} = {pn.CellPhoneNumber}
+        ;";
+
+    /// <summary>
+    /// SQL to select a person by their <c>PersonUuid</c> -- the X-API-KEY lookup used by
+    /// <c>PersonApiKeyAuthenticationHandler</c> to authenticate the Groups/Persons admin API.
+    /// </summary>
+    public static string GetByUuidSql => $@"
+        SELECT
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
+        FROM {ts.Persons}
+        WHERE {cp.PersonUuid} = {pn.PersonUuid}
         ;";
 
     /// <summary>
@@ -66,6 +95,11 @@ public static class QueryPersons
             {cp.FirstName},
             {cp.LastName},
             {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
             {cp.InsertedOn},
             {cp.UpdatedOn}
         ;";
@@ -87,6 +121,11 @@ public static class QueryPersons
             reader.GetString(os.FirstName),
             reader.GetString(os.LastName),
             reader.GetFieldValue<bool>(os.IsActive),
+            reader.GetFieldValue<int?>(os.CreatedByPersonId),
+            reader.GetFieldValue<bool>(os.IsSuperAdmin),
+            reader.GetFieldValue<bool>(os.IsEmailVerified),
+            reader.GetFieldValue<bool>(os.IsSmsVerified),
+            reader.GetFieldValue<int?>(os.OtpWindowOverrideMinutes),
             reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn));
     }

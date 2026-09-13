@@ -53,6 +53,11 @@ public class PersonRepositoryTests
             FirstName = firstName ?? _fixture.Create<string>(),
             LastName = lastName ?? _fixture.Create<string>(),
             IsActive = true,
+            CreatedByPersonId = null,
+            IsSuperAdmin = false,
+            IsEmailVerified = false,
+            IsSmsVerified = false,
+            OtpWindowOverrideMinutes = null,
             InsertedOn = DateTimeOffset.UtcNow,
             UpdatedOn = null
         };
@@ -124,5 +129,57 @@ public class PersonRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().FindOrCreateAsync("Jane", "Doe", "jane@example.com", "555-1234"));
+    }
+
+    [Test]
+    public async Task GetByUuidAsync_Should_ReturnPerson_When_Found()
+    {
+        var expected = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetByUuidAsync(expected.PersonUuid);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetByUuidAsync_Should_ReturnNull_When_NotFound()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync((Person?)null);
+
+        var result = await CreateRepository().GetByUuidAsync(Guid.NewGuid());
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task GetByUuidAsync_Should_ConfigureLookupParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        var personUuid = Guid.NewGuid();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((Person?)null);
+
+        await CreateRepository().GetByUuidAsync(personUuid);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.PersonUuid].Value.ShouldBe(personUuid);
+    }
+
+    [Test]
+    public void GetByUuidAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetByUuidAsync(Guid.NewGuid()));
     }
 }

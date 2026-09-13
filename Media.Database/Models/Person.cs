@@ -41,6 +41,34 @@ public record Person
     public required bool IsActive { get; init; } = true;
 
     /// <summary>
+    /// Gets the identifier of the person who created this person, or <see langword="null"/> for a
+    /// person auto-created by a device registration ("person zero" -- no human creator).
+    /// </summary>
+    public required int? CreatedByPersonId { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether this person has the seed-only super-admin role. Never
+    /// settable via any API -- only ever set directly in seed data.
+    /// </summary>
+    public required bool IsSuperAdmin { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the person's email address has been OTP-verified.
+    /// </summary>
+    public required bool IsEmailVerified { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the person's cell phone number has been OTP-verified.
+    /// </summary>
+    public required bool IsSmsVerified { get; init; }
+
+    /// <summary>
+    /// Gets the person-specific OTP verification window override, in minutes, or
+    /// <see langword="null"/> to fall back to the global configured window.
+    /// </summary>
+    public required int? OtpWindowOverrideMinutes { get; init; }
+
+    /// <summary>
     /// Gets the timestamp when the person record was inserted.
     /// </summary>
     public required DateTimeOffset InsertedOn { get; init; }

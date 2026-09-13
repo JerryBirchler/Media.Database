@@ -20,6 +20,11 @@ public interface IMapPersonResponse
         string firstName,
         string lastName,
         bool isActive,
+        int? createdByPersonId,
+        bool isSuperAdmin,
+        bool isEmailVerified,
+        bool isSmsVerified,
+        int? otpWindowOverrideMinutes,
         DateTimeOffset insertedOn,
         DateTimeOffset? updatedOn);
 }

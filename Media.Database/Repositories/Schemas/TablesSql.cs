@@ -39,6 +39,11 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string FirstName = y();
         public static readonly string LastName = y();
         public static readonly string IsActive = y();
+        public static readonly string CreatedByPersonId = y();
+        public static readonly string IsSuperAdmin = y();
+        public static readonly string IsEmailVerified = y();
+        public static readonly string IsSmsVerified = y();
+        public static readonly string OtpWindowOverrideMinutes = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }

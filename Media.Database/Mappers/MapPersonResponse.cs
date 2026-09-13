@@ -13,6 +13,11 @@ public class MapPersonResponse : IMapPersonResponse
         string firstName,
         string lastName,
         bool isActive,
+        int? createdByPersonId,
+        bool isSuperAdmin,
+        bool isEmailVerified,
+        bool isSmsVerified,
+        int? otpWindowOverrideMinutes,
         DateTimeOffset insertedOn,
         DateTimeOffset? updatedOn)
     {
@@ -25,6 +30,11 @@ public class MapPersonResponse : IMapPersonResponse
             FirstName = firstName,
             LastName = lastName,
             IsActive = isActive,
+            CreatedByPersonId = createdByPersonId,
+            IsSuperAdmin = isSuperAdmin,
+            IsEmailVerified = isEmailVerified,
+            IsSmsVerified = isSmsVerified,
+            OtpWindowOverrideMinutes = otpWindowOverrideMinutes,
             InsertedOn = insertedOn,
             UpdatedOn = updatedOn
         };

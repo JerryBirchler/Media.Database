@@ -10,4 +10,11 @@ public interface IPersonRepository
     /// <c>IX_Persons_ContactInformation</c> enforces uniqueness on), or creates one if none exists.
     /// </summary>
     Task<Person?> FindOrCreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber);
+
+    /// <summary>
+    /// Finds the person matching <paramref name="personUuid"/>, or <see langword="null"/> if none
+    /// exists. Used by <c>PersonApiKeyAuthenticationHandler</c> to resolve the X-API-KEY header
+    /// for the Groups/Persons admin API.
+    /// </summary>
+    Task<Person?> GetByUuidAsync(Guid personUuid);
 }

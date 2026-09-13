@@ -60,4 +60,22 @@ public class PersonRepository(
             throw;
         }
     }
+
+    public async Task<Person?> GetByUuidAsync(Guid personUuid)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryPersons.GetByUuidSql,
+                p => p.AddWithValue(pn.PersonUuid, personUuid),
+                reader => reader.ToPerson(_personResponseMapper)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetByUuidAsync failed for PersonUuid {PersonUuid}", personUuid);
+            throw;
+        }
+    }
 }
