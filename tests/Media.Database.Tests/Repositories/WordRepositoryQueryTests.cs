@@ -22,13 +22,15 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 namespace Media.Database.Tests.Repositories;
 
 /// <summary>
-/// Covers WordRepository's public API against a mocked ISqlQueryExecutor, mirroring
-/// FileRepositoryQueryTests. WordRepository never touches Scylla.
+/// Covers WordRepository's public API against a mocked ISqlQueryExecutor (and, for the
+/// Scylla-first hydration path, a mocked ICqlQueryExecutor), mirroring FileRepositoryQueryTests.
 /// </summary>
 [TestFixture]
 public class WordRepositoryQueryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
+    private Mock<Media.Common.Providers.IScyllaSessionProvider> _scyllaProviderMock = null!;
     private IFixture _fixture = null!;
 
     [SetUp]
@@ -36,12 +38,113 @@ public class WordRepositoryQueryTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
+        _scyllaProviderMock = new Mock<Media.Common.Providers.IScyllaSessionProvider>();
+        _scyllaProviderMock.Setup(p => p.MaxBatchSize).Returns(100);
     }
 
     private WordRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
+        _cqlExecutorMock.Object,
+        _scyllaProviderMock.Object,
         Mock.Of<ILogger<WordRepository>>(),
         new LoggingLevelSwitch());
+
+    [Test]
+    public async Task GetFilePageIdentifiers_Should_UseWordOriginSql_ForWordOriginFileIdOrdering()
+    {
+        var expected = new List<WordFileIdentifier> { new() { WordId = 1, FileId = Guid.NewGuid(), Word = "w", OriginalFilePath = "p" } };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByWordOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetFilePageIdentifiers_Should_UseFilePathOriginSql_ForFilePathOriginOrdering()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByFilePathOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.FilePathOrigin, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10);
+
+        _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByFilePathOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task GetFilePageIdentifiers_Should_PassNextsFields_As_QueryParameters()
+    {
+        var next = new WordFileIdentifier { WordId = 1, FileId = Guid.NewGuid(), Word = "resume-word", OriginalFilePath = "resume-path" };
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByWordOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, WordFileIdentifier>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next, origin: null, isCurrent: null, isProperName: null, limit: 10);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Word].Value.ShouldBe(next.Word);
+        command.Parameters[pn.FileId].Value.ShouldBe(next.FileId);
+        command.Parameters[pn.OriginalFilePath].Value.ShouldBe(next.OriginalFilePath);
+    }
+
+    [Test]
+    public void GetFilePageIdentifiers_Should_PassNullValues_When_NextIsNull()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByWordOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, WordFileIdentifier>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10).GetAwaiter().GetResult();
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Word].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.FileId].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.OriginalFilePath].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public async Task GetByIds_Should_PreferScylla_When_RowFound()
+    {
+        var wordId = 3;
+        var fileId = Guid.NewGuid();
+        var scyllaRow = new ViewWordFiles { WordId = wordId, FileId = fileId, Word = "w", OriginalFilePath = "p" };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryWords.GetWordFilesByWordIdAndFileIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, ViewWordFiles>>()))
+            .ReturnsAsync(scyllaRow);
+
+        var result = await CreateRepository().GetByIds([(wordId, fileId)], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([scyllaRow]);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryWords.GetViewByWordIdAndFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIds_Should_FallBackToPostgres_When_ScyllaHasNoRowYet()
+    {
+        var wordId = 4;
+        var fileId = Guid.NewGuid();
+        var postgresRow = new ViewWordFiles { WordId = wordId, FileId = fileId, Word = "w", OriginalFilePath = "p" };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryWords.GetWordFilesByWordIdAndFileIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, ViewWordFiles>>()))
+            .ReturnsAsync((ViewWordFiles?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryWords.GetViewByWordIdAndFileIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, ViewWordFiles>>()))
+            .ReturnsAsync(postgresRow);
+
+        var result = await CreateRepository().GetByIds([(wordId, fileId)], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresRow]);
+    }
 
     [Test]
     public async Task GetById_Should_ReturnWord_When_ExecutorFindsMatch()

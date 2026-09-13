@@ -77,6 +77,163 @@ public static class QueryWords
             AND ({pn.IsCurrent} IS NULL OR {pn.IsCurrent} = {csvwf.IsCurrent})
             AND ({pn.IsProperName} IS NULL OR {pn.IsProperName} = {csvwf.IsProperName})";
 
+    /// <summary>
+    /// Columns needed to identify a word/file pairing for keyset-pagination cursor computation and
+    /// later hydration (see Models.WordFileIdentifier) -- cheap enough to fetch a wide look-ahead
+    /// range without paying for a full row nobody is about to render.
+    /// </summary>
+    private static string SelectIdentifierColumns => $@"
+            {csvwf.WordId},
+            {csvwf.FileId},
+            {csvwf.Word},
+            {csvwf.OriginalFilePath}";
+
+    /// <summary>Shared SELECT clause for the identifier-only word/file view queries below.</summary>
+    private static string SelectIdentifiers => $@"
+        SELECT
+            {SelectIdentifierColumns}
+        FROM
+            {ts.View_WordFiles}";
+
+    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByWordOriginSql"/>.</summary>
+    public static string GetFileIdentifiersByWordOriginSql => $@"
+        {SelectIdentifiers}
+        WHERE
+            ({csvwf.Word}, {csvwf.Origin}, {csvwf.FileId}) >
+            (
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.Origin}, -1),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.Word} ASC,
+            {csvwf.Origin} ASC,
+            {csvwf.FileId} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByWordFileIdSql"/>.</summary>
+    public static string GetFileIdentifiersByWordFileIdSql => $@"
+        {SelectIdentifiers}
+        WHERE
+            ({csvwf.Word}, {csvwf.FileId}, {csvwf.Origin}) >
+            (
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
+                COALESCE({pn.Origin}, -1)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.Word} ASC,
+            {csvwf.FileId} ASC,
+            {csvwf.Origin} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFileIdWordSql"/>.</summary>
+    public static string GetFileIdentifiersByFileIdWordSql => $@"
+        {SelectIdentifiers}
+        WHERE
+            ({csvwf.FileId}, {csvwf.Word}, {csvwf.Origin}) >
+            (
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.Origin}, -1)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.FileId} ASC,
+            {csvwf.Word} ASC,
+            {csvwf.Origin} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFileIdOriginSql"/>.</summary>
+    public static string GetFileIdentifiersByFileIdOriginSql => $@"
+        {SelectIdentifiers}
+        WHERE
+            ({csvwf.FileId}, {csvwf.Origin}, {csvwf.Word}) >
+            (
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
+                COALESCE({pn.Origin}, -1),
+                COALESCE({pn.Word}, '')
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.FileId} ASC,
+            {csvwf.Origin} ASC,
+            {csvwf.Word} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFilePathOriginSql"/>.</summary>
+    public static string GetFileIdentifiersByFilePathOriginSql => $@"
+        {SelectIdentifiers}
+        WHERE
+            ({csvwf.OriginalFilePath}, {csvwf.Origin}, {csvwf.Word}, {csvwf.FileId}) >
+            (
+                COALESCE({pn.OriginalFilePath}, ''),
+                COALESCE({pn.Origin}, -1),
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.OriginalFilePath} ASC,
+            {csvwf.Origin} ASC,
+            {csvwf.Word} ASC,
+            {csvwf.FileId} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFilePathWordSql"/>.</summary>
+    public static string GetFileIdentifiersByFilePathWordSql => $@"
+        {SelectIdentifiers}
+        WHERE
+            ({csvwf.OriginalFilePath}, {csvwf.Word}, {csvwf.Origin}, {csvwf.FileId}) >
+            (
+                COALESCE({pn.OriginalFilePath}, ''),
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.Origin}, -1),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.OriginalFilePath} ASC,
+            {csvwf.Word} ASC,
+            {csvwf.Origin} ASC,
+            {csvwf.FileId} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByWordFilePathSql"/>.</summary>
+    public static string GetFileIdentifiersByWordFilePathSql => $@"
+        {SelectIdentifiers}
+        WHERE
+            ({csvwf.Word}, {csvwf.OriginalFilePath}, {csvwf.FileId}, {csvwf.Origin}) >
+            (
+                COALESCE({pn.Word}, ''),
+                COALESCE({pn.OriginalFilePath}, ''),
+                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
+                COALESCE({pn.Origin}, -1)
+            )
+            {AndFilePages}
+        ORDER BY
+            {csvwf.IsCurrent} DESC,
+            {csvwf.Word} ASC,
+            {csvwf.OriginalFilePath} ASC,
+            {csvwf.FileId} ASC,
+            {csvwf.Origin} ASC
+        LIMIT {pn.Limit}
+        ;";
+
     /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by word, origin, then file.</summary>
     public static string GetFilePagesByWordOriginSql => $@"
         {SelectFilePages}
@@ -421,7 +578,37 @@ public static class QueryWords
     public static string DeleteWordFilesCql => $@"
         DELETE FROM {tc.WordFiles} WHERE {ccwf.WordId} = {pn.WordId} AND {ccwf.FileId} = {pn.FileId};";
 
+    /// <summary>CQL to select a single word_files row by its (WordId, FileId) key.</summary>
+    public static string GetWordFilesByWordIdAndFileIdCql => $@"
+        SELECT
+            {ccwf.WordId},
+            {ccwf.FileId},
+            {ccwf.Origin},
+            {ccwf.Word},
+            {ccwf.IsCurrent},
+            {ccwf.IsProperName},
+            {ccwf.OriginalFilePath},
+            {ccwf.SourceMachineId},
+            {ccwf.ThumbnailGeneratedOn}
+        FROM
+            {tc.WordFiles}
+        WHERE
+            {ccwf.WordId} = {pn.WordId} AND {ccwf.FileId} = {pn.FileId}
+        ;";
+
     #endregion
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.WordFileIdentifier"/>.</summary>
+    public static Models.WordFileIdentifier ToWordFileIdentifier(this NpgsqlDataReader reader)
+    {
+        return new Models.WordFileIdentifier
+        {
+            WordId = reader.GetInt32(os.WordId),
+            FileId = reader.GetFieldValue<Guid>(os.FileId),
+            Word = reader.GetString(os.Word),
+            OriginalFilePath = reader.GetString(os.OriginalFilePath)
+        };
+    }
 
     /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="ViewWordFiles"/>.</summary>
     public static ViewWordFiles ToWordFile(this Cassandra.Row row)

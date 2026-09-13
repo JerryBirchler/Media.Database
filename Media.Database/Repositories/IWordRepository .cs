@@ -144,6 +144,39 @@ public interface IWordRepository
     Task<List<ViewWordFiles>> GetWordsByFilePathOrderedByWord(string filePath, int sourceMachineId, string? afterWord, bool? isCurrent, bool? isProperName, int? limit = 10);
 
     /// <summary>
+    /// Retrieves just the ordering-relevant identity (see <see cref="WordFileIdentifier"/>) of a
+    /// page of word/file rows for the given <paramref name="orderBy"/> -- cheap enough to fetch a
+    /// wide look-ahead range for cursor computation without hydrating every row's full content.
+    /// Dispatches to whichever underlying query matches <paramref name="orderBy"/>, using whichever
+    /// of <paramref name="next"/>'s <c>Word</c>/<c>FileId</c>/<c>OriginalFilePath</c> fields are
+    /// actually relevant to that ordering. <paramref name="next"/> is the pointer to resume from --
+    /// the identifier of the last row seen on the previous page (the same type this method itself
+    /// returns), or null to start from the first page. Its fields always mean exactly what they
+    /// say, never repurposed to hold a different kind of value for a different ordering.
+    /// </summary>
+    /// <param name="orderBy">Which composite sort order to page by.</param>
+    /// <param name="next">The pointer to resume from, or null for the first page.</param>
+    /// <param name="origin">The word origin to filter by, or null to match any origin.</param>
+    /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
+    /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
+    /// <param name="limit">The maximum number of rows to return.</param>
+    /// <returns>The matching rows' identifiers, in the same order the full page would be returned.</returns>
+    Task<List<WordFileIdentifier>> GetFilePageIdentifiers(
+        WordFilesOrderBy orderBy, WordFileIdentifier? next, WordOrigin? origin,
+        bool? isCurrent, bool? isProperName, int limit);
+
+    /// <summary>
+    /// Hydrates full word/file rows for a set of (WordId, FileId) pairs, preferring Scylla's
+    /// read-optimized word_files table and falling back to PostgreSQL per-pair when Scylla has no
+    /// row yet (e.g. CDC hasn't caught up) or is unreachable. Lookups run with bounded parallelism
+    /// rather than one at a time.
+    /// </summary>
+    /// <param name="ids">The (WordId, FileId) pairs to hydrate.</param>
+    /// <param name="maxDegreeOfParallelism">The maximum number of concurrent lookups.</param>
+    /// <returns>The hydrated rows, in no particular order -- callers that need a specific order must reorder themselves.</returns>
+    Task<List<ViewWordFiles>> GetByIds(IEnumerable<(int WordId, Guid FileId)> ids, int maxDegreeOfParallelism);
+
+    /// <summary>
     /// Inserts a new word, or updates it if it already exists, and links it to the originating file.
     /// </summary>
     /// <param name="request">The upsert request describing the word.</param>

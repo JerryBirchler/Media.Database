@@ -17,6 +17,8 @@ public class WordRepositoryTests
     {
         return new WordRepository(
             Mock.Of<ISqlQueryExecutor>(),
+            Mock.Of<ICqlQueryExecutor>(),
+            Mock.Of<Media.Common.Providers.IScyllaSessionProvider>(),
             Mock.Of<Microsoft.Extensions.Logging.ILogger<WordRepository>>(),
             new Serilog.Core.LoggingLevelSwitch());
     }
