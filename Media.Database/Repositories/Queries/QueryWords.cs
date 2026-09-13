@@ -50,20 +50,9 @@ public static class QueryWords
             {csvwf.ThumbnailGeneratedOn}";
 
     /// <summary>
-    /// Shared SELECT clause for the word/file materialized view, reused by the general (unscoped,
-    /// cross-device) keyset page queries below. Deliberately does not select SourceMachineId --
-    /// those queries never filter on it, so there's no reason to make them depend on the view
-    /// having that column. Only <see cref="SelectFilePagesWithSourceMachineId"/> needs it.
-    /// </summary>
-    public static string SelectFilePages => $@"
-        SELECT
-            {SelectFilePagesColumns}
-        FROM
-            {ts.View_WordFiles}";
-
-    /// <summary>
-    /// Same as <see cref="SelectFilePages"/>, plus SourceMachineId -- used only by the fileId/
-    /// filePath-scoped word lookups, which filter on it (see their own doc comments for why).
+    /// Shared SELECT clause for the word/file materialized view, plus SourceMachineId -- used by
+    /// the fileId/filePath-scoped word lookups, which filter on it (see their own doc comments for
+    /// why), and by the word_files Scylla-sync CDC handler's re-query queries.
     /// </summary>
     public static string SelectFilePagesWithSourceMachineId => $@"
         SELECT
@@ -95,7 +84,7 @@ public static class QueryWords
         FROM
             {ts.View_WordFiles}";
 
-    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByWordOriginSql"/>.</summary>
+    /// <summary>Identifier-only page of word/file rows, ordered by word, then origin, then file.</summary>
     public static string GetFileIdentifiersByWordOriginSql => $@"
         {SelectIdentifiers}
         WHERE
@@ -114,7 +103,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
-    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByWordFileIdSql"/>.</summary>
+    /// <summary>Identifier-only page of word/file rows, ordered by word, then file, then origin.</summary>
     public static string GetFileIdentifiersByWordFileIdSql => $@"
         {SelectIdentifiers}
         WHERE
@@ -133,7 +122,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
-    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFileIdWordSql"/>.</summary>
+    /// <summary>Identifier-only page of word/file rows, ordered by file, then word, then origin.</summary>
     public static string GetFileIdentifiersByFileIdWordSql => $@"
         {SelectIdentifiers}
         WHERE
@@ -152,7 +141,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
-    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFileIdOriginSql"/>.</summary>
+    /// <summary>Identifier-only page of word/file rows, ordered by file, then origin, then word.</summary>
     public static string GetFileIdentifiersByFileIdOriginSql => $@"
         {SelectIdentifiers}
         WHERE
@@ -171,7 +160,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
-    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFilePathOriginSql"/>.</summary>
+    /// <summary>Identifier-only page of word/file rows, ordered by file path, then origin.</summary>
     public static string GetFileIdentifiersByFilePathOriginSql => $@"
         {SelectIdentifiers}
         WHERE
@@ -192,7 +181,7 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
-    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByFilePathWordSql"/>.</summary>
+    /// <summary>Identifier-only page of word/file rows, ordered by file path, then word.</summary>
     public static string GetFileIdentifiersByFilePathWordSql => $@"
         {SelectIdentifiers}
         WHERE
@@ -213,148 +202,9 @@ public static class QueryWords
         LIMIT {pn.Limit}
         ;";
 
-    /// <summary>Identifier-only counterpart to <see cref="GetFilePagesByWordFilePathSql"/>.</summary>
+    /// <summary>Identifier-only page of word/file rows, ordered by word, then file path.</summary>
     public static string GetFileIdentifiersByWordFilePathSql => $@"
         {SelectIdentifiers}
-        WHERE
-            ({csvwf.Word}, {csvwf.OriginalFilePath}, {csvwf.FileId}, {csvwf.Origin}) >
-            (
-                COALESCE({pn.Word}, ''),
-                COALESCE({pn.OriginalFilePath}, ''),
-                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
-                COALESCE({pn.Origin}, -1)
-            )
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.Word} ASC,
-            {csvwf.OriginalFilePath} ASC,
-            {csvwf.FileId} ASC,
-            {csvwf.Origin} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by word, origin, then file.</summary>
-    public static string GetFilePagesByWordOriginSql => $@"
-        {SelectFilePages}
-        WHERE 
-            ({csvwf.Word}, {csvwf.Origin}, {csvwf.FileId}) > 
-            (
-                COALESCE({pn.Word}, ''), 
-                COALESCE({pn.Origin}, -1), 
-                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
-            )
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.Word} ASC,
-            {csvwf.Origin} ASC,
-            {csvwf.FileId} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by word, file, then origin.</summary>
-    public static string GetFilePagesByWordFileIdSql => $@"
-        {SelectFilePages}
-        WHERE 
-            ({csvwf.Word}, {csvwf.FileId}, {csvwf.Origin}) > 
-            (
-                COALESCE({pn.Word}, ''), 
-                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
-                COALESCE({pn.Origin}, -1) 
-            )
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.Word} ASC,
-            {csvwf.FileId} ASC,
-            {csvwf.Origin} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file, word, then origin.</summary>
-    public static string GetFilePagesByFileIdWordSql => $@"
-        {SelectFilePages}
-        WHERE 
-            ({csvwf.FileId}, {csvwf.Word}, {csvwf.Origin}) > 
-            (
-                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
-                COALESCE({pn.Word}, ''), 
-                COALESCE({pn.Origin}, -1) 
-            )
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.FileId} ASC,
-            {csvwf.Word} ASC,
-            {csvwf.Origin} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file, origin, then word.</summary>
-    public static string GetFilePagesByFileIdOriginSql => $@"
-        {SelectFilePages}
-        WHERE 
-            ({csvwf.FileId}, {csvwf.Origin}, {csvwf.Word}) > 
-            (
-                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid),
-                COALESCE({pn.Origin}, -1),
-                COALESCE({pn.Word}, '') 
-            )
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.FileId} ASC,
-            {csvwf.Origin} ASC,
-            {csvwf.Word} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file path, then origin.</summary>
-    public static string GetFilePagesByFilePathOriginSql => $@"
-        {SelectFilePages}
-        WHERE
-            ({csvwf.OriginalFilePath}, {csvwf.Origin}, {csvwf.Word}, {csvwf.FileId}) >
-            (
-                COALESCE({pn.OriginalFilePath}, ''),
-                COALESCE({pn.Origin}, -1),
-                COALESCE({pn.Word}, ''),
-                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
-            )
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.OriginalFilePath} ASC,
-            {csvwf.Origin} ASC,
-            {csvwf.Word} ASC,
-            {csvwf.FileId} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by file path, then word.</summary>
-    public static string GetFilePagesByFilePathWordSql => $@"
-        {SelectFilePages}
-        WHERE
-            ({csvwf.OriginalFilePath}, {csvwf.Word}, {csvwf.Origin}, {csvwf.FileId}) >
-            (
-                COALESCE({pn.OriginalFilePath}, ''),
-                COALESCE({pn.Word}, ''),
-                COALESCE({pn.Origin}, -1),
-                COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
-            )
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.OriginalFilePath} ASC,
-            {csvwf.Word} ASC,
-            {csvwf.Origin} ASC,
-            {csvwf.FileId} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>SQL to select a keyset-paged page of word/file rows, ordered by word, then file path.</summary>
-    public static string GetFilePagesByWordFilePathSql => $@"
-        {SelectFilePages}
         WHERE
             ({csvwf.Word}, {csvwf.OriginalFilePath}, {csvwf.FileId}, {csvwf.Origin}) >
             (
@@ -666,10 +516,9 @@ public static class QueryWords
 
     /// <summary>
     /// Maps the current row of <paramref name="reader"/> to a <see cref="Models.ViewWordFiles"/>,
-    /// for a row selected via <see cref="SelectFilePages"/> -- leaves <see cref="Models.ViewWordFiles.SourceMachineId"/>
-    /// at its default, since that column isn't in the result set. Use
+    /// leaving <see cref="Models.ViewWordFiles.SourceMachineId"/> at its default. Use
     /// <see cref="ToWordFileWithSourceMachineId"/> instead for a row selected via
-    /// <see cref="SelectFilePagesWithSourceMachineId"/>.
+    /// <see cref="SelectFilePagesWithSourceMachineId"/> that needs it populated.
     /// </summary>
     public static ViewWordFiles ToWordFile(this NpgsqlDataReader reader)
     {

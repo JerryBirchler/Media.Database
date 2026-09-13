@@ -5,29 +5,29 @@ namespace Media.Database.Models;
 /// <summary>
 /// Selects which composite sort order a word-to-file association page is keyset-paginated by.
 /// Member names spell out the full (primary, secondary, tertiary) sort sequence, matching the
-/// query each one dispatches to on <see cref="Repositories.IWordRepository"/>.
+/// identifier query each one dispatches to on <see cref="Repositories.IWordRepository.GetFilePageIdentifiers"/>.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum WordFilesOrderBy
 {
-    /// <summary>Word, then origin, then file. Backed by <c>IWordRepository.GetFilePagesByWordOrigin</c>.</summary>
+    /// <summary>Word, then origin, then file.</summary>
     WordOriginFileId,
 
-    /// <summary>Word, then file, then origin. Backed by <c>IWordRepository.GetFilePagesByWordFileId</c>.</summary>
+    /// <summary>Word, then file, then origin.</summary>
     WordFileIdOrigin,
 
-    /// <summary>File, then word, then origin. Backed by <c>IWordRepository.GetFilePagesByFileIdWord</c>.</summary>
+    /// <summary>File, then word, then origin.</summary>
     FileIdWordOrigin,
 
-    /// <summary>File, then origin, then word. Backed by <c>IWordRepository.GetFilePagesByFileIdOrigin</c>.</summary>
+    /// <summary>File, then origin, then word.</summary>
     FileIdOriginWord,
 
-    /// <summary>File path, then origin. Backed by <c>IWordRepository.GetFilePagesByFilePathOrigin</c>.</summary>
+    /// <summary>File path, then origin.</summary>
     FilePathOrigin,
 
-    /// <summary>File path, then word. Backed by <c>IWordRepository.GetFilePagesByFilePathWord</c>.</summary>
+    /// <summary>File path, then word.</summary>
     FilePathWord,
 
-    /// <summary>Word, then file path. Backed by <c>IWordRepository.GetFilePagesByWordFilePath</c>.</summary>
+    /// <summary>Word, then file path.</summary>
     WordFilePath
 }
