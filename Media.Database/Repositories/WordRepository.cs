@@ -184,12 +184,16 @@ public class WordRepository(
                 sql,
                 p =>
                 {
-                    p.AddWithValue(pn.Word, next?.Word.ToNullableValueForSql() ?? DBNull.Value);
-                    p.AddWithValue(pn.FileId, next?.FileId.ToNullableValueForSql() ?? DBNull.Value);
-                    p.AddWithValue(pn.OriginalFilePath, next?.OriginalFilePath.ToNullableValueForSql() ?? DBNull.Value);
-                    p.AddWithValue(pn.Origin, ((int?)origin).ToNullableValueForSql());
-                    p.AddWithValue(pn.IsCurrent, isCurrent.ToNullableValueForSql());
-                    p.AddWithValue(pn.IsProperName, isProperName.ToNullableValueForSql());
+                    // Explicit NpgsqlDbType on every optional parameter here is load-bearing, not
+                    // stylistic: each one feeds a COALESCE(...) nested inside a multi-column ROW
+                    // comparison, and Postgres can't always infer an "unknown"-typed null parameter's
+                    // type through that combination (42P08) the way it can for a plain equality.
+                    p.AddWithValue(pn.Word, NpgsqlTypes.NpgsqlDbType.Varchar, next?.Word.ToNullableValueForSql() ?? DBNull.Value);
+                    p.AddWithValue(pn.FileId, NpgsqlTypes.NpgsqlDbType.Uuid, next?.FileId.ToNullableValueForSql() ?? DBNull.Value);
+                    p.AddWithValue(pn.OriginalFilePath, NpgsqlTypes.NpgsqlDbType.Text, next?.OriginalFilePath.ToNullableValueForSql() ?? DBNull.Value);
+                    p.AddWithValue(pn.Origin, NpgsqlTypes.NpgsqlDbType.Integer, ((int?)origin).ToNullableValueForSql());
+                    p.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, isCurrent.ToNullableValueForSql());
+                    p.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, isProperName.ToNullableValueForSql());
                     p.AddWithValue(pn.Limit, limit);
                 },
                 reader => reader.ToWordFileIdentifier());
