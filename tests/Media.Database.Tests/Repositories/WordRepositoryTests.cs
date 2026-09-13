@@ -46,16 +46,16 @@ public class WordRepositoryTests
     }
 
     [Test]
-    public void GetById_Should_Exist_With_Correct_Signature()
+    public void GetByUuid_Should_Exist_With_Correct_Signature()
     {
         var repo = CreateRepository();
-        var method = repo.GetType().GetMethod("GetById", BindingFlags.Public | BindingFlags.Instance);
+        var method = repo.GetType().GetMethod("GetByUuid", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
         method.ReturnType.ShouldBe(typeof(Task<Words>));
         var parameters = method.GetParameters();
         parameters.Length.ShouldBe(1);
-        parameters[0].ParameterType.ShouldBe(typeof(int));
+        parameters[0].ParameterType.ShouldBe(typeof(Guid));
     }
 
     [Test]
@@ -84,16 +84,16 @@ public class WordRepositoryTests
     }
 
     [Test]
-    public void Delete_Should_Exist_With_Correct_Signature()
+    public void DeleteByUuid_Should_Exist_With_Correct_Signature()
     {
         var repo = CreateRepository();
-        var method = repo.GetType().GetMethod("Delete", BindingFlags.Public | BindingFlags.Instance);
+        var method = repo.GetType().GetMethod("DeleteByUuid", BindingFlags.Public | BindingFlags.Instance);
 
         method.ShouldNotBeNull();
         method.ReturnType.ShouldBe(typeof(Task));
         var parameters = method.GetParameters();
         parameters.Length.ShouldBe(1);
-        parameters[0].ParameterType.ShouldBe(typeof(int));
+        parameters[0].ParameterType.ShouldBe(typeof(Guid));
     }
 
 }

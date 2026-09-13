@@ -38,4 +38,5 @@ public class ColumnsCql : BaseSchema<ColumnsCql, OrdinalsCql>
     public static readonly string UpdatedOn = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();
+    public static readonly string WordUuid = x();
 }

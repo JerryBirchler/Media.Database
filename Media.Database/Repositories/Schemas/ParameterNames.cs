@@ -39,8 +39,10 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string SourceUpdatedOn = x();
     public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string UpdatedOn = x();
+    public static readonly string Uuid = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();
+    public static readonly string WordUuid = x();
 
     /// <summary>
     /// Formats a raw field name as a PostgreSQL command parameter name.

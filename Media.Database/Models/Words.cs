@@ -8,10 +8,18 @@ namespace Media.Database.Models;
 public class Words
 {
     /// <summary>
-    /// Gets or sets the unique identifier for the word.
+    /// Gets or sets the word's internal, sequential identifier. Never serialized -- exposing it
+    /// would reveal insertion order/growth rate of the word index; <see cref="Uuid"/> is the
+    /// externally-facing identifier.
     /// </summary>
-    [JsonPropertyName("id")]
+    [JsonIgnore]
     public int Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the word's externally-facing unique identifier.
+    /// </summary>
+    [JsonPropertyName("uuid")]
+    public Guid Uuid { get; set; }
 
     /// <summary>
     /// Gets or sets the word text.

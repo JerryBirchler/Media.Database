@@ -147,26 +147,26 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
-    public async Task GetById_Should_ReturnWord_When_ExecutorFindsMatch()
+    public async Task GetByUuid_Should_ReturnWord_When_ExecutorFindsMatch()
     {
         var expected = _fixture.Create<Words>();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryWords.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Words>>()))
+            .Setup(e => e.QuerySingleAsync(QueryWords.GetByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Words>>()))
             .ReturnsAsync(expected);
 
-        var result = await CreateRepository().GetById(5);
+        var result = await CreateRepository().GetByUuid(Guid.NewGuid());
 
         result.ShouldBe(expected);
     }
 
     [Test]
-    public async Task GetById_Should_ReturnNull_When_ExecutorFindsNoMatch()
+    public async Task GetByUuid_Should_ReturnNull_When_ExecutorFindsNoMatch()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryWords.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Words>>()))
+            .Setup(e => e.QuerySingleAsync(QueryWords.GetByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Words>>()))
             .ReturnsAsync((Words?)null);
 
-        var result = await CreateRepository().GetById(5);
+        var result = await CreateRepository().GetByUuid(Guid.NewGuid());
 
         result.ShouldBeNull();
     }
@@ -227,27 +227,28 @@ public class WordRepositoryQueryTests
     }
 
     [Test]
-    public async Task Delete_Should_Execute_DeleteWordSql()
+    public async Task DeleteByUuid_Should_Execute_DeleteByUuidSql()
     {
-        await CreateRepository().Delete(5);
+        await CreateRepository().DeleteByUuid(Guid.NewGuid());
 
-        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryWords.DeleteWordSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(QueryWords.DeleteByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
     }
 
     [Test]
-    public async Task Delete_Should_ConfigureIdParameter()
+    public async Task DeleteByUuid_Should_ConfigureUuidParameter()
     {
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
-            .Setup(e => e.ExecuteAsync(QueryWords.DeleteWordSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .Setup(e => e.ExecuteAsync(QueryWords.DeleteByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
             .Callback<string, Action<NpgsqlParameterCollection>>((_, configure) => captured = configure)
             .ReturnsAsync(1);
+        var uuid = Guid.NewGuid();
 
-        await CreateRepository().Delete(5);
+        await CreateRepository().DeleteByUuid(uuid);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
-        command.Parameters[pn.Id].Value.ShouldBe(5);
+        command.Parameters[pn.Uuid].Value.ShouldBe(uuid);
     }
 
     [Test]

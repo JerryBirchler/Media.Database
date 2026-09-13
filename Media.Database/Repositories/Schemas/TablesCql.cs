@@ -28,6 +28,7 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
     public static class WordFilesColumns
     {
         public static readonly string WordId = y();
+        public static readonly string WordUuid = y();
         public static readonly string FileId = y();
         public static readonly string Origin = y();
         public static readonly string Word = y();

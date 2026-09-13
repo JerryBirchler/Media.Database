@@ -8,8 +8,14 @@ namespace Media.Database.Models;
 /// </summary>
 public class WordFileIdentifier
 {
-    /// <summary>Gets or sets the unique identifier of the word.</summary>
+    /// <summary>
+    /// Gets or sets the word's internal, sequential identifier -- the hydration key into
+    /// <see cref="Repositories.IWordRepository.GetByIds"/>, never exposed externally.
+    /// </summary>
     public int WordId { get; set; }
+
+    /// <summary>Gets or sets the word's externally-facing unique identifier.</summary>
+    public Guid WordUuid { get; set; }
 
     /// <summary>Gets or sets the unique identifier of the file.</summary>
     public Guid FileId { get; set; }

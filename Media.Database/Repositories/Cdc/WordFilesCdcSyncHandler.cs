@@ -133,6 +133,7 @@ public sealed class WordFilesCdcSyncHandler(
             await _cqlExecutor.ExecuteAsync(QueryWords.UpsertWordFilesCql, p =>
             {
                 p.AddWithValue(pn.WordId, wordFile.WordId);
+                p.AddWithValue(pn.WordUuid, wordFile.WordUuid);
                 p.AddWithValue(pn.FileId, wordFile.FileId);
                 p.AddWithValue(pn.Origin, (int)wordFile.Origin);
                 p.AddWithValue(pn.Word, wordFile.Word);

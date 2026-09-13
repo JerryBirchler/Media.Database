@@ -14,10 +14,19 @@ public class ViewWordFiles
     public WordOrigin Origin { get; set; }
 
     /// <summary>
-    /// Gets or sets the unique identifier of the word.
+    /// Gets or sets the word's internal, sequential identifier. Never serialized -- exposing it
+    /// would reveal insertion order/growth rate of the word index; <see cref="WordUuid"/> is the
+    /// externally-facing identifier. Still used internally for hydration lookups (see
+    /// <see cref="WordFileIdentifier"/>, <see cref="Repositories.IWordRepository.GetByIds"/>).
     /// </summary>
-    [JsonPropertyName("wordId")]
+    [JsonIgnore]
     public int WordId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the word's externally-facing unique identifier.
+    /// </summary>
+    [JsonPropertyName("wordUuid")]
+    public Guid WordUuid { get; set; }
 
     /// <summary>
     /// Gets or sets the word text.

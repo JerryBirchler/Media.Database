@@ -79,6 +79,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     public static class WordsColumns
     {
         public static readonly string Id = y();
+        public static readonly string Uuid = y();
         public static readonly string Word = y();
         public static readonly string Origin = y();
         public static readonly string IsProperName = y();
@@ -98,6 +99,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     {
         public static readonly string Origin = y();
         public static readonly string WordId = y();
+        public static readonly string WordUuid = y();
         public static readonly string Word = y();
         public static readonly string FileId = y();
         public static readonly string IsCurrent = y();

@@ -36,18 +36,18 @@ public class WordRepository(
 #pragma warning restore S1144
 
     /// <inheritdoc/>
-    public async Task<Words?> GetById(int id)
+    public async Task<Words?> GetByUuid(Guid uuid)
     {
         try
         {
             return await _sqlExecutor.QuerySingleAsync(
-                QueryWords.GetByIdSql,
-                p => p.AddWithValue(pn.Id, id),
+                QueryWords.GetByUuidSql,
+                p => p.AddWithValue(pn.Uuid, uuid),
                 reader => reader.ToWord());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetById failed for WordId: [{Id}]", id);
+            _logger.LogError(ex, "GetByUuid failed for WordUuid: [{Uuid}]", uuid);
             throw;
         }
     }
@@ -283,17 +283,17 @@ public class WordRepository(
     }
 
     /// <inheritdoc/>
-    public async Task Delete(int id)
+    public async Task DeleteByUuid(Guid uuid)
     {
         try
         {
             await _sqlExecutor.ExecuteAsync(
-                QueryWords.DeleteWordSql,
-                p => p.AddWithValue(pn.Id, id));
+                QueryWords.DeleteByUuidSql,
+                p => p.AddWithValue(pn.Uuid, uuid));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Delete failed for WordId: [{Id}]:", id);
+            _logger.LogError(ex, "DeleteByUuid failed for WordUuid: [{Uuid}]:", uuid);
             throw;
         }
     }

@@ -21,20 +21,36 @@ namespace Media.Database.Repositories.Queries;
 public static class QueryWords
 {
     #region SQL Queries
-    /// <summary>SQL to select a word by its unique identifier.</summary>
-    public static string GetByIdSql => $@"
-        SELECT 
-            {csw.Id}, 
-            {csw.Word}, 
+    /// <summary>Columns shared by every SELECT against the <c>Words</c> table.</summary>
+    private static string SelectWordColumns => $@"
+            {csw.Id},
+            {csw.Uuid},
+            {csw.Word},
             {csw.Origin},
             {csw.IsProperName},
-            {csw.InsertedOn}, 
-            {csw.UpdatedOn}, 
-            {csw.CameFromFileId}
-        FROM 
+            {csw.InsertedOn},
+            {csw.UpdatedOn},
+            {csw.CameFromFileId}";
+
+    /// <summary>SQL to select a word by its internal, sequential identifier.</summary>
+    public static string GetByIdSql => $@"
+        SELECT
+            {SelectWordColumns}
+        FROM
             {ts.Words}
-        WHERE 
-            {csw.Id} = {pn.Id} 
+        WHERE
+            {csw.Id} = {pn.Id}
+        LIMIT 1
+        ;";
+
+    /// <summary>SQL to select a word by its externally-facing unique identifier.</summary>
+    public static string GetByUuidSql => $@"
+        SELECT
+            {SelectWordColumns}
+        FROM
+            {ts.Words}
+        WHERE
+            {csw.Uuid} = {pn.Uuid}
         LIMIT 1
         ;";
 
@@ -42,6 +58,7 @@ public static class QueryWords
     private static string SelectFilePagesColumns => $@"
             {csvwf.Origin},
             {csvwf.WordId},
+            {csvwf.WordUuid},
             {csvwf.Word},
             {csvwf.FileId},
             {csvwf.IsCurrent},
@@ -73,6 +90,7 @@ public static class QueryWords
     /// </summary>
     private static string SelectIdentifierColumns => $@"
             {csvwf.WordId},
+            {csvwf.WordUuid},
             {csvwf.FileId},
             {csvwf.Word},
             {csvwf.OriginalFilePath}";
@@ -370,6 +388,14 @@ public static class QueryWords
         DELETE FROM {ts.Words}
         WHERE {csw.Id} = {pn.Id}";
 
+    /// <summary>
+    /// SQL to delete a word by its externally-facing unique identifier. Same cascade behavior as
+    /// <see cref="DeleteWordSql"/>.
+    /// </summary>
+    public static string DeleteByUuidSql => $@"
+        DELETE FROM {ts.Words}
+        WHERE {csw.Uuid} = {pn.Uuid}";
+
     /// <summary>SQL to select every word currently linked to a file, with each link's own origin.</summary>
     public static string GetWordsByFileIdSql => $@"
         SELECT
@@ -401,6 +427,7 @@ public static class QueryWords
         INSERT INTO {tc.WordFiles}
         (
             {ccwf.WordId},
+            {ccwf.WordUuid},
             {ccwf.FileId},
             {ccwf.Origin},
             {ccwf.Word},
@@ -413,6 +440,7 @@ public static class QueryWords
         VALUES
         (
             {pn.WordId},
+            {pn.WordUuid},
             {pn.FileId},
             {pn.Origin},
             {pn.Word},
@@ -432,6 +460,7 @@ public static class QueryWords
     public static string GetWordFilesByWordIdAndFileIdCql => $@"
         SELECT
             {ccwf.WordId},
+            {ccwf.WordUuid},
             {ccwf.FileId},
             {ccwf.Origin},
             {ccwf.Word},
@@ -454,6 +483,7 @@ public static class QueryWords
         return new Models.WordFileIdentifier
         {
             WordId = reader.GetInt32(os.WordId),
+            WordUuid = reader.GetFieldValue<Guid>(os.WordUuid),
             FileId = reader.GetFieldValue<Guid>(os.FileId),
             Word = reader.GetString(os.Word),
             OriginalFilePath = reader.GetString(os.OriginalFilePath)
@@ -466,6 +496,7 @@ public static class QueryWords
         return new ViewWordFiles
         {
             WordId = row.GetValue<int>(ccwf.WordId),
+            WordUuid = row.GetValue<Guid>(ccwf.WordUuid),
             FileId = row.GetValue<Guid>(ccwf.FileId),
             Origin = (WordOrigin)row.GetValue<int>(ccwf.Origin),
             Word = row.GetValue<string>(ccwf.Word),
@@ -494,6 +525,7 @@ public static class QueryWords
         return new Words
         {
             Id = reader.GetInt32(os.Id),
+            Uuid = reader.GetFieldValue<Guid>(os.Uuid),
             Word = reader.GetString(os.Word),
             Origin = (WordOrigin)reader.GetInt32(os.Origin),
             IsProperName = reader.GetFieldValue<bool>(os.IsProperName),
@@ -526,6 +558,7 @@ public static class QueryWords
         {
             Origin = (WordOrigin)reader.GetInt32(os.Origin),
             WordId = reader.GetInt32(os.WordId),
+            WordUuid = reader.GetFieldValue<Guid>(os.WordUuid),
             Word = reader.GetString(os.Word),
             FileId = reader.GetFieldValue<Guid>(os.FileId),
             IsCurrent = reader.GetFieldValue<bool?>(os.IsCurrent),

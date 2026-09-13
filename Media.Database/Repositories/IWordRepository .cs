@@ -8,11 +8,11 @@ namespace Media.Database.Repositories;
 public interface IWordRepository
 {
     /// <summary>
-    /// Retrieves a word by its unique identifier.
+    /// Retrieves a word by its externally-facing unique identifier.
     /// </summary>
-    /// <param name="id">The word's unique identifier.</param>
+    /// <param name="uuid">The word's externally-facing unique identifier.</param>
     /// <returns>The word, or null if not found.</returns>
-    Task<Words?> GetById(int id);
+    Task<Words?> GetByUuid(Guid uuid);
 
     /// <summary>
     /// Retrieves a keyset-paged page of a single file's words, ordered by word. Equality-scoped by
@@ -101,10 +101,10 @@ public interface IWordRepository
     Task RefreshView();
 
     /// <summary>
-    /// Deletes a word by its unique identifier.
+    /// Deletes a word by its externally-facing unique identifier.
     /// </summary>
-    /// <param name="id">The unique identifier of the word to delete.</param>
-    Task Delete(int id);
+    /// <param name="uuid">The externally-facing unique identifier of the word to delete.</param>
+    Task DeleteByUuid(Guid uuid);
 
     /// <summary>
     /// Retrieves every word currently linked to a file, with each link's own origin.
