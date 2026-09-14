@@ -82,4 +82,30 @@ public class PersonSourceMachineRepository(
             throw;
         }
     }
+
+    public async Task<PersonSourceMachine> UpsertAsync(int personId, int sourceMachineId)
+    {
+        try
+        {
+            var result = await _sqlExecutor.QuerySingleAsync
+            (
+                QueryPersonsSourceMachines.UpsertSql,
+                p =>
+                {
+                    p.AddWithValue(pn.PersonId, personId);
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToPersonSourceMachine(_personSourceMachineResponseMapper)
+            );
+
+            // UpsertSql's update/insert CTE pair always produces exactly one row between them.
+            return result!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "UpsertAsync failed for PersonId {PersonId}, SourceMachineId {SourceMachineId}", personId, sourceMachineId);
+            throw;
+        }
+    }
 }

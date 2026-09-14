@@ -121,4 +121,45 @@ public class PersonSourceMachineRepositoryTests
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().CreateAsync(1, 2));
     }
+
+    [Test]
+    public async Task UpsertAsync_Should_ReturnUpsertedRow()
+    {
+        var upserted = CreatePersonSourceMachine();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersonsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonSourceMachine>>()))
+            .ReturnsAsync(upserted);
+
+        var result = await CreateRepository().UpsertAsync(upserted.PersonId, upserted.SourceMachineId);
+
+        result.ShouldBe(upserted);
+    }
+
+    [Test]
+    public async Task UpsertAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersonsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonSourceMachine>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, PersonSourceMachine>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(CreatePersonSourceMachine());
+
+        await CreateRepository().UpsertAsync(11, 22);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.PersonId].Value.ShouldBe(11);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(22);
+        command.Parameters[pn.UpdatedOn].Value.ShouldBeOfType<DateTimeOffset>();
+    }
+
+    [Test]
+    public void UpsertAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersonsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonSourceMachine>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpsertAsync(1, 2));
+    }
 }

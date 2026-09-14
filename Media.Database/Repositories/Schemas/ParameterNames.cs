@@ -39,6 +39,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string OtpEmail = x();
     public static readonly string OtpWindowOverrideMinutes = x();
     public static readonly string OtpWindowStart = x();
+    public static readonly string OwningPersonId = x();
     public static readonly string PersonId = x();
     public static readonly string PersonSourceMachineUuid = x();
     public static readonly string PersonUuid = x();

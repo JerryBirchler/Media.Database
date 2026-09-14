@@ -41,6 +41,7 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
     public static readonly string OtpWindowOverrideMinutes = x();
+    public static readonly string OwningPersonId = x();
     public static readonly string PersonId = x();
     public static readonly string PersonSourceMachineId = x();
     public static readonly string PersonSourceMachineUuid = x();

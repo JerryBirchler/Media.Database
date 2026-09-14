@@ -327,6 +327,20 @@ public static class QueryRegistrations
             r.{csr.IsEmailVerified}
         ;";
 
+    /// <summary>
+    /// SQL to permanently set <c>SourceMachineRegistrations.OwningPersonId</c> to the device's
+    /// registrant (MEDIA-10). A no-op once already set -- the <c>WHERE ... IS NULL</c> guard is
+    /// what makes ownership permanent, since it can never be reassigned or cleared by any endpoint,
+    /// through any path, including this one on a later registration of the same device.
+    /// </summary>
+    public static string SetOwningPersonIfUnsetSql => $@"
+        UPDATE {ts.SourceMachineRegistrations} SET
+            {cssmr.OwningPersonId} = {pn.OwningPersonId}
+        WHERE
+            {cssmr.SourceMachineId} = {pn.SourceMachineId}
+            AND {cssmr.OwningPersonId} IS NULL
+        ;";
+
     #endregion
 
     #region CQL Queries

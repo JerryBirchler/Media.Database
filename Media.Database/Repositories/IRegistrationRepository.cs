@@ -44,4 +44,11 @@ public interface IRegistrationRepository
     /// <param name="maxDegreeOfParallelism">The maximum number of concurrent lookups.</param>
     /// <returns>The hydrated registrations, in no particular order -- callers that need a specific order must reorder by id themselves.</returns>
     Task<List<SourceMachineRegistrations>> GetByIdsAsync(IEnumerable<int> sourceMachineIds, int maxDegreeOfParallelism);
+
+    /// <summary>
+    /// Permanently sets <c>SourceMachineRegistrations.OwningPersonId</c> to <paramref name="personId"/>
+    /// for <paramref name="sourceMachineId"/> -- a no-op if already set (MEDIA-10: device ownership
+    /// is singular and permanent, never reassigned or cleared by any endpoint, through any path).
+    /// </summary>
+    Task SetOwningPersonIfUnsetAsync(int sourceMachineId, int personId);
 }

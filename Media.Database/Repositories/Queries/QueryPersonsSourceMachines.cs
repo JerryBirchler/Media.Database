@@ -50,6 +50,41 @@ public static class QueryPersonsSourceMachines
             {cpsm.SourceMachineId}, {cpsm.IsActive}, {cpsm.InsertedOn}, {cpsm.UpdatedOn}
         ;";
 
+    /// <summary>
+    /// SQL to upsert a person/device association: reactivates any existing row for the pair
+    /// (active or not), or inserts a new active row if none exists -- the identical
+    /// reactivate-or-insert pattern <see cref="QueryGroupsPersons.UpsertSql"/> uses, minus the
+    /// <c>IsAdmin</c> column this table has no equivalent of (see <see cref="PersonSourceMachine"/>).
+    /// </summary>
+    public static string UpsertSql => $@"
+        WITH existing AS (
+            SELECT {cpsm.PersonSourceMachineId}
+            FROM {ts.PersonsSourceMachines}
+            WHERE {cpsm.PersonId} = {pn.PersonId} AND {cpsm.SourceMachineId} = {pn.SourceMachineId}
+            LIMIT 1
+        ),
+        updated AS (
+            UPDATE {ts.PersonsSourceMachines} SET
+                {cpsm.IsActive} = true,
+                {cpsm.UpdatedOn} = {pn.UpdatedOn}
+            WHERE {cpsm.PersonSourceMachineId} IN (SELECT {cpsm.PersonSourceMachineId} FROM existing)
+            RETURNING
+                {cpsm.PersonSourceMachineId}, {cpsm.PersonSourceMachineUuid}, {cpsm.PersonId},
+                {cpsm.SourceMachineId}, {cpsm.IsActive}, {cpsm.InsertedOn}, {cpsm.UpdatedOn}
+        ),
+        inserted AS (
+            INSERT INTO {ts.PersonsSourceMachines} ({cpsm.PersonId}, {cpsm.SourceMachineId}, {cpsm.IsActive})
+            SELECT {pn.PersonId}, {pn.SourceMachineId}, true
+            WHERE NOT EXISTS (SELECT 1 FROM existing)
+            RETURNING
+                {cpsm.PersonSourceMachineId}, {cpsm.PersonSourceMachineUuid}, {cpsm.PersonId},
+                {cpsm.SourceMachineId}, {cpsm.IsActive}, {cpsm.InsertedOn}, {cpsm.UpdatedOn}
+        )
+        SELECT * FROM updated
+        UNION ALL
+        SELECT * FROM inserted
+        ;";
+
     #endregion
 
     /// <summary>

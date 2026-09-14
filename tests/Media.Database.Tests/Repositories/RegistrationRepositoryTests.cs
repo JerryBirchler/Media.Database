@@ -934,4 +934,31 @@ public class RegistrationRepositoryTests
 
         result.Select(r => r.SourceMachineId).ShouldBe(sourceMachineIds, ignoreOrder: true);
     }
+
+    [Test]
+    public async Task SetOwningPersonIfUnsetAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryRegistrations.SetOwningPersonIfUnsetSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>>((_, configure) => captured = configure)
+            .ReturnsAsync(1);
+
+        await CreateRepository().SetOwningPersonIfUnsetAsync(sourceMachineId: 11, personId: 22);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(11);
+        command.Parameters[pn.OwningPersonId].Value.ShouldBe(22);
+    }
+
+    [Test]
+    public void SetOwningPersonIfUnsetAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryRegistrations.SetOwningPersonIfUnsetSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetOwningPersonIfUnsetAsync(1, 2));
+    }
 }

@@ -114,6 +114,20 @@ public class QueryRegistrationsTests
     }
 
     [Test]
+    public void SetOwningPersonIfUnsetSql_Should_Contain_Update_Where_OwningPersonId_IsNull()
+    {
+        // The "IS NULL" guard is what makes ownership permanent (MEDIA-10) -- a repeat call for an
+        // already-owned device must be a no-op, never RETURNING/overwriting the existing owner.
+        var sql = QueryRegistrations.SetOwningPersonIfUnsetSql;
+        sql.ShouldContain("UPDATE");
+        sql.ShouldContain("WHERE");
+        sql.ShouldContain("@SourceMachineId");
+        sql.ShouldContain("@OwningPersonId");
+        sql.ShouldContain("\"OwningPersonId\" IS NULL");
+        sql.ShouldNotContain("RETURNING");
+    }
+
+    [Test]
     public void AddRegistrationBySourceMachineUuidSql_Should_Contain_Insert_Select_Where_Returning()
     {
         var sql = QueryRegistrations.AddRegistrationBySourceMachineUuidSql;

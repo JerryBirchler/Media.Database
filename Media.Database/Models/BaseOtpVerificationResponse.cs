@@ -26,6 +26,14 @@ namespace Media.Database.Models
         public Guid? ApiKey { get; set; }
 
         /// <summary>
+        /// The registrant's <c>PersonUuid</c>, populated only once both email and SMS OTP
+        /// verification have succeeded -- null otherwise, same condition as <see cref="ApiKey"/>.
+        /// This is the only channel through which a registrant learns their PersonUuid (MEDIA-10).
+        /// </summary>
+        [property: JsonPropertyName("personUuid")]
+        public Guid? PersonUuid { get; set; }
+
+        /// <summary>
         /// The source machine name, as reported by the source machine itself. 
         /// This is not guaranteed to be unique, it may not be null or empty.
         /// </summary>

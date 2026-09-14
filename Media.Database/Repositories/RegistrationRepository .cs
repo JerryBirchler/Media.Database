@@ -521,4 +521,25 @@ public class RegistrationRepository(
             reader => reader.ToSourceMachineRegistration()
         );
     }
+
+    public async Task SetOwningPersonIfUnsetAsync(int sourceMachineId, int personId)
+    {
+        try
+        {
+            await _sqlExecutor.ExecuteAsync
+            (
+                QueryRegistrations.SetOwningPersonIfUnsetSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.OwningPersonId, personId);
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetOwningPersonIfUnsetAsync failed for SourceMachineId {SourceMachineId}, PersonId {PersonId}", sourceMachineId, personId);
+            throw;
+        }
+    }
 }
