@@ -115,38 +115,59 @@ public class PersonRepository(
         }
     }
 
-    public async Task<List<Person>> ListByCreatorAsync(int createdByPersonId)
+    public async Task<List<PersonIdentifier>> GetPersonIdentifiersByCreatorIdAsync(int createdByPersonId, PersonIdentifier? next, int limit)
     {
         try
         {
+            var afterLastName = next?.LastName;
+            var afterFirstName = next?.FirstName;
+            var afterPersonUuid = next?.PersonUuid;
+
             return await _sqlExecutor.QueryManyAsync
             (
-                QueryPersons.ListByCreatorSql,
-                p => p.AddWithValue(pn.CreatedByPersonId, createdByPersonId),
-                reader => reader.ToPerson(_personResponseMapper)
+                QueryPersons.GetPersonIdentifiersByCreatorSql,
+                p =>
+                {
+                    p.AddWithValue(pn.CreatedByPersonId, createdByPersonId);
+                    p.AddWithValue(pn.LastName, afterLastName.ToNullableValueForSql());
+                    p.AddWithValue(pn.FirstName, afterFirstName.ToNullableValueForSql());
+                    p.AddWithValue(pn.PersonUuid, afterPersonUuid.ToNullableValueForSql());
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToPersonIdentifier()
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ListByCreatorAsync failed for CreatedByPersonId {CreatedByPersonId}", createdByPersonId);
+            _logger.LogError(ex, "GetPersonIdentifiersByCreatorIdAsync failed for CreatedByPersonId {CreatedByPersonId}", createdByPersonId);
             throw;
         }
     }
 
-    public async Task<List<Person>> ListAllAsync()
+    public async Task<List<PersonIdentifier>> GetAllPersonIdentifiersAsync(PersonIdentifier? next, int limit)
     {
         try
         {
+            var afterLastName = next?.LastName;
+            var afterFirstName = next?.FirstName;
+            var afterPersonUuid = next?.PersonUuid;
+
             return await _sqlExecutor.QueryManyAsync
             (
-                QueryPersons.ListAllSql,
-                p => { },
-                reader => reader.ToPerson(_personResponseMapper)
+                QueryPersons.GetAllPersonIdentifiersSql,
+                p =>
+                {
+                    p.AddWithValue(pn.LastName, afterLastName.ToNullableValueForSql());
+                    p.AddWithValue(pn.FirstName, afterFirstName.ToNullableValueForSql());
+                    p.AddWithValue(pn.PersonUuid, afterPersonUuid.ToNullableValueForSql());
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToPersonIdentifier()
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ListAllAsync failed");
+            _logger.LogError(ex, "GetAllPersonIdentifiersAsync failed");
             throw;
         }
     }

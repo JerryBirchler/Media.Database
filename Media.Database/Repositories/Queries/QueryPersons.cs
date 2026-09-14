@@ -168,49 +168,57 @@ public static class QueryPersons
         ;";
 
     /// <summary>
-    /// SQL to select every person a given person created (active and inactive alike) -- the
-    /// non-super-admin view of <c>GET /api/persons</c>.
+    /// SQL to select the PersonId/PersonUuid/LastName/FirstName identifiers of every person a
+    /// given person created (active and inactive alike), keyset-paginated in the same
+    /// (LastName, FirstName, PersonUuid) order as
+    /// <see cref="QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql"/> -- the non-super-admin
+    /// view of <c>GET /api/persons/{next}/pages</c>.
     /// </summary>
-    public static string ListByCreatorSql => $@"
+    public static string GetPersonIdentifiersByCreatorSql => $@"
         SELECT
             {cp.PersonId},
             {cp.PersonUuid},
-            {cp.EmailAddress},
-            {cp.CellPhoneNumber},
-            {cp.FirstName},
             {cp.LastName},
-            {cp.IsActive},
-            {cp.CreatedByPersonId},
-            {cp.IsSuperAdmin},
-            {cp.IsEmailVerified},
-            {cp.IsSmsVerified},
-            {cp.OtpWindowOverrideMinutes},
-            {cp.InsertedOn},
-            {cp.UpdatedOn}
+            {cp.FirstName}
         FROM {ts.Persons}
-        WHERE {cp.CreatedByPersonId} = {pn.CreatedByPersonId}
+        WHERE
+            {cp.CreatedByPersonId} = {pn.CreatedByPersonId}
+            AND ({cp.LastName}, {cp.FirstName}, {cp.PersonUuid}) >
+            (
+                COALESCE({pn.LastName}, ''),
+                COALESCE({pn.FirstName}, ''),
+                COALESCE({pn.PersonUuid}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+        ORDER BY
+            {cp.LastName} ASC,
+            {cp.FirstName} ASC,
+            {cp.PersonUuid} ASC
+        LIMIT {pn.Limit}
         ;";
 
     /// <summary>
-    /// SQL to select every person -- the super-admin view of <c>GET /api/persons</c>.
+    /// Same shape and ordering as <see cref="GetPersonIdentifiersByCreatorSql"/>, minus the
+    /// creator scope -- the super-admin view of <c>GET /api/persons/{next}/pages</c>.
     /// </summary>
-    public static string ListAllSql => $@"
+    public static string GetAllPersonIdentifiersSql => $@"
         SELECT
             {cp.PersonId},
             {cp.PersonUuid},
-            {cp.EmailAddress},
-            {cp.CellPhoneNumber},
-            {cp.FirstName},
             {cp.LastName},
-            {cp.IsActive},
-            {cp.CreatedByPersonId},
-            {cp.IsSuperAdmin},
-            {cp.IsEmailVerified},
-            {cp.IsSmsVerified},
-            {cp.OtpWindowOverrideMinutes},
-            {cp.InsertedOn},
-            {cp.UpdatedOn}
+            {cp.FirstName}
         FROM {ts.Persons}
+        WHERE
+            ({cp.LastName}, {cp.FirstName}, {cp.PersonUuid}) >
+            (
+                COALESCE({pn.LastName}, ''),
+                COALESCE({pn.FirstName}, ''),
+                COALESCE({pn.PersonUuid}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+        ORDER BY
+            {cp.LastName} ASC,
+            {cp.FirstName} ASC,
+            {cp.PersonUuid} ASC
+        LIMIT {pn.Limit}
         ;";
 
     /// <summary>SQL to set a person's <c>IsActive</c> flag, returning the updated row.</summary>

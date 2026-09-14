@@ -24,14 +24,18 @@ public interface IPersonRepository
     Task<Person?> CreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber, int createdByPersonId);
 
     /// <summary>
-    /// Lists every person <paramref name="createdByPersonId"/> created (active and inactive alike).
+    /// Gets a keyset-paginated page of PersonId/PersonUuid/LastName/FirstName identifiers for
+    /// every person <paramref name="createdByPersonId"/> created (active and inactive alike),
+    /// ordered by last name then first name (ties broken by PersonUuid) -- the non-super-admin
+    /// view of <c>GET /api/persons/{next}/pages</c>.
     /// </summary>
-    Task<List<Person>> ListByCreatorAsync(int createdByPersonId);
+    Task<List<PersonIdentifier>> GetPersonIdentifiersByCreatorIdAsync(int createdByPersonId, PersonIdentifier? next, int limit);
 
     /// <summary>
-    /// Lists every person -- the super-admin view of <c>GET /api/persons</c>.
+    /// Same shape and ordering as <see cref="GetPersonIdentifiersByCreatorIdAsync"/>, minus the
+    /// creator scope -- the super-admin view of <c>GET /api/persons/{next}/pages</c>.
     /// </summary>
-    Task<List<Person>> ListAllAsync();
+    Task<List<PersonIdentifier>> GetAllPersonIdentifiersAsync(PersonIdentifier? next, int limit);
 
     /// <summary>
     /// Sets a person's <see cref="Person.IsActive"/> flag. Returns the updated person, or
