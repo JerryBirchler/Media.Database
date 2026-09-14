@@ -17,12 +17,13 @@ public interface IGroupSourceMachineRepository
     Task<GroupSourceMachine?> DeactivateAsync(int groupId, int sourceMachineId);
 
     /// <summary>
-    /// Identifies a keyset-paged page of <paramref name="groupId"/>'s active devices, ordered by
-    /// device name -- identifiers only (SourceMachineId, SourceMachineName), for cheap cursor
-    /// computation before hydrating full rows via <see cref="IRegistrationRepository.GetByIdsAsync"/>
-    /// (the existing "registrations" Scylla table, no new table needed). Pass
-    /// <paramref name="afterSourceMachineName"/>/<paramref name="afterSourceMachineId"/> null for
-    /// the first page.
+    /// Identifies a keyset-paged page of <paramref name="groupId"/>'s devices, ordered by device
+    /// name -- identifiers only (SourceMachineId, SourceMachineName), for cheap cursor computation
+    /// before hydrating full rows via <see cref="IRegistrationRepository.GetByIdsAsync"/> (the
+    /// existing "registrations" Scylla table, no new table needed). The group/device association
+    /// itself is always required to be active; <paramref name="includeInactive"/> controls only
+    /// whether an inactive device registration is included (MEDIA-8: only a group admin may pass
+    /// true). Pass <paramref name="next"/> null for the first page.
     /// </summary>
-    Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, string? afterSourceMachineName, int? afterSourceMachineId, int limit);
+    Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, bool includeInactive, (int SourceMachineId, string SourceMachineName)? next, int limit);
 }

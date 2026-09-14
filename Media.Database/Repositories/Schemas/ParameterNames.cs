@@ -18,6 +18,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string GroupPersonUuid = x();
     public static readonly string GroupUuid = x();
     public static readonly string Id = x();
+    public static readonly string IncludeInactive = x();
     public static readonly string InsertedOn = x();
     public static readonly string IsActive = x();
     public static readonly string IsAdmin = x();

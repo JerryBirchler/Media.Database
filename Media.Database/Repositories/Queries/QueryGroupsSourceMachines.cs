@@ -71,10 +71,14 @@ public static class QueryGroupsSourceMachines
 
     /// <summary>
     /// SQL to select just the ordering key (SourceMachineId, SourceMachineName) for a keyset-paged
-    /// page of a group's active devices, ordered by device name -- cheap enough to identify from
+    /// page of a group's devices, ordered by device name -- cheap enough to identify from
     /// PostgreSQL alone before hydrating full rows from the existing "registrations" Scylla table
     /// (with a PostgreSQL fallback), the same table/CDC pipeline <c>SourceMachineRegistrations</c>
-    /// already maintains -- no new Scylla table or CDC handler is needed for this endpoint.
+    /// already maintains -- no new Scylla table or CDC handler is needed for this endpoint. The
+    /// group/device association (GroupsSourceMachines.IsActive) must always be active -- a device
+    /// removed from the group never appears, regardless of the IncludeInactive parameter -- but the
+    /// device's own SourceMachineRegistrations.IsActive is only enforced when IncludeInactive is
+    /// false, since MEDIA-8 only lets a group admin see inactive devices.
     /// </summary>
     public static string GetSourceMachineIdentifiersByGroupIdSql => $@"
         SELECT
@@ -87,7 +91,7 @@ public static class QueryGroupsSourceMachines
         WHERE
             gsm.{cgsm.GroupId} = {pn.GroupId}
             AND gsm.{cgsm.IsActive} = true
-            AND smr.{csmr.IsActive} = true
+            AND ({pn.IncludeInactive} = true OR smr.{csmr.IsActive} = true)
             AND (smr.{csmr.SourceMachineName}, smr.{csmr.SourceMachineId}) >
             (
                 COALESCE({pn.SourceMachineName}, ''),

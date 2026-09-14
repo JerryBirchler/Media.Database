@@ -71,15 +71,19 @@ public class GroupSourceMachineRepository(
         }
     }
 
-    public async Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, string? afterSourceMachineName, int? afterSourceMachineId, int limit)
+    public async Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, bool includeInactive, (int SourceMachineId, string SourceMachineName)? next, int limit)
     {
         try
         {
+            var afterSourceMachineName = next?.SourceMachineName;
+            var afterSourceMachineId = next?.SourceMachineId;
+
             return await _sqlExecutor.QueryManyAsync(
                 QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql,
                 p =>
                 {
                     p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.IncludeInactive, includeInactive);
                     p.AddWithValue(pn.SourceMachineName, afterSourceMachineName.ToNullableValueForSql());
                     p.AddWithValue(pn.SourceMachineId, afterSourceMachineId.ToNullableValueForSql());
                     p.AddWithValue(pn.Limit, limit);

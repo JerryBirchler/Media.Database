@@ -114,10 +114,13 @@ public class GroupPersonRepository(
         }
     }
 
-    public async Task<List<(int GroupId, string Name)>> GetGroupIdentifiersByPersonIdAsync(int personId, string? afterName, int? afterGroupId, int limit)
+    public async Task<List<(int GroupId, string Name)>> GetGroupIdentifiersByPersonIdAsync(int personId, (int GroupId, string Name)? next, int limit)
     {
         try
         {
+            var afterName = next?.Name;
+            var afterGroupId = next?.GroupId;
+
             return await _sqlExecutor.QueryManyAsync(
                 QueryGroupsPersons.GetGroupIdentifiersByPersonIdSql,
                 p =>
@@ -136,10 +139,14 @@ public class GroupPersonRepository(
         }
     }
 
-    public async Task<List<PersonIdentifier>> GetPersonIdentifiersByGroupIdAsync(int groupId, string? afterLastName, string? afterFirstName, Guid? afterPersonUuid, int limit)
+    public async Task<List<PersonIdentifier>> GetPersonIdentifiersByGroupIdAsync(int groupId, PersonIdentifier? next, int limit)
     {
         try
         {
+            var afterLastName = next?.LastName;
+            var afterFirstName = next?.FirstName;
+            var afterPersonUuid = next?.PersonUuid;
+
             return await _sqlExecutor.QueryManyAsync(
                 QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql,
                 p =>

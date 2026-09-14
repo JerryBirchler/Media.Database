@@ -129,7 +129,7 @@ public class GroupSourceMachineRepositoryTests
             .Setup(e => e.QueryManyAsync(QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>()))
             .ReturnsAsync(expected);
 
-        var result = await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, afterSourceMachineName: null, afterSourceMachineId: null, limit: 5);
+        var result = await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, includeInactive: false, next: null, limit: 5);
 
         result.ShouldBe(expected);
     }
@@ -143,11 +143,12 @@ public class GroupSourceMachineRepositoryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>((_, configure, _) => captured = configure)
             .ReturnsAsync([]);
 
-        await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, afterSourceMachineName: "Laptop", afterSourceMachineId: 9, limit: 5);
+        await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, includeInactive: true, next: (SourceMachineId: 9, SourceMachineName: "Laptop"), limit: 5);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.GroupId].Value.ShouldBe(3);
+        command.Parameters[pn.IncludeInactive].Value.ShouldBe(true);
         command.Parameters[pn.SourceMachineName].Value.ShouldBe("Laptop");
         command.Parameters[pn.SourceMachineId].Value.ShouldBe(9);
         command.Parameters[pn.Limit].Value.ShouldBe(5);
@@ -162,12 +163,28 @@ public class GroupSourceMachineRepositoryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>((_, configure, _) => captured = configure)
             .ReturnsAsync([]);
 
-        await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, afterSourceMachineName: null, afterSourceMachineId: null, limit: 5);
+        await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, includeInactive: false, next: null, limit: 5);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(DBNull.Value);
         command.Parameters[pn.SourceMachineId].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public async Task GetSourceMachineIdentifiersByGroupIdAsync_Should_ConfigureIncludeInactiveAsFalse_ByDefault()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, includeInactive: false, next: null, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.IncludeInactive].Value.ShouldBe(false);
     }
 
     [Test]
@@ -177,6 +194,6 @@ public class GroupSourceMachineRepositoryTests
             .Setup(e => e.QueryManyAsync(QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, null, null, 5));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, false, null, 5));
     }
 }

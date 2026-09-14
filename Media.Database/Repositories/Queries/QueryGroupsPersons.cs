@@ -130,7 +130,9 @@ public static class QueryGroupsPersons
     /// keyset-paged page of a group's active members, ordered by last name then first name (ties
     /// broken by the externally-facing PersonUuid, not the internal PersonId) -- cheap enough to
     /// identify from PostgreSQL alone before hydrating full rows from Scylla (with a PostgreSQL
-    /// fallback) via <see cref="IPersonRepository.GetByIdsAsync"/>.
+    /// fallback) via <see cref="IPersonRepository.GetByIdsAsync"/>. Deliberately does not filter on
+    /// Persons.IsActive -- this endpoint is group-admin-only (MEDIA-8), and shows active and
+    /// inactivated members alike, same as a person's own creator sees both via GET /api/persons.
     /// </summary>
     public static string GetPersonIdentifiersByGroupIdSql => $@"
         SELECT
@@ -145,7 +147,6 @@ public static class QueryGroupsPersons
         WHERE
             gp.{cgp.GroupId} = {pn.GroupId}
             AND gp.{cgp.IsActive} = true
-            AND p.{cp.IsActive} = true
             AND (p.{cp.LastName}, p.{cp.FirstName}, p.{cp.PersonUuid}) >
             (
                 COALESCE({pn.LastName}, ''),
