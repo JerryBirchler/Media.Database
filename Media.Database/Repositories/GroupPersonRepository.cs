@@ -2,6 +2,7 @@ using Media.Common.Helpers.Fluent;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
+using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
 
 #pragma warning disable CS8981
@@ -109,6 +110,51 @@ public class GroupPersonRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "CountActiveAdminsAsync failed for GroupId {GroupId}", groupId);
+            throw;
+        }
+    }
+
+    public async Task<List<(int GroupId, string Name)>> GetGroupIdentifiersByPersonIdAsync(int personId, string? afterName, int? afterGroupId, int limit)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryGroupsPersons.GetGroupIdentifiersByPersonIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.PersonId, personId);
+                    p.AddWithValue(pn.Name, afterName.ToNullableValueForSql());
+                    p.AddWithValue(pn.GroupId, afterGroupId.ToNullableValueForSql());
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToGroupIdentifier());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetGroupIdentifiersByPersonIdAsync failed for PersonId {PersonId}", personId);
+            throw;
+        }
+    }
+
+    public async Task<List<PersonIdentifier>> GetPersonIdentifiersByGroupIdAsync(int groupId, string? afterLastName, string? afterFirstName, Guid? afterPersonUuid, int limit)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.LastName, afterLastName.ToNullableValueForSql());
+                    p.AddWithValue(pn.FirstName, afterFirstName.ToNullableValueForSql());
+                    p.AddWithValue(pn.PersonUuid, afterPersonUuid.ToNullableValueForSql());
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToPersonIdentifier());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetPersonIdentifiersByGroupIdAsync failed for GroupId {GroupId}", groupId);
             throw;
         }
     }

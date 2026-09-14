@@ -11,6 +11,7 @@ using Npgsql;
 using NUnit.Framework;
 using Shouldly;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -156,5 +157,126 @@ public class GroupPersonRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().CountActiveAdminsAsync(5));
+    }
+
+    [Test]
+    public async Task GetGroupIdentifiersByPersonIdAsync_Should_ReturnIdentifiers_From_Executor()
+    {
+        var expected = new List<(int GroupId, string Name)> { (GroupId: 1, Name: "a"), (GroupId: 2, Name: "b") };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetGroupIdentifiersByPersonIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int GroupId, string Name)>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetGroupIdentifiersByPersonIdAsync(3, afterName: null, afterGroupId: null, limit: 5);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetGroupIdentifiersByPersonIdAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetGroupIdentifiersByPersonIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int GroupId, string Name)>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int GroupId, string Name)>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetGroupIdentifiersByPersonIdAsync(3, afterName: "Group A", afterGroupId: 7, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.PersonId].Value.ShouldBe(3);
+        command.Parameters[pn.Name].Value.ShouldBe("Group A");
+        command.Parameters[pn.GroupId].Value.ShouldBe(7);
+        command.Parameters[pn.Limit].Value.ShouldBe(5);
+    }
+
+    [Test]
+    public async Task GetGroupIdentifiersByPersonIdAsync_Should_ConfigureCursorAsDbNull_When_FirstPage()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetGroupIdentifiersByPersonIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int GroupId, string Name)>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int GroupId, string Name)>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetGroupIdentifiersByPersonIdAsync(3, afterName: null, afterGroupId: null, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Name].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.GroupId].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public void GetGroupIdentifiersByPersonIdAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetGroupIdentifiersByPersonIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int GroupId, string Name)>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetGroupIdentifiersByPersonIdAsync(3, null, null, 5));
+    }
+
+    [Test]
+    public async Task GetPersonIdentifiersByGroupIdAsync_Should_ReturnIdentifiers_From_Executor()
+    {
+        var expected = new List<PersonIdentifier> { _fixture.Create<PersonIdentifier>() };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonIdentifier>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetPersonIdentifiersByGroupIdAsync(3, afterLastName: null, afterFirstName: null, afterPersonUuid: null, limit: 5);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetPersonIdentifiersByGroupIdAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        var personUuid = Guid.NewGuid();
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonIdentifier>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, PersonIdentifier>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetPersonIdentifiersByGroupIdAsync(3, afterLastName: "Doe", afterFirstName: "Jane", afterPersonUuid: personUuid, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.GroupId].Value.ShouldBe(3);
+        command.Parameters[pn.LastName].Value.ShouldBe("Doe");
+        command.Parameters[pn.FirstName].Value.ShouldBe("Jane");
+        command.Parameters[pn.PersonUuid].Value.ShouldBe(personUuid);
+        command.Parameters[pn.Limit].Value.ShouldBe(5);
+    }
+
+    [Test]
+    public async Task GetPersonIdentifiersByGroupIdAsync_Should_ConfigureCursorAsDbNull_When_FirstPage()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonIdentifier>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, PersonIdentifier>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetPersonIdentifiersByGroupIdAsync(3, afterLastName: null, afterFirstName: null, afterPersonUuid: null, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.LastName].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.FirstName].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.PersonUuid].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public void GetPersonIdentifiersByGroupIdAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonIdentifier>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetPersonIdentifiersByGroupIdAsync(3, null, null, null, 5));
     }
 }

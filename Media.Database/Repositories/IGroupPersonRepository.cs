@@ -27,4 +27,21 @@ public interface IGroupPersonRepository
     /// one admin must remain" floor check.
     /// </summary>
     Task<int> CountActiveAdminsAsync(int groupId);
+
+    /// <summary>
+    /// Identifies a keyset-paged page of the active groups <paramref name="personId"/> belongs to,
+    /// ordered by name -- identifiers only (GroupId, Name), for cheap cursor computation before
+    /// hydrating full rows via <see cref="IGroupRepository.GetByIdsAsync"/>. Pass
+    /// <paramref name="afterName"/>/<paramref name="afterGroupId"/> null for the first page.
+    /// </summary>
+    Task<List<(int GroupId, string Name)>> GetGroupIdentifiersByPersonIdAsync(int personId, string? afterName, int? afterGroupId, int limit);
+
+    /// <summary>
+    /// Identifies a keyset-paged page of <paramref name="groupId"/>'s active members, ordered by
+    /// last name then first name (ties broken by PersonUuid) -- identifiers only, for cheap cursor
+    /// computation before hydrating full rows via <see cref="IPersonRepository.GetByIdsAsync"/>.
+    /// Pass <paramref name="afterLastName"/>/<paramref name="afterFirstName"/>/<paramref name="afterPersonUuid"/>
+    /// null for the first page.
+    /// </summary>
+    Task<List<PersonIdentifier>> GetPersonIdentifiersByGroupIdAsync(int groupId, string? afterLastName, string? afterFirstName, Guid? afterPersonUuid, int limit);
 }

@@ -11,6 +11,7 @@ using Npgsql;
 using NUnit.Framework;
 using Shouldly;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -118,5 +119,64 @@ public class GroupSourceMachineRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DeactivateAsync(1, 2));
+    }
+
+    [Test]
+    public async Task GetSourceMachineIdentifiersByGroupIdAsync_Should_ReturnIdentifiers_From_Executor()
+    {
+        var expected = new List<(int SourceMachineId, string SourceMachineName)> { (SourceMachineId: 1, SourceMachineName: "a"), (SourceMachineId: 2, SourceMachineName: "b") };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, afterSourceMachineName: null, afterSourceMachineId: null, limit: 5);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetSourceMachineIdentifiersByGroupIdAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, afterSourceMachineName: "Laptop", afterSourceMachineId: 9, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.GroupId].Value.ShouldBe(3);
+        command.Parameters[pn.SourceMachineName].Value.ShouldBe("Laptop");
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(9);
+        command.Parameters[pn.Limit].Value.ShouldBe(5);
+    }
+
+    [Test]
+    public async Task GetSourceMachineIdentifiersByGroupIdAsync_Should_ConfigureCursorAsDbNull_When_FirstPage()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, afterSourceMachineName: null, afterSourceMachineId: null, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.SourceMachineName].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public void GetSourceMachineIdentifiersByGroupIdAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (int SourceMachineId, string SourceMachineName)>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, null, null, 5));
     }
 }

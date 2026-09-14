@@ -1,3 +1,4 @@
+using Cassandra;
 using Media.Database.Helpers;
 using Media.Database.Models;
 using Npgsql;
@@ -329,6 +330,39 @@ public static class QueryRegistrations
     #endregion
 
     #region CQL Queries
+    /// <summary>
+    /// CQL to select a registration by <c>source_machine_id</c> -- the Scylla-hydration lookup for
+    /// <see cref="RegistrationRepository.GetByIdsAsync"/>, reading the same "registrations" table
+    /// <see cref="UpsertRegistrationCql"/> (via RegistrationsCdcSyncHandler) already maintains.
+    /// </summary>
+    public static string GetBySourceMachineIdCql => $@"
+        SELECT
+            {ccr.RegistrationId},
+            {ccr.SourceMachineId},
+            {ccr.SourceMachineUuid},
+            {ccr.SourceMachineName},
+            {ccr.DeviceTypeId},
+            {ccr.FirstName},
+            {ccr.LastName},
+            {ccr.EmailAddress},
+            {ccr.CellPhoneNumber},
+            {ccr.OperatingSystem},
+            {ccr.SourceInsertedOn},
+            {ccr.SourceUpdatedOn},
+            {ccr.IsActive},
+            {ccr.IsEmailVerified},
+            {ccr.IsSmsVerified},
+            {ccr.OtpEmail},
+            {ccr.OtpCellPhone},
+            {ccr.RegistrationInsertedOn},
+            {ccr.RegistrationUpdatedOn}
+        FROM
+            {tc.Registrations}
+        WHERE
+            {ccr.SourceMachineId} = {pn.SourceMachineId}
+        LIMIT 1
+        ;";
+
     public static string UpsertRegistrationCql => $@"
         INSERT INTO {tc.Registrations} (
             {ccr.SourceMachineUuid},
@@ -496,6 +530,39 @@ public static class QueryRegistrations
             OperatingSystem = reader.GetString(os.OperatingSystem),
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             IsActive = reader.GetFieldValue<bool>(os.IsActive)
+        };
+    }
+
+    /// <summary>
+    /// Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="SourceMachineRegistrations"/>.
+    /// Unlike the LEFT-JOIN-based Postgres mapping, every row this table holds was itself only ever
+    /// written once a joined Registrations row existed (see RegistrationsCdcSyncHandler), so
+    /// <see cref="SourceMachineRegistrations.HasRegistration"/> is unconditionally true here.
+    /// </summary>
+    public static SourceMachineRegistrations ToSourceMachineRegistration(this Row row)
+    {
+        return new SourceMachineRegistrations
+        {
+            RegistrationId = row.GetValue<int>(ccr.RegistrationId),
+            SourceMachineId = row.GetValue<int>(ccr.SourceMachineId),
+            SourceMachineUuid = row.GetValue<Guid>(ccr.SourceMachineUuid),
+            SourceMachineName = row.GetValue<string>(ccr.SourceMachineName),
+            DeviceTypeId = (DeviceTypes)row.GetValue<int>(ccr.DeviceTypeId),
+            EmailAddress = row.GetValue<string>(ccr.EmailAddress),
+            CellPhoneNumber = row.GetValue<string>(ccr.CellPhoneNumber),
+            FirstName = row.GetValue<string>(ccr.FirstName),
+            LastName = row.GetValue<string>(ccr.LastName),
+            HasRegistration = true,
+            IsEmailVerified = row.GetValue<bool>(ccr.IsEmailVerified),
+            IsSmsVerified = row.GetValue<bool>(ccr.IsSmsVerified),
+            OperatingSystem = row.GetValue<string>(ccr.OperatingSystem),
+            InsertedOn = row.GetValue<DateTimeOffset>(ccr.SourceInsertedOn),
+            UpdatedOn = row.GetValue<DateTimeOffset?>(ccr.SourceUpdatedOn),
+            IsActive = row.GetValue<bool>(ccr.IsActive),
+            OtpEmail = row.GetValue<string>(ccr.OtpEmail),
+            OtpCellPhone = row.GetValue<string>(ccr.OtpCellPhone),
+            RegistrationInsertedOn = row.GetValue<DateTimeOffset?>(ccr.RegistrationInsertedOn),
+            RegistrationUpdatedOn = row.GetValue<DateTimeOffset?>(ccr.RegistrationUpdatedOn)
         };
     }
 

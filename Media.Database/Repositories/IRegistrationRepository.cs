@@ -32,4 +32,16 @@ public interface IRegistrationRepository
     /// Leaves any already-verified channel untouched. Returns null if no registration matches.
     /// </summary>
     Task<ResendOtpResult?> ResendOtp(string sourceMachineName, DeviceTypes deviceTypeId, string emailAddress, string cellPhoneNumber);
+
+    /// <summary>
+    /// Hydrates full <see cref="SourceMachineRegistrations"/> rows for a set of source machine
+    /// ids -- Postgres identifies which devices and in what order (e.g. a group's device list),
+    /// this hydrates the full row content preferring the existing "registrations" Scylla table,
+    /// falling back to PostgreSQL per row when Scylla doesn't have it yet (CDC lag) or is
+    /// unreachable. Same split as <see cref="IGroupRepository.GetByIdsAsync"/>.
+    /// </summary>
+    /// <param name="sourceMachineIds">The source machine ids to hydrate.</param>
+    /// <param name="maxDegreeOfParallelism">The maximum number of concurrent lookups.</param>
+    /// <returns>The hydrated registrations, in no particular order -- callers that need a specific order must reorder by id themselves.</returns>
+    Task<List<SourceMachineRegistrations>> GetByIdsAsync(IEnumerable<int> sourceMachineIds, int maxDegreeOfParallelism);
 }

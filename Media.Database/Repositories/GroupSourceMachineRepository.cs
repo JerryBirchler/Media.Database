@@ -2,6 +2,7 @@ using Media.Common.Helpers.Fluent;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
+using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
 
 #pragma warning disable CS8981
@@ -66,6 +67,28 @@ public class GroupSourceMachineRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "DeactivateAsync failed for GroupId {GroupId}, SourceMachineId {SourceMachineId}", groupId, sourceMachineId);
+            throw;
+        }
+    }
+
+    public async Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, string? afterSourceMachineName, int? afterSourceMachineId, int limit)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryGroupsSourceMachines.GetSourceMachineIdentifiersByGroupIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.SourceMachineName, afterSourceMachineName.ToNullableValueForSql());
+                    p.AddWithValue(pn.SourceMachineId, afterSourceMachineId.ToNullableValueForSql());
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToSourceMachineIdentifier());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetSourceMachineIdentifiersByGroupIdAsync failed for GroupId {GroupId}", groupId);
             throw;
         }
     }

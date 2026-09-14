@@ -1,6 +1,7 @@
 using Media.Database.Helpers;
 using Media.Common.Helpers;
 using Media.Common.Helpers.Fluent;
+using Media.Common.Providers;
 using Media.Common.Settings;
 using Media.Common.Transactions;
 using Media.Database.Mappers;
@@ -10,6 +11,7 @@ using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Serilog.Core;
+using System.Collections.Concurrent;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -23,17 +25,22 @@ namespace Media.Database.Repositories;
 /// synchronously; Scylla is kept in sync separately and asynchronously by the CDC pipeline
 /// (Media.Common.Cdc.CdcConsumerService dispatching to Cdc.RegistrationsCdcSyncHandler),
 /// reading Postgres own write-ahead log rather than this repository writing to both stores.
+/// <see cref="GetByIdsAsync"/> hydrates preferring that same Scylla table, falling back to
+/// PostgreSQL per row -- same split as <see cref="GroupRepository.GetByIdsAsync"/>.
 /// </summary>
 public class RegistrationRepository(
     ISqlQueryExecutor sqlExecutor,
+    ICqlQueryExecutor cqlExecutor,
+    IScyllaSessionProvider scyllaProvider,
     Func<IUnitOfWork> unitOfWorkFactory,
     IOptions<RegistrationSettings> registrationSettings,
     ILogger<RegistrationRepository> logger,
     IMapRegistrationResponses registrationResponseMapper,
     LoggingLevelSwitch levelSwitch)
-    : IRegistrationRepository
+    : BaseRepository(scyllaProvider), IRegistrationRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+    private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly IOptions<RegistrationSettings> _registrationSettings = registrationSettings;
     private readonly FluentLogger<RegistrationRepository> _logger = logger.Initializer();
@@ -457,5 +464,61 @@ public class RegistrationRepository(
             _logger.LogError(ex, "VerifyOtpCellPhone failed for CellPhoneNumber {CellPhoneNumber}", cellPhoneNumber);
             throw;
         }
+    }
+
+    public async Task<List<SourceMachineRegistrations>> GetByIdsAsync(IEnumerable<int> sourceMachineIds, int maxDegreeOfParallelism)
+    {
+        var results = new ConcurrentBag<SourceMachineRegistrations>();
+
+        await Parallel.ForEachAsync(
+            sourceMachineIds,
+            new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism },
+            async (sourceMachineId, _) =>
+            {
+                var registration = await GetByIdPreferringScyllaAsync(sourceMachineId);
+                if (registration is not null)
+                    results.Add(registration);
+            });
+
+        return [.. results];
+    }
+
+    /// <summary>
+    /// Looks up a single device's registration by SourceMachineId, preferring the existing
+    /// "registrations" Scylla table and falling back to PostgreSQL when Scylla has no row yet (CDC
+    /// lag) or is unreachable. A Scylla failure here is deliberately not rethrown -- PostgreSQL is
+    /// the durable source of truth, so a temporarily unavailable Scylla cluster should degrade this
+    /// to a normal PostgreSQL read rather than fail it.
+    /// </summary>
+    private async Task<SourceMachineRegistrations?> GetByIdPreferringScyllaAsync(int sourceMachineId)
+    {
+        var log = _logger.WithCaller();
+
+        try
+        {
+            var fromScylla = await _cqlExecutor.QuerySingleAsync(
+                QueryRegistrations.GetBySourceMachineIdCql,
+                p => p.AddWithValue(pn.SourceMachineId, sourceMachineId),
+                row => row.ToSourceMachineRegistration());
+
+            if (fromScylla is not null)
+                return fromScylla;
+        }
+        catch (Exception ex) when (IsScyllaConnectivityException(ex))
+        {
+            log.LogError(ex, "Scylla cluster unavailable fetching SourceMachineId {SourceMachineId}; falling back to Postgres", sourceMachineId);
+            await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScyllaAsync));
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Scylla lookup failed for SourceMachineId {SourceMachineId}; falling back to Postgres", sourceMachineId);
+        }
+
+        return await _sqlExecutor.QuerySingleAsync
+        (
+            QueryRegistrations.GetBySourceMachineIdSql,
+            p => p.AddWithValue(pn.SourceMachineId, sourceMachineId),
+            reader => reader.ToSourceMachineRegistration()
+        );
     }
 }

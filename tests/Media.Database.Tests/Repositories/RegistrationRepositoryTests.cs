@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Providers;
 using Media.Common.Settings;
 using Media.Common.Transactions;
 using Media.Database.Mappers;
@@ -17,6 +18,7 @@ using Shouldly;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
@@ -40,6 +42,8 @@ namespace Media.Database.Tests.Repositories;
 public class RegistrationRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
+    private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
     private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
 
@@ -48,11 +52,15 @@ public class RegistrationRepositoryTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
+        _scyllaProviderMock = new Mock<IScyllaSessionProvider>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
     private RegistrationRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
+        _cqlExecutorMock.Object,
+        _scyllaProviderMock.Object,
         () => _unitOfWorkMock.Object,
         Options.Create(new RegistrationSettings { OtpWindow = TimeSpan.FromHours(1), VerifyBaseUrl = "http://192.168.4.32:5267" }),
         Mock.Of<ILogger<RegistrationRepository>>(),
@@ -821,5 +829,109 @@ public class RegistrationRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().VerifyOtpCellPhone(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456"));
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_PreferScylla_When_RowFound()
+    {
+        var sourceMachineId = _fixture.Create<int>();
+        var scyllaRegistration = CreateRegistration() with { SourceMachineId = sourceMachineId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, SourceMachineRegistrations>>()))
+            .ReturnsAsync(scyllaRegistration);
+
+        var result = await CreateRepository().GetByIdsAsync([sourceMachineId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([scyllaRegistration]);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_When_ScyllaHasNoRowYet()
+    {
+        var sourceMachineId = _fixture.Create<int>();
+        var postgresRegistration = CreateRegistration() with { SourceMachineId = sourceMachineId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(postgresRegistration);
+
+        var result = await CreateRepository().GetByIdsAsync([sourceMachineId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresRegistration]);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_And_AttemptHeal_When_ScyllaConnectivityExceptionThrown()
+    {
+        var sourceMachineId = _fixture.Create<int>();
+        var postgresRegistration = CreateRegistration() with { SourceMachineId = sourceMachineId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, SourceMachineRegistrations>>()))
+            .ThrowsAsync(new Cassandra.NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(postgresRegistration);
+        _scyllaProviderMock.Setup(p => p.GetCurrentSessionId()).Returns(Guid.NewGuid());
+
+        var result = await CreateRepository().GetByIdsAsync([sourceMachineId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresRegistration]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Once);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_When_ScyllaThrowsNonConnectivityException()
+    {
+        var sourceMachineId = _fixture.Create<int>();
+        var postgresRegistration = CreateRegistration() with { SourceMachineId = sourceMachineId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, SourceMachineRegistrations>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(postgresRegistration);
+
+        var result = await CreateRepository().GetByIdsAsync([sourceMachineId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresRegistration]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_OmitId_When_NeitherStoreHasIt()
+    {
+        var sourceMachineId = _fixture.Create<int>();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+
+        var result = await CreateRepository().GetByIdsAsync([sourceMachineId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_HydrateEveryId_When_MultipleIdsRequested()
+    {
+        var sourceMachineIds = _fixture.CreateMany<int>(4).ToList();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetBySourceMachineIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, SourceMachineRegistrations>>()))
+            .ReturnsAsync((string _, Action<Dictionary<string, object>> configure, Func<Cassandra.Row, SourceMachineRegistrations> _) =>
+            {
+                var parameters = new Dictionary<string, object>();
+                configure(parameters);
+                var sourceMachineId = (int)parameters[pn.SourceMachineId.ToUpperInvariant()];
+                return CreateRegistration() with { SourceMachineId = sourceMachineId };
+            });
+
+        var result = await CreateRepository().GetByIdsAsync(sourceMachineIds, maxDegreeOfParallelism: 2);
+
+        result.Select(r => r.SourceMachineId).ShouldBe(sourceMachineIds, ignoreOrder: true);
     }
 }
