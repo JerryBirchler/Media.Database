@@ -1,3 +1,4 @@
+using Cassandra;
 using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -5,8 +6,10 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using cp = Media.Database.Repositories.Schemas.TablesSql.PersonsColumns;
+using ccp = Media.Database.Repositories.Schemas.TablesCql.PersonsColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
+using tc = Media.Database.Repositories.Schemas.TablesCql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
 #pragma warning restore CS8981
 
@@ -46,6 +49,30 @@ public static class QueryPersons
             AND {cp.LastName} = {pn.LastName}
             AND {cp.EmailAddress} = {pn.EmailAddress}
             AND {cp.CellPhoneNumber} = {pn.CellPhoneNumber}
+        ;";
+
+    /// <summary>
+    /// SQL to select a person by their <c>PersonId</c> -- the PostgreSQL-fallback path for
+    /// <see cref="PersonRepository.GetByIdsAsync"/> when Scylla doesn't have the row yet.
+    /// </summary>
+    public static string GetByIdSql => $@"
+        SELECT
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
+        FROM {ts.Persons}
+        WHERE {cp.PersonId} = {pn.PersonId}
         ;";
 
     /// <summary>
@@ -245,6 +272,76 @@ public static class QueryPersons
 
     #endregion
 
+    #region CQL Queries
+
+    /// <summary>CQL to select a person by their <c>person_id</c> (Scylla-hydration lookup).</summary>
+    public static string GetByIdCql => $@"
+        SELECT
+            {ccp.PersonId},
+            {ccp.PersonUuid},
+            {ccp.EmailAddress},
+            {ccp.CellPhoneNumber},
+            {ccp.FirstName},
+            {ccp.LastName},
+            {ccp.IsActive},
+            {ccp.CreatedByPersonId},
+            {ccp.IsSuperAdmin},
+            {ccp.IsEmailVerified},
+            {ccp.IsSmsVerified},
+            {ccp.OtpWindowOverrideMinutes},
+            {ccp.InsertedOn},
+            {ccp.UpdatedOn}
+        FROM
+            {tc.Persons}
+        WHERE
+            {ccp.PersonId} = {pn.PersonId}
+        LIMIT 1
+        ;";
+
+    /// <summary>CQL to insert/replace a person row.</summary>
+    public static string UpsertCql => $@"
+        INSERT INTO {tc.Persons}
+        (
+            {ccp.PersonId},
+            {ccp.PersonUuid},
+            {ccp.EmailAddress},
+            {ccp.CellPhoneNumber},
+            {ccp.FirstName},
+            {ccp.LastName},
+            {ccp.IsActive},
+            {ccp.CreatedByPersonId},
+            {ccp.IsSuperAdmin},
+            {ccp.IsEmailVerified},
+            {ccp.IsSmsVerified},
+            {ccp.OtpWindowOverrideMinutes},
+            {ccp.InsertedOn},
+            {ccp.UpdatedOn}
+        )
+        VALUES
+        (
+            {pn.PersonId},
+            {pn.PersonUuid},
+            {pn.EmailAddress},
+            {pn.CellPhoneNumber},
+            {pn.FirstName},
+            {pn.LastName},
+            {pn.IsActive},
+            {pn.CreatedByPersonId},
+            {pn.IsSuperAdmin},
+            {pn.IsEmailVerified},
+            {pn.IsSmsVerified},
+            {pn.OtpWindowOverrideMinutes},
+            {pn.InsertedOn},
+            {pn.UpdatedOn}
+        )
+        ;";
+
+    /// <summary>CQL to delete a person row by <c>person_id</c>.</summary>
+    public static string DeleteCql => $@"
+        DELETE FROM {tc.Persons} WHERE {ccp.PersonId} = {pn.PersonId};";
+
+    #endregion
+
     /// <summary>
     /// Maps the current row of <paramref name="reader"/> to a <see cref="Person"/>, via
     /// <paramref name="mapper"/> -- see <see cref="IMapPersonResponse"/> for why the actual
@@ -267,5 +364,27 @@ public static class QueryPersons
             reader.GetFieldValue<int?>(os.OtpWindowOverrideMinutes),
             reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn));
+    }
+
+    /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Person"/>.</summary>
+    public static Person ToPerson(this Row row)
+    {
+        return new Person
+        {
+            PersonId = row.GetValue<int>(ccp.PersonId),
+            PersonUuid = row.GetValue<Guid>(ccp.PersonUuid),
+            EmailAddress = row.GetValue<string>(ccp.EmailAddress),
+            CellPhoneNumber = row.GetValue<string>(ccp.CellPhoneNumber),
+            FirstName = row.GetValue<string>(ccp.FirstName),
+            LastName = row.GetValue<string>(ccp.LastName),
+            IsActive = row.GetValue<bool>(ccp.IsActive),
+            CreatedByPersonId = row.GetValue<int?>(ccp.CreatedByPersonId),
+            IsSuperAdmin = row.GetValue<bool>(ccp.IsSuperAdmin),
+            IsEmailVerified = row.GetValue<bool>(ccp.IsEmailVerified),
+            IsSmsVerified = row.GetValue<bool>(ccp.IsSmsVerified),
+            OtpWindowOverrideMinutes = row.GetValue<int?>(ccp.OtpWindowOverrideMinutes),
+            InsertedOn = row.GetValue<DateTimeOffset>(ccp.InsertedOn),
+            UpdatedOn = row.GetValue<DateTimeOffset?>(ccp.UpdatedOn)
+        };
     }
 }

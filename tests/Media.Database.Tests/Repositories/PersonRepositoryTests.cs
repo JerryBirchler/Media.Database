@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Providers;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories;
@@ -12,6 +13,8 @@ using NUnit.Framework;
 using Shouldly;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -20,16 +23,19 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 namespace Media.Database.Tests.Repositories;
 
 /// <summary>
-/// Covers PersonRepository's public API against a mocked ISqlQueryExecutor, following the same
-/// pattern as RegistrationRepositoryTests. The reader-mapping delegate passed to QuerySingleAsync
-/// is never actually invoked by these mocks (the whole call is intercepted), so a real
-/// MapPersonResponse is used purely to satisfy the constructor, same as RegistrationRepositoryTests
-/// does with MapRegistrationResponses.
+/// Covers PersonRepository's public API against a mocked ISqlQueryExecutor (and, for the
+/// Scylla-first read path, a mocked ICqlQueryExecutor), following the same pattern as
+/// FileRepositoryQueryTests. The reader-mapping delegate passed to QuerySingleAsync is never
+/// actually invoked by these mocks (the whole call is intercepted), so a real MapPersonResponse
+/// is used purely to satisfy the constructor, same as RegistrationRepositoryTests does with
+/// MapRegistrationResponses.
 /// </summary>
 [TestFixture]
 public class PersonRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
+    private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
     private IFixture _fixture = null!;
 
     [SetUp]
@@ -37,10 +43,14 @@ public class PersonRepositoryTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
+        _scyllaProviderMock = new Mock<IScyllaSessionProvider>();
     }
 
     private PersonRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
+        _cqlExecutorMock.Object,
+        _scyllaProviderMock.Object,
         new MapPersonResponse(),
         Mock.Of<ILogger<PersonRepository>>());
 
@@ -324,5 +334,109 @@ public class PersonRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateAsync(1, "Jane", "Doe", "jane@example.com", "555-1234", true, true, true));
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_PreferScylla_When_RowFound()
+    {
+        var personId = _fixture.Create<int>();
+        var scyllaPerson = CreatePerson() with { PersonId = personId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Person>>()))
+            .ReturnsAsync(scyllaPerson);
+
+        var result = await CreateRepository().GetByIdsAsync([personId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([scyllaPerson]);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryPersons.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_When_ScyllaHasNoRowYet()
+    {
+        var personId = _fixture.Create<int>();
+        var postgresPerson = CreatePerson() with { PersonId = personId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Person>>()))
+            .ReturnsAsync((Person?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(postgresPerson);
+
+        var result = await CreateRepository().GetByIdsAsync([personId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresPerson]);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_And_AttemptHeal_When_ScyllaConnectivityExceptionThrown()
+    {
+        var personId = _fixture.Create<int>();
+        var postgresPerson = CreatePerson() with { PersonId = personId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Person>>()))
+            .ThrowsAsync(new Cassandra.NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(postgresPerson);
+        _scyllaProviderMock.Setup(p => p.GetCurrentSessionId()).Returns(Guid.NewGuid());
+
+        var result = await CreateRepository().GetByIdsAsync([personId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresPerson]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Once);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_When_ScyllaThrowsNonConnectivityException()
+    {
+        var personId = _fixture.Create<int>();
+        var postgresPerson = CreatePerson() with { PersonId = personId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Person>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(postgresPerson);
+
+        var result = await CreateRepository().GetByIdsAsync([personId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresPerson]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_OmitId_When_NeitherStoreHasIt()
+    {
+        var personId = _fixture.Create<int>();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Person>>()))
+            .ReturnsAsync((Person?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync((Person?)null);
+
+        var result = await CreateRepository().GetByIdsAsync([personId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_HydrateEveryId_When_MultipleIdsRequested()
+    {
+        var personIds = _fixture.CreateMany<int>(4).ToList();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Person>>()))
+            .ReturnsAsync((string _, Action<Dictionary<string, object>> configure, Func<Cassandra.Row, Person> _) =>
+            {
+                var parameters = new Dictionary<string, object>();
+                configure(parameters);
+                var personId = (int)parameters[pn.PersonId.ToUpperInvariant()];
+                return CreatePerson() with { PersonId = personId };
+            });
+
+        var result = await CreateRepository().GetByIdsAsync(personIds, maxDegreeOfParallelism: 2);
+
+        result.Select(p => p.PersonId).ShouldBe(personIds, ignoreOrder: true);
     }
 }

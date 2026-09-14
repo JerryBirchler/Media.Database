@@ -7,10 +7,14 @@ namespace Media.Database.Repositories.Schemas;
 public class ColumnsCql : BaseSchema<ColumnsCql, OrdinalsCql>
 {
     public static readonly string CellPhoneNumber = x();
+    public static readonly string CreatedByPersonId = x();
+    public static readonly string Description = x();
     public static readonly string DeviceTypeId = x();
     public static readonly string EmailAddress = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();
+    public static readonly string GroupId = x();
+    public static readonly string GroupUuid = x();
     public static readonly string Id = x();
     public static readonly string InsertedOn = x();
     public static readonly string IsActive = x();
@@ -18,14 +22,19 @@ public class ColumnsCql : BaseSchema<ColumnsCql, OrdinalsCql>
     public static readonly string IsEmailVerified = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
+    public static readonly string IsSuperAdmin = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
     public static readonly string Metadata = x();
+    public static readonly string Name = x();
     public static readonly string OperatingSystem = x();
     public static readonly string Origin = x();
     public static readonly string OriginalFilePath = x();
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
+    public static readonly string OtpWindowOverrideMinutes = x();
+    public static readonly string PersonId = x();
+    public static readonly string PersonUuid = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();
@@ -35,6 +44,7 @@ public class ColumnsCql : BaseSchema<ColumnsCql, OrdinalsCql>
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
     public static readonly string ThumbnailGeneratedOn = x();
+    public static readonly string Title = x();
     public static readonly string UpdatedOn = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();

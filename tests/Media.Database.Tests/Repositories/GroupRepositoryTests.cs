@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Providers;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories;
@@ -11,6 +12,9 @@ using Npgsql;
 using NUnit.Framework;
 using Shouldly;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -19,13 +23,16 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 namespace Media.Database.Tests.Repositories;
 
 /// <summary>
-/// Covers GroupRepository's public API against a mocked ISqlQueryExecutor, following the same
-/// pattern as PersonRepositoryTests.
+/// Covers GroupRepository's public API against a mocked ISqlQueryExecutor (and, for the
+/// Scylla-first read path, a mocked ICqlQueryExecutor), following the same pattern as
+/// FileRepositoryQueryTests/PersonRepositoryTests.
 /// </summary>
 [TestFixture]
 public class GroupRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
+    private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
     private IFixture _fixture = null!;
 
     [SetUp]
@@ -33,10 +40,14 @@ public class GroupRepositoryTests
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
+        _scyllaProviderMock = new Mock<IScyllaSessionProvider>();
     }
 
     private GroupRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
+        _cqlExecutorMock.Object,
+        _scyllaProviderMock.Object,
         new MapGroupResponse(),
         Mock.Of<ILogger<GroupRepository>>());
 
@@ -182,5 +193,109 @@ public class GroupRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetActiveAsync(1, true));
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_PreferScylla_When_RowFound()
+    {
+        var groupId = _fixture.Create<int>();
+        var scyllaGroup = CreateGroup() with { GroupId = groupId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Group>>()))
+            .ReturnsAsync(scyllaGroup);
+
+        var result = await CreateRepository().GetByIdsAsync([groupId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([scyllaGroup]);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryGroups.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_When_ScyllaHasNoRowYet()
+    {
+        var groupId = _fixture.Create<int>();
+        var postgresGroup = CreateGroup() with { GroupId = groupId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Group>>()))
+            .ReturnsAsync((Group?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()))
+            .ReturnsAsync(postgresGroup);
+
+        var result = await CreateRepository().GetByIdsAsync([groupId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresGroup]);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_And_AttemptHeal_When_ScyllaConnectivityExceptionThrown()
+    {
+        var groupId = _fixture.Create<int>();
+        var postgresGroup = CreateGroup() with { GroupId = groupId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Group>>()))
+            .ThrowsAsync(new Cassandra.NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()))
+            .ReturnsAsync(postgresGroup);
+        _scyllaProviderMock.Setup(p => p.GetCurrentSessionId()).Returns(Guid.NewGuid());
+
+        var result = await CreateRepository().GetByIdsAsync([groupId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresGroup]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Once);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_FallBackToPostgres_When_ScyllaThrowsNonConnectivityException()
+    {
+        var groupId = _fixture.Create<int>();
+        var postgresGroup = CreateGroup() with { GroupId = groupId };
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Group>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()))
+            .ReturnsAsync(postgresGroup);
+
+        var result = await CreateRepository().GetByIdsAsync([groupId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBe([postgresGroup]);
+        _scyllaProviderMock.Verify(p => p.HealSessionAsync(It.IsAny<Guid>(), It.IsAny<string?>()), Times.Never);
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_OmitId_When_NeitherStoreHasIt()
+    {
+        var groupId = _fixture.Create<int>();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Group>>()))
+            .ReturnsAsync((Group?)null);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()))
+            .ReturnsAsync((Group?)null);
+
+        var result = await CreateRepository().GetByIdsAsync([groupId], maxDegreeOfParallelism: 1);
+
+        result.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task GetByIdsAsync_Should_HydrateEveryId_When_MultipleIdsRequested()
+    {
+        var groupIds = _fixture.CreateMany<int>(4).ToList();
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetByIdCql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, Group>>()))
+            .ReturnsAsync((string _, Action<Dictionary<string, object>> configure, Func<Cassandra.Row, Group> _) =>
+            {
+                var parameters = new Dictionary<string, object>();
+                configure(parameters);
+                var groupId = (int)parameters[pn.GroupId.ToUpperInvariant()];
+                return CreateGroup() with { GroupId = groupId };
+            });
+
+        var result = await CreateRepository().GetByIdsAsync(groupIds, maxDegreeOfParallelism: 2);
+
+        result.Select(g => g.GroupId).ShouldBe(groupIds, ignoreOrder: true);
     }
 }

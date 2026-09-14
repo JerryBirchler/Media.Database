@@ -1,8 +1,11 @@
 using Media.Common.Helpers.Fluent;
+using Media.Common.Providers;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
+using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -10,14 +13,22 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories;
 
-/// <inheritdoc cref="IGroupRepository"/>
+/// <summary>
+/// PostgreSQL-backed implementation of <see cref="IGroupRepository"/>. Writes go to PostgreSQL
+/// only -- Scylla is kept in sync separately and asynchronously by the CDC pipeline (see
+/// Cdc.GroupsCdcSyncHandler), same split as <see cref="FileRepository"/>. <see cref="GetByIdsAsync"/>
+/// hydrates preferring Scylla, falling back to PostgreSQL per row.
+/// </summary>
 public class GroupRepository(
     ISqlQueryExecutor sqlExecutor,
+    ICqlQueryExecutor cqlExecutor,
+    IScyllaSessionProvider scyllaProvider,
     IMapGroupResponse groupResponseMapper,
     ILogger<GroupRepository> logger)
-    : IGroupRepository
+    : BaseRepository(scyllaProvider), IGroupRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+    private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly IMapGroupResponse _groupResponseMapper = groupResponseMapper;
     private readonly FluentLogger<GroupRepository> _logger = logger.Initializer();
 
@@ -126,5 +137,60 @@ public class GroupRepository(
             _logger.LogError(ex, "SetActiveAsync failed for GroupId {GroupId}", groupId);
             throw;
         }
+    }
+
+    public async Task<List<Group>> GetByIdsAsync(IEnumerable<int> groupIds, int maxDegreeOfParallelism)
+    {
+        var results = new ConcurrentBag<Group>();
+
+        await Parallel.ForEachAsync(
+            groupIds,
+            new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism },
+            async (groupId, _) =>
+            {
+                var group = await GetByIdPreferringScyllaAsync(groupId);
+                if (group is not null)
+                    results.Add(group);
+            });
+
+        return [.. results];
+    }
+
+    /// <summary>
+    /// Looks up a single group by id, preferring Scylla and falling back to PostgreSQL when
+    /// Scylla has no row yet (CDC lag) or is unreachable. A Scylla failure here is deliberately
+    /// not rethrown -- PostgreSQL is the durable source of truth, so a temporarily unavailable
+    /// Scylla cluster should degrade this to a normal PostgreSQL read rather than fail it.
+    /// </summary>
+    private async Task<Group?> GetByIdPreferringScyllaAsync(int groupId)
+    {
+        var log = _logger.WithCaller();
+
+        try
+        {
+            var fromScylla = await _cqlExecutor.QuerySingleAsync(
+                QueryGroups.GetByIdCql,
+                p => p.AddWithValue(pn.GroupId, groupId),
+                row => row.ToGroup());
+
+            if (fromScylla is not null)
+                return fromScylla;
+        }
+        catch (Exception ex) when (IsScyllaConnectivityException(ex))
+        {
+            log.LogError(ex, "Scylla cluster unavailable fetching GroupId {GroupId}; falling back to Postgres", groupId);
+            await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScyllaAsync));
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Scylla lookup failed for GroupId {GroupId}; falling back to Postgres", groupId);
+        }
+
+        return await _sqlExecutor.QuerySingleAsync
+        (
+            QueryGroups.GetByIdSql,
+            p => p.AddWithValue(pn.GroupId, groupId),
+            reader => reader.ToGroup(_groupResponseMapper)
+        );
     }
 }

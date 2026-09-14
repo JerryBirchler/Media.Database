@@ -31,4 +31,15 @@ public interface IGroupRepository
     /// <see langword="null"/> if <paramref name="groupId"/> does not exist.
     /// </summary>
     Task<Group?> SetActiveAsync(int groupId, bool isActive);
+
+    /// <summary>
+    /// Hydrates full <see cref="Group"/> rows for a set of ids -- Postgres identifies which groups
+    /// and in what order (e.g. the "groups a person belongs to" list), this hydrates the full row
+    /// content preferring Scylla, falling back to PostgreSQL per row when Scylla doesn't have it
+    /// yet (CDC lag) or is unreachable.
+    /// </summary>
+    /// <param name="groupIds">The group ids to hydrate.</param>
+    /// <param name="maxDegreeOfParallelism">The maximum number of concurrent lookups.</param>
+    /// <returns>The hydrated groups, in no particular order -- callers that need a specific order must reorder by id themselves.</returns>
+    Task<List<Group>> GetByIdsAsync(IEnumerable<int> groupIds, int maxDegreeOfParallelism);
 }

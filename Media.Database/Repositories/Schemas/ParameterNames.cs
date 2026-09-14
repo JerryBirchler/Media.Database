@@ -25,6 +25,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string IsEmailVerified = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
+    public static readonly string IsSuperAdmin = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
     public static readonly string Limit = x();
@@ -35,6 +36,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string OriginalFilePath = x();
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
+    public static readonly string OtpWindowOverrideMinutes = x();
     public static readonly string OtpWindowStart = x();
     public static readonly string PersonId = x();
     public static readonly string PersonSourceMachineUuid = x();

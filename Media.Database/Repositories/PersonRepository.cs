@@ -1,8 +1,11 @@
 using Media.Common.Helpers.Fluent;
+using Media.Common.Providers;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
+using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -10,14 +13,22 @@ using pn = Media.Database.Repositories.Schemas.ParameterNames;
 
 namespace Media.Database.Repositories;
 
-/// <inheritdoc cref="IPersonRepository"/>
+/// <summary>
+/// PostgreSQL-backed implementation of <see cref="IPersonRepository"/>. Writes go to PostgreSQL
+/// only -- Scylla is kept in sync separately and asynchronously by the CDC pipeline (see
+/// Cdc.PersonsCdcSyncHandler), same split as <see cref="FileRepository"/>. <see cref="GetByIdsAsync"/>
+/// hydrates preferring Scylla, falling back to PostgreSQL per row.
+/// </summary>
 public class PersonRepository(
     ISqlQueryExecutor sqlExecutor,
+    ICqlQueryExecutor cqlExecutor,
+    IScyllaSessionProvider scyllaProvider,
     IMapPersonResponse personResponseMapper,
     ILogger<PersonRepository> logger)
-    : IPersonRepository
+    : BaseRepository(scyllaProvider), IPersonRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+    private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly IMapPersonResponse _personResponseMapper = personResponseMapper;
     private readonly FluentLogger<PersonRepository> _logger = logger.Initializer();
 
@@ -190,5 +201,60 @@ public class PersonRepository(
             _logger.LogError(ex, "UpdateAsync failed for PersonId {PersonId}", personId);
             throw;
         }
+    }
+
+    public async Task<List<Person>> GetByIdsAsync(IEnumerable<int> personIds, int maxDegreeOfParallelism)
+    {
+        var results = new ConcurrentBag<Person>();
+
+        await Parallel.ForEachAsync(
+            personIds,
+            new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism },
+            async (personId, _) =>
+            {
+                var person = await GetByIdPreferringScyllaAsync(personId);
+                if (person is not null)
+                    results.Add(person);
+            });
+
+        return [.. results];
+    }
+
+    /// <summary>
+    /// Looks up a single person by id, preferring Scylla and falling back to PostgreSQL when
+    /// Scylla has no row yet (CDC lag) or is unreachable. A Scylla failure here is deliberately
+    /// not rethrown -- PostgreSQL is the durable source of truth, so a temporarily unavailable
+    /// Scylla cluster should degrade this to a normal PostgreSQL read rather than fail it.
+    /// </summary>
+    private async Task<Person?> GetByIdPreferringScyllaAsync(int personId)
+    {
+        var log = _logger.WithCaller();
+
+        try
+        {
+            var fromScylla = await _cqlExecutor.QuerySingleAsync(
+                QueryPersons.GetByIdCql,
+                p => p.AddWithValue(pn.PersonId, personId),
+                row => row.ToPerson());
+
+            if (fromScylla is not null)
+                return fromScylla;
+        }
+        catch (Exception ex) when (IsScyllaConnectivityException(ex))
+        {
+            log.LogError(ex, "Scylla cluster unavailable fetching PersonId {PersonId}; falling back to Postgres", personId);
+            await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScyllaAsync));
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Scylla lookup failed for PersonId {PersonId}; falling back to Postgres", personId);
+        }
+
+        return await _sqlExecutor.QuerySingleAsync
+        (
+            QueryPersons.GetByIdSql,
+            p => p.AddWithValue(pn.PersonId, personId),
+            reader => reader.ToPerson(_personResponseMapper)
+        );
     }
 }

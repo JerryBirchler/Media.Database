@@ -48,4 +48,15 @@ public interface IPersonRepository
     /// <paramref name="personId"/> does not exist.
     /// </summary>
     Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified);
+
+    /// <summary>
+    /// Hydrates full <see cref="Person"/> rows for a set of ids -- Postgres identifies which
+    /// persons and in what order (e.g. the "group persons" list), this hydrates the full row
+    /// content preferring Scylla, falling back to PostgreSQL per row when Scylla doesn't have it
+    /// yet (CDC lag) or is unreachable.
+    /// </summary>
+    /// <param name="personIds">The person ids to hydrate.</param>
+    /// <param name="maxDegreeOfParallelism">The maximum number of concurrent lookups.</param>
+    /// <returns>The hydrated persons, in no particular order -- callers that need a specific order must reorder by id themselves.</returns>
+    Task<List<Person>> GetByIdsAsync(IEnumerable<int> personIds, int maxDegreeOfParallelism);
 }

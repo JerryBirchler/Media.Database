@@ -1,3 +1,4 @@
+using Cassandra;
 using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -5,15 +6,17 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using cg = Media.Database.Repositories.Schemas.TablesSql.GroupsColumns;
+using ccg = Media.Database.Repositories.Schemas.TablesCql.GroupsColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
+using tc = Media.Database.Repositories.Schemas.TablesCql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
 #pragma warning restore CS8981
 
 namespace Media.Database.Repositories.Queries;
 
 /// <summary>
-/// SQL query text, and reader/row mapping extensions, for groups.
+/// SQL and CQL query text, and reader/row mapping extensions, for groups.
 /// </summary>
 public static class QueryGroups
 {
@@ -41,6 +44,24 @@ public static class QueryGroups
             {cg.IsActive},
             {cg.InsertedOn},
             {cg.UpdatedOn}
+        ;";
+
+    /// <summary>
+    /// SQL to select a group by its <c>GroupId</c> -- the PostgreSQL-fallback path for
+    /// <see cref="GroupRepository.GetByIdsAsync"/> when Scylla doesn't have the row yet.
+    /// </summary>
+    public static string GetByIdSql => $@"
+        SELECT
+            {cg.GroupId},
+            {cg.GroupUuid},
+            {cg.Name},
+            {cg.Title},
+            {cg.Description},
+            {cg.IsActive},
+            {cg.InsertedOn},
+            {cg.UpdatedOn}
+        FROM {ts.Groups}
+        WHERE {cg.GroupId} = {pn.GroupId}
         ;";
 
     /// <summary>SQL to select a group by its <c>GroupUuid</c>.</summary>
@@ -114,6 +135,58 @@ public static class QueryGroups
 
     #endregion
 
+    #region CQL Queries
+
+    /// <summary>CQL to select a group by its <c>group_id</c> (Scylla-hydration lookup).</summary>
+    public static string GetByIdCql => $@"
+        SELECT
+            {ccg.GroupId},
+            {ccg.GroupUuid},
+            {ccg.Name},
+            {ccg.Title},
+            {ccg.Description},
+            {ccg.IsActive},
+            {ccg.InsertedOn},
+            {ccg.UpdatedOn}
+        FROM
+            {tc.Groups}
+        WHERE
+            {ccg.GroupId} = {pn.GroupId}
+        LIMIT 1
+        ;";
+
+    /// <summary>CQL to insert/replace a group row.</summary>
+    public static string UpsertCql => $@"
+        INSERT INTO {tc.Groups}
+        (
+            {ccg.GroupId},
+            {ccg.GroupUuid},
+            {ccg.Name},
+            {ccg.Title},
+            {ccg.Description},
+            {ccg.IsActive},
+            {ccg.InsertedOn},
+            {ccg.UpdatedOn}
+        )
+        VALUES
+        (
+            {pn.GroupId},
+            {pn.GroupUuid},
+            {pn.Name},
+            {pn.Title},
+            {pn.Description},
+            {pn.IsActive},
+            {pn.InsertedOn},
+            {pn.UpdatedOn}
+        )
+        ;";
+
+    /// <summary>CQL to delete a group row by <c>group_id</c>.</summary>
+    public static string DeleteCql => $@"
+        DELETE FROM {tc.Groups} WHERE {ccg.GroupId} = {pn.GroupId};";
+
+    #endregion
+
     /// <summary>
     /// Maps the current row of <paramref name="reader"/> to a <see cref="Group"/>, via
     /// <paramref name="mapper"/>.
@@ -129,5 +202,21 @@ public static class QueryGroups
             reader.GetFieldValue<bool>(os.IsActive),
             reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn));
+    }
+
+    /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Group"/>.</summary>
+    public static Group ToGroup(this Row row)
+    {
+        return new Group
+        {
+            GroupId = row.GetValue<int>(ccg.GroupId),
+            GroupUuid = row.GetValue<Guid>(ccg.GroupUuid),
+            Name = row.GetValue<string>(ccg.Name),
+            Title = row.GetValue<string>(ccg.Title),
+            Description = row.GetValue<string?>(ccg.Description),
+            IsActive = row.GetValue<bool>(ccg.IsActive),
+            InsertedOn = row.GetValue<DateTimeOffset>(ccg.InsertedOn),
+            UpdatedOn = row.GetValue<DateTimeOffset?>(ccg.UpdatedOn)
+        };
     }
 }
