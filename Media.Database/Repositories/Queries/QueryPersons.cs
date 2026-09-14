@@ -104,6 +104,145 @@ public static class QueryPersons
             {cp.UpdatedOn}
         ;";
 
+    /// <summary>
+    /// SQL to insert a new person with an explicit <c>CreatedByPersonId</c> -- the
+    /// <c>POST /api/persons</c> creation path (distinct from <see cref="AddPersonSql"/>, which the
+    /// device-registration find-or-create flow uses and which has no creator concept).
+    /// </summary>
+    public static string AddPersonWithCreatorSql => $@"
+        INSERT INTO {ts.Persons} (
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.CreatedByPersonId}
+        ) VALUES (
+            {pn.EmailAddress},
+            {pn.CellPhoneNumber},
+            {pn.FirstName},
+            {pn.LastName},
+            {pn.CreatedByPersonId}
+        )
+        RETURNING
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
+        ;";
+
+    /// <summary>
+    /// SQL to select every person a given person created (active and inactive alike) -- the
+    /// non-super-admin view of <c>GET /api/persons</c>.
+    /// </summary>
+    public static string ListByCreatorSql => $@"
+        SELECT
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
+        FROM {ts.Persons}
+        WHERE {cp.CreatedByPersonId} = {pn.CreatedByPersonId}
+        ;";
+
+    /// <summary>
+    /// SQL to select every person -- the super-admin view of <c>GET /api/persons</c>.
+    /// </summary>
+    public static string ListAllSql => $@"
+        SELECT
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
+        FROM {ts.Persons}
+        ;";
+
+    /// <summary>SQL to set a person's <c>IsActive</c> flag, returning the updated row.</summary>
+    public static string SetActiveSql => $@"
+        UPDATE {ts.Persons} SET
+            {cp.IsActive} = {pn.IsActive},
+            {cp.UpdatedOn} = {pn.UpdatedOn}
+        WHERE {cp.PersonId} = {pn.PersonId}
+        RETURNING
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
+        ;";
+
+    /// <summary>
+    /// SQL for the self-update path (<c>PUT /api/persons</c>): updates contact fields and,
+    /// atomically, whatever active/verification flags the caller computed should follow from a
+    /// changed email/cell phone number. Returns the updated row, or no rows if the target person
+    /// does not exist.
+    /// </summary>
+    public static string UpdateSql => $@"
+        UPDATE {ts.Persons} SET
+            {cp.FirstName} = {pn.FirstName},
+            {cp.LastName} = {pn.LastName},
+            {cp.EmailAddress} = {pn.EmailAddress},
+            {cp.CellPhoneNumber} = {pn.CellPhoneNumber},
+            {cp.IsActive} = {pn.IsActive},
+            {cp.IsEmailVerified} = {pn.IsEmailVerified},
+            {cp.IsSmsVerified} = {pn.IsSmsVerified},
+            {cp.UpdatedOn} = {pn.UpdatedOn}
+        WHERE {cp.PersonId} = {pn.PersonId}
+        RETURNING
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
+        ;";
+
     #endregion
 
     /// <summary>

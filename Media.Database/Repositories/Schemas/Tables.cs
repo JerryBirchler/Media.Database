@@ -8,7 +8,11 @@ namespace Media.Database.Repositories.Schemas;
 public class Tables : BaseSchema<Tables, NoSubFields>
 {
     public static readonly string Files = x();
+    public static readonly string Groups = x();
+    public static readonly string GroupsPersons = x();
+    public static readonly string GroupsSourceMachines = x();
     public static readonly string Persons = x();
+    public static readonly string PersonsSourceMachines = x();
     public static readonly string Registrations = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();

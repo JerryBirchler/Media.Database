@@ -9,7 +9,11 @@ namespace Media.Database.Repositories.Schemas;
 public class TablesSql : BaseSchema<TablesSql, Tables>
 {
     public static readonly string Files = x();
+    public static readonly string Groups = x();
+    public static readonly string GroupsPersons = x();
+    public static readonly string GroupsSourceMachines = x();
     public static readonly string Persons = x();
+    public static readonly string PersonsSourceMachines = x();
     public static readonly string Registrations = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();
@@ -44,6 +48,52 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string IsEmailVerified = y();
         public static readonly string IsSmsVerified = y();
         public static readonly string OtpWindowOverrideMinutes = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupsColumns
+    {
+        public static readonly string GroupId = y();
+        public static readonly string GroupUuid = y();
+        public static readonly string Name = y();
+        public static readonly string Title = y();
+        public static readonly string Description = y();
+        public static readonly string IsActive = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupsPersonsColumns
+    {
+        public static readonly string GroupPersonId = y();
+        public static readonly string GroupPersonUuid = y();
+        public static readonly string GroupId = y();
+        public static readonly string PersonId = y();
+        public static readonly string IsActive = y();
+        public static readonly string IsAdmin = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class PersonsSourceMachinesColumns
+    {
+        public static readonly string PersonSourceMachineId = y();
+        public static readonly string PersonSourceMachineUuid = y();
+        public static readonly string PersonId = y();
+        public static readonly string SourceMachineId = y();
+        public static readonly string IsActive = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupsSourceMachinesColumns
+    {
+        public static readonly string GroupSourceMachineId = y();
+        public static readonly string GroupSourceMachineUuid = y();
+        public static readonly string GroupId = y();
+        public static readonly string SourceMachineId = y();
+        public static readonly string IsActive = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }

@@ -17,4 +17,35 @@ public interface IPersonRepository
     /// for the Groups/Persons admin API.
     /// </summary>
     Task<Person?> GetByUuidAsync(Guid personUuid);
+
+    /// <summary>
+    /// Creates a new person with an explicit creator -- the <c>POST /api/persons</c> path.
+    /// </summary>
+    Task<Person?> CreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber, int createdByPersonId);
+
+    /// <summary>
+    /// Lists every person <paramref name="createdByPersonId"/> created (active and inactive alike).
+    /// </summary>
+    Task<List<Person>> ListByCreatorAsync(int createdByPersonId);
+
+    /// <summary>
+    /// Lists every person -- the super-admin view of <c>GET /api/persons</c>.
+    /// </summary>
+    Task<List<Person>> ListAllAsync();
+
+    /// <summary>
+    /// Sets a person's <see cref="Person.IsActive"/> flag. Returns the updated person, or
+    /// <see langword="null"/> if <paramref name="personId"/> does not exist.
+    /// </summary>
+    Task<Person?> SetActiveAsync(int personId, bool isActive);
+
+    /// <summary>
+    /// Updates a person's contact fields and active/verification flags -- the self-update path
+    /// (<c>PUT /api/persons</c>). The caller computes <paramref name="isActive"/>,
+    /// <paramref name="isEmailVerified"/>, and <paramref name="isSmsVerified"/> (e.g. resetting
+    /// verification when email/cell phone number changed); this just persists them atomically
+    /// alongside the contact fields. Returns the updated person, or <see langword="null"/> if
+    /// <paramref name="personId"/> does not exist.
+    /// </summary>
+    Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified);
 }

@@ -11,6 +11,7 @@ using Npgsql;
 using NUnit.Framework;
 using Shouldly;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -181,5 +182,147 @@ public class PersonRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetByUuidAsync(Guid.NewGuid()));
+    }
+
+    [Test]
+    public async Task CreateAsync_Should_ReturnCreatedPerson()
+    {
+        var created = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.AddPersonWithCreatorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(created);
+
+        var result = await CreateRepository().CreateAsync(created.FirstName, created.LastName, created.EmailAddress, created.CellPhoneNumber, createdByPersonId: 1);
+
+        result.ShouldBe(created);
+    }
+
+    [Test]
+    public async Task CreateAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        var created = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.AddPersonWithCreatorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(created);
+
+        await CreateRepository().CreateAsync("Jane", "Doe", "jane@example.com", "555-1234", createdByPersonId: 7);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.FirstName].Value.ShouldBe("Jane");
+        command.Parameters[pn.LastName].Value.ShouldBe("Doe");
+        command.Parameters[pn.EmailAddress].Value.ShouldBe("jane@example.com");
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("555-1234");
+        command.Parameters[pn.CreatedByPersonId].Value.ShouldBe(7);
+    }
+
+    [Test]
+    public void CreateAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.AddPersonWithCreatorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().CreateAsync("Jane", "Doe", "jane@example.com", "555-1234", 1));
+    }
+
+    [Test]
+    public async Task ListByCreatorAsync_Should_ReturnPersons()
+    {
+        var expected = new List<Person> { CreatePerson(), CreatePerson() };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryPersons.ListByCreatorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().ListByCreatorAsync(1);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task ListAllAsync_Should_ReturnAllPersons()
+    {
+        var expected = new List<Person> { CreatePerson(), CreatePerson() };
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryPersons.ListAllSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().ListAllAsync();
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task SetActiveAsync_Should_ReturnUpdatedPerson_When_Found()
+    {
+        var updated = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.SetActiveSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(updated);
+
+        var result = await CreateRepository().SetActiveAsync(updated.PersonId, false);
+
+        result.ShouldBe(updated);
+    }
+
+    [Test]
+    public async Task SetActiveAsync_Should_ReturnNull_When_NotFound()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.SetActiveSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync((Person?)null);
+
+        var result = await CreateRepository().SetActiveAsync(1, true);
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task UpdateAsync_Should_ReturnUpdatedPerson_When_Found()
+    {
+        var updated = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(updated);
+
+        var result = await CreateRepository().UpdateAsync(updated.PersonId, updated.FirstName, updated.LastName, updated.EmailAddress, updated.CellPhoneNumber, isActive: true, isEmailVerified: true, isSmsVerified: true);
+
+        result.ShouldBe(updated);
+    }
+
+    [Test]
+    public async Task UpdateAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        var updated = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(updated);
+
+        await CreateRepository().UpdateAsync(3, "Jane", "Doe", "jane@example.com", "555-1234", isActive: false, isEmailVerified: false, isSmsVerified: true);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.PersonId].Value.ShouldBe(3);
+        command.Parameters[pn.FirstName].Value.ShouldBe("Jane");
+        command.Parameters[pn.LastName].Value.ShouldBe("Doe");
+        command.Parameters[pn.EmailAddress].Value.ShouldBe("jane@example.com");
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("555-1234");
+        command.Parameters[pn.IsActive].Value.ShouldBe(false);
+        command.Parameters[pn.IsEmailVerified].Value.ShouldBe(false);
+        command.Parameters[pn.IsSmsVerified].Value.ShouldBe(true);
+    }
+
+    [Test]
+    public void UpdateAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateAsync(1, "Jane", "Doe", "jane@example.com", "555-1234", true, true, true));
     }
 }
