@@ -5,6 +5,7 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using cgsm = Media.Database.Repositories.Schemas.TablesSql.GroupsSourceMachinesColumns;
+using csmr = Media.Database.Repositories.Schemas.TablesSql.SourceMachineRegistrationsColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
@@ -68,6 +69,36 @@ public static class QueryGroupsSourceMachines
             {cgsm.SourceMachineId}, {cgsm.IsActive}, {cgsm.InsertedOn}, {cgsm.UpdatedOn}
         ;";
 
+    /// <summary>
+    /// SQL to select just the ordering key (SourceMachineId, SourceMachineName) for a keyset-paged
+    /// page of a group's active devices, ordered by device name -- cheap enough to identify from
+    /// PostgreSQL alone before hydrating full rows from the existing "registrations" Scylla table
+    /// (with a PostgreSQL fallback), the same table/CDC pipeline <c>SourceMachineRegistrations</c>
+    /// already maintains -- no new Scylla table or CDC handler is needed for this endpoint.
+    /// </summary>
+    public static string GetSourceMachineIdentifiersByGroupIdSql => $@"
+        SELECT
+            smr.{csmr.SourceMachineId},
+            smr.{csmr.SourceMachineName}
+        FROM
+            {ts.SourceMachineRegistrations} AS smr
+        JOIN
+            {ts.GroupsSourceMachines} AS gsm ON gsm.{cgsm.SourceMachineId} = smr.{csmr.SourceMachineId}
+        WHERE
+            gsm.{cgsm.GroupId} = {pn.GroupId}
+            AND gsm.{cgsm.IsActive} = true
+            AND smr.{csmr.IsActive} = true
+            AND (smr.{csmr.SourceMachineName}, smr.{csmr.SourceMachineId}) >
+            (
+                COALESCE({pn.SourceMachineName}, ''),
+                COALESCE({pn.SourceMachineId}, 0)
+            )
+        ORDER BY
+            smr.{csmr.SourceMachineName} ASC,
+            smr.{csmr.SourceMachineId} ASC
+        LIMIT {pn.Limit}
+        ;";
+
     #endregion
 
     /// <summary>
@@ -84,5 +115,22 @@ public static class QueryGroupsSourceMachines
             reader.GetFieldValue<bool>(os.IsActive),
             reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn));
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to its SourceMachineId and SourceMachineName only.</summary>
+    public static (int SourceMachineId, string SourceMachineName) ToSourceMachineIdentifier(this NpgsqlDataReader reader)
+    {
+        return (SourceMachineId: reader.GetInt32(os.SourceMachineId), SourceMachineName: reader.GetString(os.SourceMachineName));
+    }
+
+    /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to its SourceMachineId and SourceMachineName.</summary>
+    public static async Task<List<(int SourceMachineId, string SourceMachineName)>> ToSourceMachineIdentifiers(this NpgsqlDataReader reader)
+    {
+        List<(int SourceMachineId, string SourceMachineName)> identifiers = [];
+
+        while (await reader.ReadAsync())
+            identifiers.Add(reader.ToSourceMachineIdentifier());
+
+        return identifiers;
     }
 }
