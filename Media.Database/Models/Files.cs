@@ -27,9 +27,12 @@ public class Files
     public int SourceMachineId { get; set; }
 
     /// <summary>
-    /// Gets or sets the original file path.
+    /// Gets or sets the original file path -- kept as the internal, always-stable identity across
+    /// a file's versions. The wire-facing JSON name is simply "filePath": customers don't need
+    /// the "original" nuance surfaced in the field name itself, only in the upload endpoint's own
+    /// explanation of how versioning works.
     /// </summary>
-    [JsonPropertyName("originFilePath")]
+    [JsonPropertyName("filePath")]
     public string OriginalFilePath { get; set; } = string.Empty;
 
     /// <summary>

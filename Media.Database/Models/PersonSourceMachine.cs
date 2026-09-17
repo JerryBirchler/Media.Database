@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Media.Database.Models;
 
 /// <summary>
@@ -8,9 +10,11 @@ namespace Media.Database.Models;
 public record PersonSourceMachine
 {
     /// <summary>
-    /// Gets the integer identifier for this person/device association.
+    /// Gets the integer identifier for this person/device association. Not <c>required</c>; see
+    /// <see cref="Group.GroupId"/> for why.
     /// </summary>
-    public required int PersonSourceMachineId { get; init; }
+    [JsonIgnore]
+    public int PersonSourceMachineId { get; init; }
 
     /// <summary>
     /// Gets the unique identifier for this person/device association.
@@ -18,14 +22,18 @@ public record PersonSourceMachine
     public required Guid PersonSourceMachineUuid { get; init; }
 
     /// <summary>
-    /// Gets the identifier of the person this association belongs to.
+    /// Gets the identifier of the person this association belongs to. Not <c>required</c>; see
+    /// <see cref="PersonSourceMachineId"/> for why.
     /// </summary>
-    public required int PersonId { get; init; }
+    [JsonIgnore]
+    public int PersonId { get; init; }
 
     /// <summary>
-    /// Gets the identifier of the device this association belongs to.
+    /// Gets the identifier of the device this association belongs to. Not <c>required</c>; see
+    /// <see cref="PersonSourceMachineId"/> for why.
     /// </summary>
-    public required int SourceMachineId { get; init; }
+    [JsonIgnore]
+    public int SourceMachineId { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether this association is active.

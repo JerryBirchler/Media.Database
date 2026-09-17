@@ -108,6 +108,22 @@ public record SourceMachineRegistrations
     public required bool IsActive { get; init; } = false;
 
     /// <summary>
+    /// Gets a value indicating whether encryption at rest is enabled for this device's
+    /// CanBeEncrypted data -- device-owner-settable override. <see langword="null"/> means no
+    /// explicit override is set, so the effective value falls back to the device's group's
+    /// <see cref="Group.IsEncrypted"/> (COALESCE(device, group) -- see MEDIA-11).
+    /// </summary>
+    [JsonPropertyName("isEncrypted")]
+    public bool? IsEncrypted { get; init; }
+
+    /// <summary>
+    /// Gets the id of the device's permanent owner (MEDIA-10), or <see langword="null"/> if no
+    /// owner has been seeded yet. Internal use only -- never serialized to a client.
+    /// </summary>
+    [JsonIgnore]
+    public int? OwningPersonId { get; init; }
+
+    /// <summary>
     /// Gets the one-time password (OTP) email address for the source machine owner. See
     /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
     /// </summary>

@@ -60,6 +60,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string Title = y();
         public static readonly string Description = y();
         public static readonly string IsActive = y();
+        public static readonly string IsEncrypted = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }
@@ -127,6 +128,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string IsSmsVerified = y();
         public static readonly string OperatingSystem = y();
         public static readonly string IsActive = y();
+        public static readonly string IsEncrypted = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
         public static readonly string OwningPersonId = y();

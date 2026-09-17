@@ -9,10 +9,11 @@ namespace Media.Database.Models;
 public record UploadFileRequest
 {
     /// <summary>
-    /// Gets or sets the original file path.
+    /// Gets or sets the original file path -- kept as the internal, always-stable identity across
+    /// a file's versions. The wire-facing JSON name is simply "filePath".
     /// </summary>
-    [JsonPropertyName("originalFilePath")]
-    [FromHeader(Name = "originalFilePath")]
+    [JsonPropertyName("filePath")]
+    [FromHeader(Name = "filePath")]
     public required string OriginalFilePath { get; set; }
 
     /// <summary>

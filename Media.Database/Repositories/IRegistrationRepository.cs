@@ -51,4 +51,10 @@ public interface IRegistrationRepository
     /// is singular and permanent, never reassigned or cleared by any endpoint, through any path).
     /// </summary>
     Task SetOwningPersonIfUnsetAsync(int sourceMachineId, int personId);
+
+    /// <summary>
+    /// Sets a device's <see cref="SourceMachineRegistrations.IsEncrypted"/> override flag.
+    /// Device-owner authorization is enforced by the caller, not here.
+    /// </summary>
+    Task SetIsEncryptedAsync(int sourceMachineId, bool isEncrypted);
 }

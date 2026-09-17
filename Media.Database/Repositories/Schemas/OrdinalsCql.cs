@@ -7,6 +7,7 @@ namespace Media.Database.Repositories.Schemas;
 public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
 {
     public static readonly string CellPhoneNumber = x();
+    public static readonly string ColumnName = x();
     public static readonly string CreatedByPersonId = x();
     public static readonly string Description = x();
     public static readonly string DeviceTypeId = x();
@@ -20,6 +21,7 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string IsActive = x();
     public static readonly string IsCurrent = x();
     public static readonly string IsEmailVerified = x();
+    public static readonly string IsEncrypted = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
     public static readonly string IsSuperAdmin = x();
@@ -38,11 +40,14 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();
+    public static readonly string ReleaseIntroduced = x();
+    public static readonly string ReleaseRemoved = x();
     public static readonly string SourceInsertedOn = x();
     public static readonly string SourceMachineId = x();
     public static readonly string SourceMachineName = x();
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
+    public static readonly string TableName = x();
     public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();

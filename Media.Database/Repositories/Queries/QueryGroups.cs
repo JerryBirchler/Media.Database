@@ -42,6 +42,7 @@ public static class QueryGroups
             {cg.Title},
             {cg.Description},
             {cg.IsActive},
+            {cg.IsEncrypted},
             {cg.InsertedOn},
             {cg.UpdatedOn}
         ;";
@@ -58,6 +59,7 @@ public static class QueryGroups
             {cg.Title},
             {cg.Description},
             {cg.IsActive},
+            {cg.IsEncrypted},
             {cg.InsertedOn},
             {cg.UpdatedOn}
         FROM {ts.Groups}
@@ -73,6 +75,7 @@ public static class QueryGroups
             {cg.Title},
             {cg.Description},
             {cg.IsActive},
+            {cg.IsEncrypted},
             {cg.InsertedOn},
             {cg.UpdatedOn}
         FROM {ts.Groups}
@@ -88,6 +91,7 @@ public static class QueryGroups
             {cg.Title},
             {cg.Description},
             {cg.IsActive},
+            {cg.IsEncrypted},
             {cg.InsertedOn},
             {cg.UpdatedOn}
         FROM {ts.Groups}
@@ -112,6 +116,7 @@ public static class QueryGroups
             {cg.Title},
             {cg.Description},
             {cg.IsActive},
+            {cg.IsEncrypted},
             {cg.InsertedOn},
             {cg.UpdatedOn}
         ;";
@@ -129,6 +134,28 @@ public static class QueryGroups
             {cg.Title},
             {cg.Description},
             {cg.IsActive},
+            {cg.IsEncrypted},
+            {cg.InsertedOn},
+            {cg.UpdatedOn}
+        ;";
+
+    /// <summary>
+    /// SQL to set a group's <c>IsEncrypted</c> policy flag, returning the updated row. Group-admin
+    /// authorization is enforced by the caller (see GroupService.SetIsEncryptedAsync), not here.
+    /// </summary>
+    public static string SetIsEncryptedSql => $@"
+        UPDATE {ts.Groups} SET
+            {cg.IsEncrypted} = {pn.IsEncrypted},
+            {cg.UpdatedOn} = {pn.UpdatedOn}
+        WHERE {cg.GroupId} = {pn.GroupId}
+        RETURNING
+            {cg.GroupId},
+            {cg.GroupUuid},
+            {cg.Name},
+            {cg.Title},
+            {cg.Description},
+            {cg.IsActive},
+            {cg.IsEncrypted},
             {cg.InsertedOn},
             {cg.UpdatedOn}
         ;";
@@ -146,6 +173,7 @@ public static class QueryGroups
             {ccg.Title},
             {ccg.Description},
             {ccg.IsActive},
+            {ccg.IsEncrypted},
             {ccg.InsertedOn},
             {ccg.UpdatedOn}
         FROM
@@ -165,6 +193,7 @@ public static class QueryGroups
             {ccg.Title},
             {ccg.Description},
             {ccg.IsActive},
+            {ccg.IsEncrypted},
             {ccg.InsertedOn},
             {ccg.UpdatedOn}
         )
@@ -176,6 +205,7 @@ public static class QueryGroups
             {pn.Title},
             {pn.Description},
             {pn.IsActive},
+            {pn.IsEncrypted},
             {pn.InsertedOn},
             {pn.UpdatedOn}
         )
@@ -200,6 +230,7 @@ public static class QueryGroups
             reader.GetString(os.Title),
             reader.GetFieldValue<string?>(os.Description),
             reader.GetFieldValue<bool>(os.IsActive),
+            reader.GetFieldValue<bool>(os.IsEncrypted),
             reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn));
     }
@@ -215,6 +246,7 @@ public static class QueryGroups
             Title = row.GetValue<string>(ccg.Title),
             Description = row.GetValue<string?>(ccg.Description),
             IsActive = row.GetValue<bool>(ccg.IsActive),
+            IsEncrypted = row.GetValue<bool>(ccg.IsEncrypted),
             InsertedOn = row.GetValue<DateTimeOffset>(ccg.InsertedOn),
             UpdatedOn = row.GetValue<DateTimeOffset?>(ccg.UpdatedOn)
         };

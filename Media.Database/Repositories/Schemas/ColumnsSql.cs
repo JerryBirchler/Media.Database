@@ -28,6 +28,7 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string IsAdmin = x();
     public static readonly string IsCurrent = x();
     public static readonly string IsEmailVerified = x();
+    public static readonly string IsEncrypted = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
     public static readonly string IsSuperAdmin = x();

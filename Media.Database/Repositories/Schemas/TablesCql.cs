@@ -9,11 +9,22 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class TablesCql : BaseSchema<TablesCql, Tables>
 {
+    public static readonly string CanBeEncryptedFields = x();
     public static readonly string Files = x();
     public static readonly string Groups = x();
     public static readonly string Persons = x();
     public static readonly string Registrations = x();
     public static readonly string WordFiles = x();
+
+    public static class CanBeEncryptedFieldsColumns
+    {
+        public static readonly string TableName = y();
+        public static readonly string ColumnName = y();
+        public static readonly string ReleaseIntroduced = y();
+        public static readonly string ReleaseRemoved = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
 
     public static class FilesColumns
     {
@@ -35,6 +46,7 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
         public static readonly string Title = y();
         public static readonly string Description = y();
         public static readonly string IsActive = y();
+        public static readonly string IsEncrypted = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }

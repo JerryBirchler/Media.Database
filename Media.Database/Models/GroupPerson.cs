@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Media.Database.Models;
 
 /// <summary>
@@ -9,9 +11,11 @@ namespace Media.Database.Models;
 public record GroupPerson
 {
     /// <summary>
-    /// Gets the integer identifier for this group/person association.
+    /// Gets the integer identifier for this group/person association. Not <c>required</c>: see
+    /// <see cref="Group.GroupId"/> for why.
     /// </summary>
-    public required int GroupPersonId { get; init; }
+    [JsonIgnore]
+    public int GroupPersonId { get; init; }
 
     /// <summary>
     /// Gets the unique identifier for this group/person association.
@@ -19,14 +23,18 @@ public record GroupPerson
     public required Guid GroupPersonUuid { get; init; }
 
     /// <summary>
-    /// Gets the identifier of the group this association belongs to.
+    /// Gets the identifier of the group this association belongs to. Not <c>required</c>; see
+    /// <see cref="GroupPersonId"/> for why.
     /// </summary>
-    public required int GroupId { get; init; }
+    [JsonIgnore]
+    public int GroupId { get; init; }
 
     /// <summary>
-    /// Gets the identifier of the person this association belongs to.
+    /// Gets the identifier of the person this association belongs to. Not <c>required</c>; see
+    /// <see cref="GroupPersonId"/> for why.
     /// </summary>
-    public required int PersonId { get; init; }
+    [JsonIgnore]
+    public int PersonId { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether this association is active.

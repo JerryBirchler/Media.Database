@@ -59,6 +59,7 @@ public sealed class GroupsCdcSyncHandler(
                 p.AddWithValue(pn.Title, after.GetProperty("Title").GetString()!);
                 p.AddWithValue(pn.Description, GetNullableString(after, "Description")!);
                 p.AddWithValue(pn.IsActive, after.GetProperty("IsActive").GetBoolean());
+                p.AddWithValue(pn.IsEncrypted, after.GetProperty("IsEncrypted").GetBoolean());
                 p.AddWithValue(pn.InsertedOn, after.GetProperty("InsertedOn").GetDateTimeOffset());
                 p.AddWithValue(pn.UpdatedOn, GetNullableDateTimeOffset(after, "UpdatedOn")!);
             });

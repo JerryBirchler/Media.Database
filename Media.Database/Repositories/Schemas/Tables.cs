@@ -7,6 +7,7 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class Tables : BaseSchema<Tables, NoSubFields>
 {
+    public static readonly string CanBeEncryptedFields = x();
     public static readonly string Files = x();
     public static readonly string Groups = x();
     public static readonly string GroupsPersons = x();

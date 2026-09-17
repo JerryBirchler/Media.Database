@@ -168,9 +168,9 @@ public static class QueryPersons
         ;";
 
     /// <summary>
-    /// SQL to select the PersonId/PersonUuid/LastName/FirstName identifiers of every person a
-    /// given person created (active and inactive alike), keyset-paginated in the same
-    /// (LastName, FirstName, PersonUuid) order as
+    /// SQL to select the PersonId/PersonUuid/LastName/FirstName identifiers of a given person
+    /// themselves plus every person they created (active and inactive alike), keyset-paginated in
+    /// the same (LastName, FirstName, PersonUuid) order as
     /// <see cref="QueryGroupsPersons.GetPersonIdentifiersByGroupIdSql"/> -- the non-super-admin
     /// view of <c>GET /api/persons/{next}/pages</c>.
     /// </summary>
@@ -182,7 +182,7 @@ public static class QueryPersons
             {cp.FirstName}
         FROM {ts.Persons}
         WHERE
-            {cp.CreatedByPersonId} = {pn.CreatedByPersonId}
+            ({cp.CreatedByPersonId} = {pn.CreatedByPersonId} OR {cp.PersonId} = {pn.CreatedByPersonId})
             AND ({cp.LastName}, {cp.FirstName}, {cp.PersonUuid}) >
             (
                 COALESCE({pn.LastName}, ''),
@@ -219,6 +219,33 @@ public static class QueryPersons
             {cp.FirstName} ASC,
             {cp.PersonUuid} ASC
         LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>
+    /// SQL to raise a person's IsEmailVerified/IsSmsVerified flags to true where the incoming
+    /// value is true, never lowering an already-true flag back to false. Returns the updated row.
+    /// </summary>
+    public static string SetVerifiedIfTrueSql => $@"
+        UPDATE {ts.Persons} SET
+            {cp.IsEmailVerified} = {cp.IsEmailVerified} OR {pn.IsEmailVerified},
+            {cp.IsSmsVerified} = {cp.IsSmsVerified} OR {pn.IsSmsVerified},
+            {cp.UpdatedOn} = {pn.UpdatedOn}
+        WHERE {cp.PersonId} = {pn.PersonId}
+        RETURNING
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.EmailAddress},
+            {cp.CellPhoneNumber},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.IsActive},
+            {cp.CreatedByPersonId},
+            {cp.IsSuperAdmin},
+            {cp.IsEmailVerified},
+            {cp.IsSmsVerified},
+            {cp.OtpWindowOverrideMinutes},
+            {cp.InsertedOn},
+            {cp.UpdatedOn}
         ;";
 
     /// <summary>SQL to set a person's <c>IsActive</c> flag, returning the updated row.</summary>

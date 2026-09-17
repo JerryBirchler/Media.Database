@@ -1,5 +1,6 @@
 using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
+using Media.Common.Serialization;
 using Media.Common.Transactions;
 using Media.Database.Helpers;
 using Media.Database.Models;
@@ -42,14 +43,14 @@ public class FileRepository(
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
 
-    public async Task<Files?> GetById(Guid id)
+    public async Task<Files?> GetById(Guid id, string? encryptionKey = null)
     {
         try
         {
             return await _sqlExecutor.QuerySingleAsync(
                 QueryFiles.GetByIdSql,
                 p => p.AddWithValue(pn.Id, id),
-                reader => reader.ToFile());
+                reader => reader.ToFile(encryptionKey));
         }
         catch (Exception ex)
         {
@@ -58,7 +59,7 @@ public class FileRepository(
         }
     }
 
-    public async Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
+    public async Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5, string? encryptionKey = null)
     {
         try
         {
@@ -69,7 +70,7 @@ public class FileRepository(
                     p.AddWithValue(pn.SourceMachineId, sourceMachineId);
                     p.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
                 },
-                reader => reader.ToFile());
+                reader => reader.ToFile(encryptionKey));
         }
         catch (Exception ex)
         {
@@ -79,7 +80,7 @@ public class FileRepository(
         }
     }
 
-    public async Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5)
+    public async Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5, string? encryptionKey = null)
     {
         try
         {
@@ -91,7 +92,7 @@ public class FileRepository(
                     p.AddWithValue(pn.OriginalFilePath, originalFilePath.ToNullableValueForSql());
                     p.AddWithValue(pn.Limit, limit);
                 },
-                reader => reader.ToFile());
+                reader => reader.ToFile(encryptionKey));
         }
         catch (Exception ex)
         {
@@ -123,7 +124,7 @@ public class FileRepository(
         }
     }
 
-    public async Task<List<Files>> GetByIds(IEnumerable<Guid> ids, int maxDegreeOfParallelism)
+    public async Task<List<Files>> GetByIds(IEnumerable<Guid> ids, int maxDegreeOfParallelism, string? encryptionKey = null)
     {
         var results = new ConcurrentBag<Files>();
 
@@ -132,7 +133,7 @@ public class FileRepository(
             new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism },
             async (id, cancellationToken) =>
             {
-                var file = await GetByIdPreferringScylla(id);
+                var file = await GetByIdPreferringScylla(id, encryptionKey);
                 if (file is not null)
                     results.Add(file);
             });
@@ -146,7 +147,7 @@ public class FileRepository(
     /// rethrown -- PostgreSQL is the durable source of truth, so a temporarily unavailable Scylla
     /// cluster should degrade this request to a normal PostgreSQL read rather than fail it.
     /// </summary>
-    private async Task<Files?> GetByIdPreferringScylla(Guid id)
+    private async Task<Files?> GetByIdPreferringScylla(Guid id, string? encryptionKey = null)
     {
         var log = _logger.WithCaller();
 
@@ -155,7 +156,7 @@ public class FileRepository(
             var fromScylla = await _cqlExecutor.QuerySingleAsync(
                 QueryFiles.GetByIdCql,
                 p => p.AddWithValue(pn.Id, id),
-                row => row.ToFile());
+                row => row.ToFile(encryptionKey));
 
             if (fromScylla is not null)
                 return fromScylla;
@@ -170,10 +171,10 @@ public class FileRepository(
             log.LogError(ex, "Scylla lookup failed for FileId {Id}; falling back to Postgres", id);
         }
 
-        return await GetById(id);
+        return await GetById(id, encryptionKey);
     }
 
-    public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5, int maxDegreeOfParallelism = 5)
+    public async Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5, int maxDegreeOfParallelism = 5, string? encryptionKey = null)
     {
         try
         {
@@ -190,7 +191,7 @@ public class FileRepository(
             if (ids.Count == 0)
                 return [];
 
-            var hydrated = await GetByIds(ids, maxDegreeOfParallelism);
+            var hydrated = await GetByIds(ids, maxDegreeOfParallelism, encryptionKey);
             var hydratedById = hydrated.ToDictionary(file => file.Id);
 
             return ids
@@ -206,7 +207,7 @@ public class FileRepository(
         }
     }
 
-    public async Task<Files?> Upsert(int sourceMachineId, UploadFileRequest request)
+    public async Task<Files?> Upsert(int sourceMachineId, UploadFileRequest request, bool isEncrypted = false, string? encryptionKey = null)
     {
         await using var uow = _unitOfWorkFactory();
 
@@ -244,9 +245,10 @@ public class FileRepository(
                     p.AddWithValue(pn.OriginalFilePath, request.OriginalFilePath);
                     p.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
-                    p.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+                    p.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json,
+                        request.Metadata is null ? DBNull.Value : EncryptedFieldSerializer.Serialize(request.Metadata, isEncrypted, encryptionKey));
                 },
-                reader => reader.ToFile());
+                reader => reader.ToFile(encryptionKey));
 
             if (file == null)
             {
@@ -272,7 +274,9 @@ public class FileRepository(
 
     public async Task<UpdateFileResponse> Update(
         Guid id,
-        UpdateFileRequest request)
+        UpdateFileRequest request,
+        bool isEncrypted = false,
+        string? encryptionKey = null)
     {
         await using var uow = _unitOfWorkFactory();
 
@@ -288,9 +292,10 @@ public class FileRepository(
                     p.AddWithValue(pn.Id, id);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
                     p.AddWithValue(pn.LastFileUpdate, request.LastFileUpdate.AdjustPrecision().ToNullableValueForSql());
-                    p.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json, request.Metadata.ToNullableValueForSql()?.ToJsonString()!);
+                    p.AddWithValue(pn.Metadata, NpgsqlTypes.NpgsqlDbType.Json,
+                        request.Metadata is null ? DBNull.Value : EncryptedFieldSerializer.Serialize(request.Metadata, isEncrypted, encryptionKey));
                 },
-                reader => reader.ToFile());
+                reader => reader.ToFile(encryptionKey));
 
             if (file == null)
             {
@@ -313,14 +318,14 @@ public class FileRepository(
         }
     }
 
-    public async Task<Files?> Delete(Guid id)
+    public async Task<Files?> Delete(Guid id, string? encryptionKey = null)
     {
         try
         {
             return await _sqlExecutor.QuerySingleAsync(
                 QueryFiles.DeleteSql,
                 p => p.AddWithValue(pn.Id, id),
-                reader => reader.ToFile());
+                reader => reader.ToFile(encryptionKey));
         }
         catch (Exception ex)
         {
@@ -329,7 +334,7 @@ public class FileRepository(
         }
     }
 
-    public async Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath)
+    public async Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath, string? encryptionKey = null)
     {
         try
         {
@@ -340,7 +345,7 @@ public class FileRepository(
                     p.AddWithValue(pn.SourceMachineId, sourceMachineId);
                     p.AddWithValue(pn.OriginalFilePath, originalFilePath);
                 },
-                reader => reader.ToFile());
+                reader => reader.ToFile(encryptionKey));
         }
         catch (Exception ex)
         {

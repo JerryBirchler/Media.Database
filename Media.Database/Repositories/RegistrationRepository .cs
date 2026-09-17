@@ -421,6 +421,7 @@ public class RegistrationRepository(
                     reader.GetString(os.FirstName),
                     reader.GetString(os.LastName),
                     reader.GetString(os.EmailAddress),
+                    reader.GetString(os.CellPhoneNumber),
                     reader.GetFieldValue<bool>(os.IsEmailVerified),
                     reader.GetFieldValue<bool>(os.IsSmsVerified))
             );
@@ -539,6 +540,27 @@ public class RegistrationRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "SetOwningPersonIfUnsetAsync failed for SourceMachineId {SourceMachineId}, PersonId {PersonId}", sourceMachineId, personId);
+            throw;
+        }
+    }
+
+    public async Task SetIsEncryptedAsync(int sourceMachineId, bool isEncrypted)
+    {
+        try
+        {
+            await _sqlExecutor.ExecuteAsync
+            (
+                QueryRegistrations.SetSourceMachineIsEncryptedSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.IsEncrypted, isEncrypted);
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetIsEncryptedAsync failed for SourceMachineId {SourceMachineId}", sourceMachineId);
             throw;
         }
     }

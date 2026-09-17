@@ -1,3 +1,6 @@
+using Media.Common.Serialization;
+using System.Text.Json.Serialization;
+
 namespace Media.Database.Models;
 
 /// <summary>
@@ -6,13 +9,19 @@ namespace Media.Database.Models;
 public record Person
 {
     /// <summary>
-    /// Gets the integer identifier for the person.
+    /// Gets the integer identifier for the person. Not <c>required</c>; see
+    /// <see cref="Group.GroupId"/> for why.
     /// </summary>
-    public required int PersonId { get; init; }
+    [JsonIgnore]
+    public int PersonId { get; init; }
 
     /// <summary>
-    /// Gets the unique identifier for the person.
+    /// Gets the unique identifier for the person. Omitted from JSON entirely when redacted (zeroed
+    /// to <see cref="Guid.Empty"/>, which is also <c>Guid</c>'s CLR default) -- not just replaced
+    /// with a visible sentinel value.
     /// </summary>
+    [Redactable]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public required Guid PersonUuid { get; init; }
 
     /// <summary>
@@ -42,15 +51,19 @@ public record Person
 
     /// <summary>
     /// Gets the identifier of the person who created this person, or <see langword="null"/> for a
-    /// person auto-created by a device registration ("person zero" -- no human creator).
+    /// person auto-created by a device registration ("person zero" -- no human creator). Not
+    /// <c>required</c>; see <see cref="PersonId"/> for why.
     /// </summary>
-    public required int? CreatedByPersonId { get; init; }
+    [JsonIgnore]
+    public int? CreatedByPersonId { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether this person has the seed-only super-admin role. Never
-    /// settable via any API -- only ever set directly in seed data.
+    /// settable via any API -- only ever set directly in seed data. Not <c>required</c>; see
+    /// <see cref="PersonId"/> for why.
     /// </summary>
-    public required bool IsSuperAdmin { get; init; }
+    [JsonIgnore]
+    public bool IsSuperAdmin { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether the person's email address has been OTP-verified.

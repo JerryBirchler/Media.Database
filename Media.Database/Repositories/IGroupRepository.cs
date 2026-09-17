@@ -33,6 +33,13 @@ public interface IGroupRepository
     Task<Group?> SetActiveAsync(int groupId, bool isActive);
 
     /// <summary>
+    /// Sets a group's <see cref="Group.IsEncrypted"/> policy flag. Returns the updated group, or
+    /// <see langword="null"/> if <paramref name="groupId"/> does not exist. Group-admin
+    /// authorization is enforced by the caller, not here.
+    /// </summary>
+    Task<Group?> SetIsEncryptedAsync(int groupId, bool isEncrypted);
+
+    /// <summary>
     /// Hydrates full <see cref="Group"/> rows for a set of ids -- Postgres identifies which groups
     /// and in what order (e.g. the "groups a person belongs to" list), this hydrates the full row
     /// content preferring Scylla, falling back to PostgreSQL per row when Scylla doesn't have it

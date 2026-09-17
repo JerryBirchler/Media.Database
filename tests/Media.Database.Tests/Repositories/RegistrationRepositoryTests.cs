@@ -711,6 +711,7 @@ public class RegistrationRepositoryTests
             FirstName = _fixture.Create<string>(),
             LastName = _fixture.Create<string>(),
             EmailAddress = _fixture.Create<string>(),
+            CellPhoneNumber = _fixture.Create<string>(),
             OtpEmailVerified = true
         };
         _sqlExecutorMock

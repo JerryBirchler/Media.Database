@@ -23,6 +23,26 @@ public static class QueryGroupsSourceMachines
     #region SQL Queries
 
     /// <summary>
+    /// SQL to find the single active group/device association row for a device, if any (MEDIA-11:
+    /// a device may belong to at most one active group -- enforced by
+    /// <c>IX_GroupsSourceMachines_SourceMachineId_IsActive</c>, checked here explicitly beforehand
+    /// so a conflicting association attempt gets a clear result, not a raw unique-violation).
+    /// </summary>
+    public static string GetActiveBySourceMachineIdSql => $@"
+        SELECT
+            {cgsm.GroupSourceMachineId},
+            {cgsm.GroupSourceMachineUuid},
+            {cgsm.GroupId},
+            {cgsm.SourceMachineId},
+            {cgsm.IsActive},
+            {cgsm.InsertedOn},
+            {cgsm.UpdatedOn}
+        FROM {ts.GroupsSourceMachines}
+        WHERE {cgsm.SourceMachineId} = {pn.SourceMachineId} AND {cgsm.IsActive} = true
+        LIMIT 1
+        ;";
+
+    /// <summary>
     /// SQL to upsert a group/device association: reactivates any existing row for the pair,
     /// active or not, or inserts a new active row if none exists.
     /// </summary>

@@ -25,9 +25,9 @@ public interface IPersonRepository
 
     /// <summary>
     /// Gets a keyset-paginated page of PersonId/PersonUuid/LastName/FirstName identifiers for
-    /// every person <paramref name="createdByPersonId"/> created (active and inactive alike),
-    /// ordered by last name then first name (ties broken by PersonUuid) -- the non-super-admin
-    /// view of <c>GET /api/persons/{next}/pages</c>.
+    /// <paramref name="createdByPersonId"/> themselves plus every person they created (active and
+    /// inactive alike), ordered by last name then first name (ties broken by PersonUuid) -- the
+    /// non-super-admin view of <c>GET /api/persons/{next}/pages</c>.
     /// </summary>
     Task<List<PersonIdentifier>> GetPersonIdentifiersByCreatorIdAsync(int createdByPersonId, PersonIdentifier? next, int limit);
 
@@ -52,6 +52,13 @@ public interface IPersonRepository
     /// <paramref name="personId"/> does not exist.
     /// </summary>
     Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified);
+
+    /// <summary>
+    /// Raises <paramref name="personId"/>'s IsEmailVerified/IsSmsVerified flags to true where the
+    /// incoming value is true, never lowering an already-true flag back to false. Returns the
+    /// updated person, or <see langword="null"/> if <paramref name="personId"/> does not exist.
+    /// </summary>
+    Task<Person?> SetVerifiedIfTrueAsync(int personId, bool isEmailVerified, bool isSmsVerified);
 
     /// <summary>
     /// Hydrates full <see cref="Person"/> rows for a set of ids -- Postgres identifies which

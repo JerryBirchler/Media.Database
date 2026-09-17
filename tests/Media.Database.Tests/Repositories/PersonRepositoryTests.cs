@@ -418,6 +418,48 @@ public class PersonRepositoryTests
     }
 
     [Test]
+    public async Task SetVerifiedIfTrueAsync_Should_ReturnUpdatedPerson_When_Found()
+    {
+        var updated = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.SetVerifiedIfTrueSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ReturnsAsync(updated);
+
+        var result = await CreateRepository().SetVerifiedIfTrueAsync(updated.PersonId, isEmailVerified: true, isSmsVerified: false);
+
+        result.ShouldBe(updated);
+    }
+
+    [Test]
+    public async Task SetVerifiedIfTrueAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        var updated = CreatePerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.SetVerifiedIfTrueSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(updated);
+
+        await CreateRepository().SetVerifiedIfTrueAsync(3, isEmailVerified: true, isSmsVerified: false);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.PersonId].Value.ShouldBe(3);
+        command.Parameters[pn.IsEmailVerified].Value.ShouldBe(true);
+        command.Parameters[pn.IsSmsVerified].Value.ShouldBe(false);
+    }
+
+    [Test]
+    public void SetVerifiedIfTrueAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.SetVerifiedIfTrueSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetVerifiedIfTrueAsync(1, true, true));
+    }
+
+    [Test]
     public async Task GetByIdsAsync_Should_PreferScylla_When_RowFound()
     {
         var personId = _fixture.Create<int>();

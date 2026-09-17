@@ -12,6 +12,7 @@ public class MapGroupResponse : IMapGroupResponse
         string title,
         string? description,
         bool isActive,
+        bool isEncrypted,
         DateTimeOffset insertedOn,
         DateTimeOffset? updatedOn)
     {
@@ -23,6 +24,7 @@ public class MapGroupResponse : IMapGroupResponse
             Title = title,
             Description = description,
             IsActive = isActive,
+            IsEncrypted = isEncrypted,
             InsertedOn = insertedOn,
             UpdatedOn = updatedOn
         };

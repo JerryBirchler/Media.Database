@@ -224,6 +224,30 @@ public class PersonRepository(
         }
     }
 
+    public async Task<Person?> SetVerifiedIfTrueAsync(int personId, bool isEmailVerified, bool isSmsVerified)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryPersons.SetVerifiedIfTrueSql,
+                p =>
+                {
+                    p.AddWithValue(pn.PersonId, personId);
+                    p.AddWithValue(pn.IsEmailVerified, isEmailVerified);
+                    p.AddWithValue(pn.IsSmsVerified, isSmsVerified);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToPerson(_personResponseMapper)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetVerifiedIfTrueAsync failed for PersonId {PersonId}", personId);
+            throw;
+        }
+    }
+
     public async Task<List<Person>> GetByIdsAsync(IEnumerable<int> personIds, int maxDegreeOfParallelism)
     {
         var results = new ConcurrentBag<Person>();

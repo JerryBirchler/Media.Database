@@ -139,6 +139,29 @@ public class GroupRepository(
         }
     }
 
+    public async Task<Group?> SetIsEncryptedAsync(int groupId, bool isEncrypted)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryGroups.SetIsEncryptedSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.IsEncrypted, isEncrypted);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToGroup(_groupResponseMapper)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetIsEncryptedAsync failed for GroupId {GroupId}", groupId);
+            throw;
+        }
+    }
+
     public async Task<List<Group>> GetByIdsAsync(IEnumerable<int> groupIds, int maxDegreeOfParallelism)
     {
         var results = new ConcurrentBag<Group>();

@@ -12,8 +12,9 @@ public interface IFileRepository
     /// Retrieves a file by its unique identifier.
     /// </summary>
     /// <param name="id">The file's unique identifier.</param>
+    /// <param name="encryptionKey">The key to decrypt any CanBeEncrypted metadata fields with, if the caller has one.</param>
     /// <returns>The file, or null if not found.</returns>
-    Task<Files?> GetById(Guid id);
+    Task<Files?> GetById(Guid id, string? encryptionKey = null);
 
     /// <summary>
     /// Retrieves the current version of a file for the given source machine and path.
@@ -21,8 +22,9 @@ public interface IFileRepository
     /// <param name="sourceMachineId">The source machine identifier.</param>
     /// <param name="originalFilePath">The original file path, or null to match any path.</param>
     /// <param name="limit">The maximum number of rows to consider.</param>
+    /// <param name="encryptionKey">The key to decrypt any CanBeEncrypted metadata fields with, if the caller has one.</param>
     /// <returns>The current file, or null if not found.</returns>
-    Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
+    Task<Files?> GetCurrentBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5, string? encryptionKey = null);
 
     /// <summary>
     /// Retrieves a page of current files for the given source machine and path.
@@ -30,8 +32,9 @@ public interface IFileRepository
     /// <param name="sourceMachineId">The source machine identifier.</param>
     /// <param name="originalFilePath">The original file path, or null to match any path.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
+    /// <param name="encryptionKey">The key to decrypt any CanBeEncrypted metadata fields with, if the caller has one.</param>
     /// <returns>The matching current files.</returns>
-    Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5);
+    Task<List<Files>> GetCurrentPagesBySourceMachineId(int sourceMachineId, string? originalFilePath, int limit = 5, string? encryptionKey = null);
 
     /// <summary>
     /// Retrieves just the ordering key (Id, OriginalFilePath) for a page of current files, from
@@ -51,8 +54,9 @@ public interface IFileRepository
     /// </summary>
     /// <param name="ids">The file ids to hydrate.</param>
     /// <param name="maxDegreeOfParallelism">The maximum number of concurrent lookups.</param>
+    /// <param name="encryptionKey">The key to decrypt any CanBeEncrypted metadata fields with, if the caller has one.</param>
     /// <returns>The hydrated files, in no particular order -- callers that need a specific order must reorder by id themselves.</returns>
-    Task<List<Files>> GetByIds(IEnumerable<Guid> ids, int maxDegreeOfParallelism);
+    Task<List<Files>> GetByIds(IEnumerable<Guid> ids, int maxDegreeOfParallelism, string? encryptionKey = null);
 
     /// <summary>
     /// Retrieves a page of historical (superseded) files for the given source machine and path.
@@ -63,39 +67,46 @@ public interface IFileRepository
     /// <param name="originalFilePath">The original file path.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
     /// <param name="maxDegreeOfParallelism">The maximum number of concurrent hydration lookups.</param>
+    /// <param name="encryptionKey">The key to decrypt any CanBeEncrypted metadata fields with, if the caller has one.</param>
     /// <returns>The matching historical files.</returns>
-    Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5, int maxDegreeOfParallelism = 5);
+    Task<List<Files>> GetHistoryPagesBySourceMachineId(int sourceMachineId, string originalFilePath, int limit = 5, int maxDegreeOfParallelism = 5, string? encryptionKey = null);
 
     /// <summary>
     /// Inserts a new file record, or returns the existing one if it already exists unchanged.
     /// </summary>
     /// <param name="sourceMachineId">The identifier of the device that owns the file, resolved from the X-API-KEY.</param>
     /// <param name="request">The upload request describing the file.</param>
+    /// <param name="isEncrypted">The device/group's resolved CanBeEncrypted policy (MEDIA-11) at the time of this write.</param>
+    /// <param name="encryptionKey">The key to encrypt CanBeEncrypted metadata fields with. Required when <paramref name="isEncrypted"/> is true.</param>
     /// <returns>The created or existing file, or null if the upsert did not return a row.</returns>
-    Task<Files?> Upsert(int sourceMachineId, UploadFileRequest request);
+    Task<Files?> Upsert(int sourceMachineId, UploadFileRequest request, bool isEncrypted = false, string? encryptionKey = null);
 
     /// <summary>
     /// Updates an existing file's metadata and last-update timestamp.
     /// </summary>
     /// <param name="id">The unique identifier of the file to update.</param>
     /// <param name="request">The requested changes.</param>
+    /// <param name="isEncrypted">The device/group's resolved CanBeEncrypted policy (MEDIA-11) at the time of this write.</param>
+    /// <param name="encryptionKey">The key to encrypt CanBeEncrypted metadata fields with. Required when <paramref name="isEncrypted"/> is true.</param>
     /// <returns>The update response, including the updated file and the derived word-level changes.</returns>
-    Task<UpdateFileResponse> Update(Guid id, UpdateFileRequest request);
+    Task<UpdateFileResponse> Update(Guid id, UpdateFileRequest request, bool isEncrypted = false, string? encryptionKey = null);
 
     /// <summary>
     /// Deletes a file by its unique identifier.
     /// </summary>
     /// <param name="id">The unique identifier of the file to delete.</param>
+    /// <param name="encryptionKey">The key to decrypt any CanBeEncrypted metadata fields with, if the caller has one.</param>
     /// <returns>The deleted file, or null if it did not exist.</returns>
-    Task<Files?> Delete(Guid id);
+    Task<Files?> Delete(Guid id, string? encryptionKey = null);
 
     /// <summary>
     /// Deletes all historical files for the given source machine and path.
     /// </summary>
     /// <param name="sourceMachineId">The source machine identifier.</param>
     /// <param name="originalFilePath">The original file path.</param>
+    /// <param name="encryptionKey">The key to decrypt any CanBeEncrypted metadata fields with, if the caller has one.</param>
     /// <returns>The deleted files.</returns>
-    Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath);
+    Task<List<Files>> DeleteHistoryBySourceMachineId(int sourceMachineId, string originalFilePath, string? encryptionKey = null);
 
     /// <summary>
     /// Records that a thumbnail was generated for a file, by id. Called by Media.Worker's

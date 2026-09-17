@@ -13,11 +13,11 @@ public class MapRegistrationResponsesTests
     [Test, AutoData]
     public void ToOtpEmailResponse_Should_PopulateApiKey_When_BothChannelsVerified(
         Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
-        string firstName, string lastName, string emailAddress)
+        string firstName, string lastName, string emailAddress, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, isEmailVerified: true, isSmsVerified: true);
+        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: true);
 
         result.ApiKey.ShouldBe(sourceMachineUuid);
     }
@@ -25,11 +25,11 @@ public class MapRegistrationResponsesTests
     [Test, AutoData]
     public void ToOtpEmailResponse_Should_Not_PopulateApiKey_When_SmsNotYetVerified(
         Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
-        string firstName, string lastName, string emailAddress)
+        string firstName, string lastName, string emailAddress, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, isEmailVerified: true, isSmsVerified: false);
+        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: false);
 
         result.ApiKey.ShouldBeNull();
     }
@@ -37,11 +37,11 @@ public class MapRegistrationResponsesTests
     [Test, AutoData]
     public void ToOtpEmailResponse_Should_Map_AllFields(
         Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
-        string firstName, string lastName, string emailAddress)
+        string firstName, string lastName, string emailAddress, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, isEmailVerified: true, isSmsVerified: false);
+        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: false);
 
         result.SourceMachineUuid.ShouldBe(sourceMachineUuid);
         result.SourceMachineName.ShouldBe(sourceMachineName);
@@ -49,6 +49,7 @@ public class MapRegistrationResponsesTests
         result.FirstName.ShouldBe(firstName);
         result.LastName.ShouldBe(lastName);
         result.EmailAddress.ShouldBe(emailAddress);
+        result.CellPhoneNumber.ShouldBe(cellPhoneNumber);
         result.OtpEmailVerified.ShouldBeTrue();
     }
 

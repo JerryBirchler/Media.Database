@@ -12,6 +12,7 @@ public class MapRegistrationResponses : IMapRegistrationResponses
         string firstName,
         string lastName,
         string emailAddress,
+        string cellPhoneNumber,
         bool isEmailVerified,
         bool isSmsVerified)
     {
@@ -23,6 +24,7 @@ public class MapRegistrationResponses : IMapRegistrationResponses
             FirstName = firstName,
             LastName = lastName,
             EmailAddress = emailAddress,
+            CellPhoneNumber = cellPhoneNumber,
             OtpEmailVerified = isEmailVerified,
             ApiKey = isEmailVerified && isSmsVerified ? sourceMachineUuid : null
         };

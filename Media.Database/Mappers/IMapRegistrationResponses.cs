@@ -22,6 +22,7 @@ public interface IMapRegistrationResponses
         string firstName,
         string lastName,
         string emailAddress,
+        string cellPhoneNumber,
         bool isEmailVerified,
         bool isSmsVerified);
 

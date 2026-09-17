@@ -89,6 +89,7 @@ public class OtpEmailResponseTests
             FirstName = firstName,
             LastName = lastName,
             EmailAddress = emailAddress,
+            CellPhoneNumber = string.Empty,
             OtpEmailVerified = otpEmailVerified
         };
 
@@ -115,6 +116,7 @@ public class OtpEmailResponseTests
             FirstName = firstName,
             LastName = lastName,
             EmailAddress = emailAddress,
+            CellPhoneNumber = string.Empty,
             OtpEmailVerified = otpEmailVerified
         };
 
@@ -135,6 +137,7 @@ public class OtpEmailResponseTests
             FirstName = "Alice",
             LastName = "Smith",
             EmailAddress = "alice@example.com",
+            CellPhoneNumber = string.Empty,
             OtpEmailVerified = false
         };
 

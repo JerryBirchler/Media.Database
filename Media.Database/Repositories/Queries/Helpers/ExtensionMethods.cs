@@ -56,6 +56,37 @@ public static class ExtensionMethods
     }
 
     /// <summary>
+    /// Reads a text column of a Cassandra/Scylla row as a raw string, returning null if the column
+    /// is null or blank -- unlike <see cref="GetValueOrDefault{T}"/>, does not deserialize it.
+    /// </summary>
+    /// <param name="row">The row to read from.</param>
+    /// <param name="columnName">The name of the text column.</param>
+    /// <returns>The raw string value, or null.</returns>
+    public static string? GetStringOrDefault(this Row row, string columnName)
+    {
+        if (row.IsNull(columnName))
+            return null;
+
+        var value = row.GetValue<string?>(columnName);
+
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <summary>
+    /// Reads a text column of an <see cref="NpgsqlDataReader"/> row as a raw string, returning null
+    /// if the column is DB null -- unlike <see cref="ToModelOrDefault{T}"/>, does not deserialize it.
+    /// </summary>
+    /// <param name="reader">The reader positioned on the row to read from.</param>
+    /// <param name="columnName">The name of the text column.</param>
+    /// <returns>The raw string value, or null.</returns>
+    public static string? GetStringOrDefault(this NpgsqlDataReader reader, string columnName)
+    {
+        int ordinal = reader.GetOrdinal(columnName);
+
+        return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    }
+
+    /// <summary>
     /// Serializes <paramref name="model"/> to a JSON string suitable for a SQL/CQL parameter value.
     /// </summary>
     /// <typeparam name="T">The type of the model.</typeparam>

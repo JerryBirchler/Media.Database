@@ -48,6 +48,24 @@ public class GroupSourceMachineRepository(
         }
     }
 
+    public async Task<GroupSourceMachine?> GetActiveBySourceMachineIdAsync(int sourceMachineId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryGroupsSourceMachines.GetActiveBySourceMachineIdSql,
+                p => p.AddWithValue(pn.SourceMachineId, sourceMachineId),
+                reader => reader.ToGroupSourceMachine(_groupSourceMachineResponseMapper)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetActiveBySourceMachineIdAsync failed for SourceMachineId {SourceMachineId}", sourceMachineId);
+            throw;
+        }
+    }
+
     public async Task<GroupSourceMachine?> DeactivateAsync(int groupId, int sourceMachineId)
     {
         try

@@ -1,4 +1,5 @@
 ﻿using Cassandra;
+using Media.Common.Serialization;
 using Media.Database.Helpers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries.Helpers;
@@ -323,18 +324,18 @@ public static class QueryFiles
     #endregion
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="Models.Files"/>.</summary>
-    public static async Task<List<Files>> ToFiles(this NpgsqlDataReader reader)
+    public static async Task<List<Files>> ToFiles(this NpgsqlDataReader reader, string? encryptionKey = null)
     {
         List<Files> files = [];
 
         while (await reader.ReadAsync())
-            files.Add(reader.ToFile());
+            files.Add(reader.ToFile(encryptionKey));
 
         return files;
     }
 
     /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="Models.Files"/>.</summary>
-    public static Files ToFile(this NpgsqlDataReader reader)
+    public static Files ToFile(this NpgsqlDataReader reader, string? encryptionKey = null)
     {
         return new Files
         {
@@ -345,7 +346,7 @@ public static class QueryFiles
             UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
             LastFileUpdate = reader.GetFieldValue<DateTimeOffset?>(os.LastFileUpdate),
             IsCurrent = reader.GetFieldValue<bool>(os.IsCurrent),
-            Metadata = reader.ToModelOrDefault<Models.Metadata>(os.Metadata)
+            Metadata = EncryptedFieldSerializer.Deserialize<Models.Metadata>(reader.GetStringOrDefault(os.Metadata), encryptionKey)
         };
     }
 
@@ -385,7 +386,7 @@ public static class QueryFiles
     }
 
     /// <summary>Maps a Cassandra/Scylla <paramref name="row"/> to a <see cref="Files"/>.</summary>
-    public static Files ToFile(this Row row)
+    public static Files ToFile(this Row row, string? encryptionKey = null)
     {
         return new Files
         {
@@ -396,7 +397,7 @@ public static class QueryFiles
             InsertedOn = row.GetValue<DateTimeOffset>(ccf.InsertedOn),
             UpdatedOn = row.GetValue<DateTimeOffset?>(ccf.UpdatedOn),
             IsCurrent = row.GetValue<bool>(ccf.IsCurrent),
-            Metadata = row.GetValueOrDefault<Models.Metadata>(ccf.Metadata)
+            Metadata = EncryptedFieldSerializer.Deserialize<Models.Metadata>(row.GetStringOrDefault(ccf.Metadata), encryptionKey)
         };
     }
 }

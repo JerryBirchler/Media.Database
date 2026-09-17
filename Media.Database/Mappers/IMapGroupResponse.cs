@@ -19,6 +19,7 @@ public interface IMapGroupResponse
         string title,
         string? description,
         bool isActive,
+        bool isEncrypted,
         DateTimeOffset insertedOn,
         DateTimeOffset? updatedOn);
 }

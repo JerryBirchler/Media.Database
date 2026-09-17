@@ -11,6 +11,12 @@ public interface IGroupSourceMachineRepository
     Task<GroupSourceMachine> UpsertAsync(int groupId, int sourceMachineId);
 
     /// <summary>
+    /// Finds the single active group/device association row for <paramref name="sourceMachineId"/>,
+    /// or <see langword="null"/> if none. MEDIA-11: a device may belong to at most one active group.
+    /// </summary>
+    Task<GroupSourceMachine?> GetActiveBySourceMachineIdAsync(int sourceMachineId);
+
+    /// <summary>
     /// Deactivates the active association for a (groupId, sourceMachineId) pair. Returns the
     /// updated association, or <see langword="null"/> if none was active.
     /// </summary>

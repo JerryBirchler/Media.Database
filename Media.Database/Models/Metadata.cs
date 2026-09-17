@@ -1,12 +1,18 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Media.Common.Serialization;
+using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 
 namespace Media.Database.Models;
 
 /// <summary>
 /// Descriptive metadata associated with a file, used both as request/response payload
-/// and as the source of the words indexed for search.
+/// and as the source of the words indexed for search. [CanBeEncrypted] at the object level
+/// (MEDIA-12) -- every property here is an encryption candidate when the owning device/group's
+/// resolved IsEncrypted is true. This is a storage-format concern only: the wire shape of this
+/// class in API requests/responses is unaffected, wrapping happens solely in how it's serialized
+/// into Scylla's Files.metadata column (not yet implemented -- see MEDIA-12's remaining scope).
 /// </summary>
+[CanBeEncrypted]
 public class Metadata
 {
     /// <summary>

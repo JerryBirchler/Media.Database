@@ -35,7 +35,7 @@ public class GroupsCdcSyncHandlerTests
         _scyllaProviderMock.Object,
         Mock.Of<ILogger<GroupsCdcSyncHandler>>());
 
-    private static CdcChangeRecord UpsertRecord(int groupId, string? description = "a description", bool isActive = true)
+    private static CdcChangeRecord UpsertRecord(int groupId, string? description = "a description", bool isActive = true, bool isEncrypted = false)
     {
         var payload = new
         {
@@ -45,6 +45,7 @@ public class GroupsCdcSyncHandlerTests
             Title = "Group Title",
             Description = description,
             IsActive = isActive,
+            IsEncrypted = isEncrypted,
             InsertedOn = "2026-07-25T01:35:45.110Z",
             UpdatedOn = "2026-08-27T18:28:07.082Z",
             __source_ts_ms = 1788574857777L,
@@ -84,13 +85,14 @@ public class GroupsCdcSyncHandlerTests
             })
             .Returns(Task.CompletedTask);
 
-        await sut.ApplyAsync(UpsertRecord(7, isActive: false), CancellationToken.None);
+        await sut.ApplyAsync(UpsertRecord(7, isActive: false, isEncrypted: true), CancellationToken.None);
 
         captured.ShouldNotBeNull();
         captured!["@GROUPID"].ShouldBe(7);
         captured["@NAME"].ShouldBe("group-name");
         captured["@TITLE"].ShouldBe("Group Title");
         captured["@ISACTIVE"].ShouldBe(false);
+        captured["@ISENCRYPTED"].ShouldBe(true);
     }
 
     [Test]
