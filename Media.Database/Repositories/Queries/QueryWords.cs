@@ -242,66 +242,6 @@ public static class QueryWords
         ;";
 
     /// <summary>
-    /// SQL to select a keyset-paged page of a single file's words, ordered by word. FileId is an
-    /// equality filter here, not a seek bound -- correct because FileId is already a globally
-    /// unique identifier, so no cross-device ambiguity is possible. SourceMachineId is still
-    /// required alongside it: it's the one equality this scheme allows, since it comes from the
-    /// caller's own X-API-KEY, not client input -- proving the file actually belongs to the
-    /// caller before returning anything about it. Uses IX_WordFiles_FileId_Word.
-    /// </summary>
-    public static string GetWordsByFileIdOrderedByWordSql => $@"
-        {SelectFilePagesWithSourceMachineId}
-        WHERE
-            {csvwf.FileId} = {pn.FileId}
-            AND {csvwf.SourceMachineId} = {pn.SourceMachineId}
-            AND {csvwf.Word} > COALESCE({pn.Word}, '')
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.Word} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>
-    /// Same scoping as <see cref="GetWordsByFileIdOrderedByWordSql"/>, ordered by origin instead.
-    /// Uses IX_WordFiles_FileId_Origin.
-    /// </summary>
-    public static string GetWordsByFileIdOrderedByOriginSql => $@"
-        {SelectFilePagesWithSourceMachineId}
-        WHERE
-            {csvwf.FileId} = {pn.FileId}
-            AND {csvwf.SourceMachineId} = {pn.SourceMachineId}
-            AND {csvwf.Origin} > COALESCE({pn.Origin}, -1)
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.Origin} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>
-    /// SQL to select a keyset-paged page of a single file path's words, ordered by word.
-    /// OriginalFilePath is an equality filter here, not a seek bound -- unlike FileId, a path is
-    /// NOT globally unique (different devices can have a file at the same relative path), so
-    /// SourceMachineId here is load-bearing for correctness, not just authorization: without it,
-    /// this would silently mix another device's same-path file into the results. Uses
-    /// IX_WordFiles_FilePath_Word (OriginalFilePath already leads that index, and a real path is
-    /// selective enough on its own that a SourceMachineId-leading index isn't needed for this).
-    /// </summary>
-    public static string GetWordsByFilePathOrderedByWordSql => $@"
-        {SelectFilePagesWithSourceMachineId}
-        WHERE
-            {csvwf.OriginalFilePath} = {pn.OriginalFilePath}
-            AND {csvwf.SourceMachineId} = {pn.SourceMachineId}
-            AND {csvwf.Word} > COALESCE({pn.Word}, '')
-            {AndFilePages}
-        ORDER BY
-            {csvwf.IsCurrent} DESC,
-            {csvwf.Word} ASC
-        LIMIT {pn.Limit}
-        ;";
-
-    /// <summary>
     /// SQL to select the word/file view row for a single (WordId, FileId) pair, with
     /// SourceMachineId -- used by the word_files Scylla-sync CDC handler when a
     /// "cdc.public.WordFiles" event names exactly one pair to refresh.

@@ -85,15 +85,6 @@ public class QueryWordsTests
         sql.ShouldNotContain("SourceMachineId");
     }
 
-    [TestCase(nameof(QueryWords.GetWordsByFileIdOrderedByWordSql))]
-    [TestCase(nameof(QueryWords.GetWordsByFileIdOrderedByOriginSql))]
-    [TestCase(nameof(QueryWords.GetWordsByFilePathOrderedByWordSql))]
-    public void ScopedWordLookupQueries_Should_Filter_By_SourceMachineId(string propertyName)
-    {
-        var sql = (string)typeof(QueryWords).GetProperty(propertyName)!.GetValue(null)!;
-        sql.ShouldContain("SourceMachineId");
-    }
-
     [Test]
     public void UpsertWordSql_Should_Insert_All_Required_Word_Fields()
     {
