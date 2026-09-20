@@ -113,4 +113,56 @@ public class GroupShellRepositoryTests
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetByIdAsync(1));
     }
+
+    [Test]
+    public async Task PromoteIfUnpromotedAsync_Should_ReturnPromotedShell_When_ExecutorFindsMatch()
+    {
+        var expected = _fixture.Create<GroupShell>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupShell.PromoteIfUnpromotedSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupShell>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().PromoteIfUnpromotedAsync(1, 5);
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task PromoteIfUnpromotedAsync_Should_ReturnNull_When_AlreadyPromotedOrMissing()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupShell.PromoteIfUnpromotedSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupShell>>()))
+            .ReturnsAsync((GroupShell?)null);
+
+        var result = await CreateRepository().PromoteIfUnpromotedAsync(1, 5);
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task PromoteIfUnpromotedAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupShell.PromoteIfUnpromotedSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupShell>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupShell>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((GroupShell?)null);
+
+        await CreateRepository().PromoteIfUnpromotedAsync(1, 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.Id].Value.ShouldBe(1);
+        command.Parameters[pn.GroupId].Value.ShouldBe(5);
+    }
+
+    [Test]
+    public void PromoteIfUnpromotedAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupShell.PromoteIfUnpromotedSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupShell>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().PromoteIfUnpromotedAsync(1, 5));
+    }
 }

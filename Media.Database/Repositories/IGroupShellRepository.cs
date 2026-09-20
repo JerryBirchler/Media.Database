@@ -13,4 +13,10 @@ public interface IGroupShellRepository
 
     /// <summary>Retrieves a shell by its identifier, or <see langword="null"/> if not found.</summary>
     Task<GroupShell?> GetByIdAsync(int groupShellId);
+
+    /// <summary>
+    /// Permanently sets a shell's <see cref="GroupShell.PromotedGroupId"/> -- a no-op, returning
+    /// <see langword="null"/>, if the shell is already promoted or does not exist.
+    /// </summary>
+    Task<GroupShell?> PromoteIfUnpromotedAsync(int groupShellId, int groupId);
 }

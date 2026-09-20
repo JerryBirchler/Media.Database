@@ -39,6 +39,21 @@ public static class QueryGroupShell
         LIMIT 1
         ;";
 
+    /// <summary>
+    /// SQL to permanently set a shell's <c>PromotedGroupId</c> -- a no-op if already promoted, same
+    /// "WHERE ... IS NULL" permanence pattern as <c>QueryRegistrations.SetOwningPersonIfUnsetSql</c>.
+    /// </summary>
+    public static string PromoteIfUnpromotedSql => $@"
+        UPDATE {ts.GroupShell} SET
+            {cgs.PromotedGroupId} = {pn.GroupId},
+            {cgs.UpdatedOn} = {pn.UpdatedOn}
+        WHERE
+            {cgs.GroupShellId} = {pn.Id}
+            AND {cgs.PromotedGroupId} IS NULL
+        RETURNING
+            {cgs.GroupShellId}, {cgs.PromotedGroupId}, {cgs.InsertedOn}, {cgs.UpdatedOn}
+        ;";
+
     #endregion
 
     /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="GroupShell"/>.</summary>

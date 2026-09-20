@@ -52,4 +52,25 @@ public class GroupShellRepository(
             throw;
         }
     }
+
+    public async Task<GroupShell?> PromoteIfUnpromotedAsync(int groupShellId, int groupId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryGroupShell.PromoteIfUnpromotedSql,
+                p =>
+                {
+                    p.AddWithValue(pn.Id, groupShellId);
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToGroupShell());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PromoteIfUnpromotedAsync failed for GroupShellId {GroupShellId}, GroupId {GroupId}", groupShellId, groupId);
+            throw;
+        }
+    }
 }
