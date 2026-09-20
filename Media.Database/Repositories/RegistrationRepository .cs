@@ -221,6 +221,24 @@ public class RegistrationRepository(
         }
     }
 
+    public async Task<SourceMachineRegistrations?> GetByPersonSourceMachineUuid(Guid uuid)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryRegistrations.GetByPersonSourceMachineUuidSql,
+                p => p.AddWithValue(pn.PersonSourceMachineUuid, uuid),
+                reader => reader.ToSourceMachineRegistrationViaPerson()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetByPersonSourceMachineUuid failed for PersonSourceMachineUuid {Uuid}", uuid);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Updates the source information for a given source machine UUID. If the email address or cell phone number has changed,
     /// a new registration is created and the old one is inactivated.

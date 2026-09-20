@@ -165,4 +165,20 @@ public class GroupPersonRepository(
             throw;
         }
     }
+
+    public async Task<GroupAccess?> GetAccessByGroupPersonUuidAsync(Guid uuid)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryGroupsPersons.GetAccessByGroupPersonUuidSql,
+                p => p.AddWithValue(pn.GroupPersonUuid, uuid),
+                reader => reader.ToGroupAccess());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetAccessByGroupPersonUuidAsync failed for GroupPersonUuid {Uuid}", uuid);
+            throw;
+        }
+    }
 }

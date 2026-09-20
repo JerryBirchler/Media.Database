@@ -44,4 +44,11 @@ public interface IGroupPersonRepository
     /// Pass <paramref name="next"/> null for the first page; its PersonId is otherwise unused.
     /// </summary>
     Task<List<PersonIdentifier>> GetPersonIdentifiersByGroupIdAsync(int groupId, PersonIdentifier? next, int limit);
+
+    /// <summary>
+    /// Resolves a <c>GroupPersonUuid</c> -- the multi-origin X-API-KEY model's third credential
+    /// type (MEDIA-34) -- to the group it grants access to. Returns null unless the group/person
+    /// association, the person, and the group are all active.
+    /// </summary>
+    Task<GroupAccess?> GetAccessByGroupPersonUuidAsync(Guid uuid);
 }

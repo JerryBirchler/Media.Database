@@ -5,6 +5,8 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using ccr = Media.Database.Repositories.Schemas.TablesCql.RegistrationsColumns;
+using cp = Media.Database.Repositories.Schemas.TablesSql.PersonsColumns;
+using cpsm = Media.Database.Repositories.Schemas.TablesSql.PersonsSourceMachinesColumns;
 using csr = Media.Database.Repositories.Schemas.TablesSql.RegistrationsColumns;
 using cssmr = Media.Database.Repositories.Schemas.TablesSql.SourceMachineRegistrationsColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
@@ -219,6 +221,54 @@ public static class QueryRegistrations
             AND smr.{cssmr.CellPhoneNumber} = r.{csr.CellPhoneNumber}
         WHERE
             smr.{cssmr.SourceMachineId} = {pn.SourceMachineId}
+        LIMIT 1
+        ;";
+
+    /// <summary>
+    /// Resolves a <c>PersonSourceMachineUuid</c> (one person's association with one device) to
+    /// that device's joined source-machine/registration state -- the multi-origin X-API-KEY model's
+    /// second credential type (MEDIA-34). Same shape as <see cref="GetBySourceMachineUuidSql"/>,
+    /// except IsEmailVerified/IsSmsVerified come from the *person's own* verification
+    /// (Persons.IsEmailVerified/IsSmsVerified), not the device's -- a caller authenticating via
+    /// this credential is acting as themselves, possibly on a device someone else registered, so
+    /// their own verification state is what should gate access, not whichever registration history
+    /// the device happens to carry. Requires PersonsSourceMachines/Persons/SourceMachineRegistrations
+    /// to all be active, per the finalized "who has access to a device" rule (2026-09-12).
+    /// </summary>
+    public static string GetByPersonSourceMachineUuidSql => $@"
+        SELECT
+            smr.{cssmr.SourceMachineId},
+            smr.{cssmr.SourceMachineUuid},
+            smr.{cssmr.SourceMachineName},
+            smr.{cssmr.DeviceTypeId},
+            smr.{cssmr.DisambiguationKey},
+            smr.{cssmr.EmailAddress},
+            smr.{cssmr.CellPhoneNumber},
+            smr.{cssmr.FirstName},
+            smr.{cssmr.LastName},
+            p.{cp.IsEmailVerified},
+            p.{cp.IsSmsVerified},
+            smr.{cssmr.OperatingSystem},
+            smr.{cssmr.IsActive},
+            smr.{cssmr.IsEncrypted},
+            smr.{cssmr.OwningPersonId},
+            smr.{cssmr.InsertedOn},
+            smr.{cssmr.UpdatedOn}
+        FROM
+            {ts.PersonsSourceMachines} AS psm
+        JOIN
+            {ts.Persons} AS p
+        ON
+            p.{cp.PersonId} = psm.{cpsm.PersonId}
+            AND p.{cp.IsActive} = True
+        JOIN
+            {ts.SourceMachineRegistrations} AS smr
+        ON
+            smr.{cssmr.SourceMachineId} = psm.{cpsm.SourceMachineId}
+            AND smr.{cssmr.IsActive} = True
+        WHERE
+            psm.{cpsm.PersonSourceMachineUuid} = {pn.PersonSourceMachineUuid}
+            AND psm.{cpsm.IsActive} = True
         LIMIT 1
         ;";
 
@@ -489,6 +539,45 @@ public static class QueryRegistrations
             OtpCellPhone = hasRegistration ? reader.GetString(os.OtpCellPhone) : string.Empty,
             RegistrationInsertedOn = hasRegistration ? reader.GetFieldValue<DateTimeOffset?>(os.RegistrationInsertedOn) : null,
             RegistrationUpdatedOn = hasRegistration ? reader.GetFieldValue<DateTimeOffset?>(os.RegistrationUpdatedOn) : null
+        };
+    }
+
+    /// <summary>
+    /// Maps the current row of <paramref name="reader"/> -- the result of
+    /// <see cref="GetByPersonSourceMachineUuidSql"/> -- to a <see cref="SourceMachineRegistrations"/>.
+    /// No Registrations join here (this query resolves device identity via PersonsSourceMachines/
+    /// Persons, not the device's own OTP history), so the registration-specific fields are defaulted
+    /// the same way <see cref="ToNewSourceMachineRegistration"/> defaults them for a brand-new
+    /// device -- callers of this method only need SourceMachineId and the person-sourced
+    /// IsEmailVerified/IsSmsVerified for claims-building, not OTP state.
+    /// </summary>
+    public static SourceMachineRegistrations ToSourceMachineRegistrationViaPerson(this NpgsqlDataReader reader)
+    {
+        return new SourceMachineRegistrations
+        {
+            RegistrationId = 0,
+            SourceMachineId = reader.GetInt32(os.SourceMachineId),
+            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
+            SourceMachineName = reader.GetString(os.SourceMachineName),
+            DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+            DisambiguationKey = reader.GetString(os.DisambiguationKey),
+            EmailAddress = reader.GetString(os.EmailAddress),
+            CellPhoneNumber = reader.GetString(os.CellPhoneNumber)!,
+            FirstName = reader.GetString(os.FirstName),
+            LastName = reader.GetString(os.LastName),
+            HasRegistration = false,
+            IsEmailVerified = reader.GetFieldValue<bool>(os.IsEmailVerified),
+            IsSmsVerified = reader.GetFieldValue<bool>(os.IsSmsVerified),
+            OperatingSystem = reader.GetString(os.OperatingSystem),
+            InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
+            UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
+            IsActive = reader.GetFieldValue<bool>(os.IsActive),
+            IsEncrypted = reader.GetFieldValue<bool?>(os.IsEncrypted),
+            OwningPersonId = reader.GetFieldValue<int?>(os.OwningPersonId),
+            OtpEmail = string.Empty,
+            OtpCellPhone = string.Empty,
+            RegistrationInsertedOn = null,
+            RegistrationUpdatedOn = null
         };
     }
 

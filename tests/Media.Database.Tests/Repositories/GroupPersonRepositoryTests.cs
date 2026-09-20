@@ -280,4 +280,56 @@ public class GroupPersonRepositoryTests
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetPersonIdentifiersByGroupIdAsync(3, null, 5));
     }
+
+    [Test]
+    public async Task GetAccessByGroupPersonUuidAsync_Should_ReturnAccess_When_ExecutorFindsMatch()
+    {
+        var expected = _fixture.Create<GroupAccess>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.GetAccessByGroupPersonUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupAccess>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetAccessByGroupPersonUuidAsync(Guid.NewGuid());
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetAccessByGroupPersonUuidAsync_Should_ReturnNull_When_ExecutorFindsNoMatch()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.GetAccessByGroupPersonUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupAccess>>()))
+            .ReturnsAsync((GroupAccess?)null);
+
+        var result = await CreateRepository().GetAccessByGroupPersonUuidAsync(Guid.NewGuid());
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task GetAccessByGroupPersonUuidAsync_Should_ConfigureGroupPersonUuidParameter()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.GetAccessByGroupPersonUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupAccess>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupAccess>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((GroupAccess?)null);
+        var uuid = Guid.NewGuid();
+
+        await CreateRepository().GetAccessByGroupPersonUuidAsync(uuid);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.GroupPersonUuid].Value.ShouldBe(uuid);
+    }
+
+    [Test]
+    public void GetAccessByGroupPersonUuidAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.GetAccessByGroupPersonUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupAccess>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetAccessByGroupPersonUuidAsync(Guid.NewGuid()));
+    }
 }

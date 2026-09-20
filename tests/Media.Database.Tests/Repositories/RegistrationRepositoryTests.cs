@@ -152,6 +152,58 @@ public class RegistrationRepositoryTests
     }
 
     [Test]
+    public async Task GetByPersonSourceMachineUuid_Should_ReturnRegistration_When_ExecutorFindsMatch()
+    {
+        var expected = CreateRegistration();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetByPersonSourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetByPersonSourceMachineUuid(Guid.NewGuid());
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetByPersonSourceMachineUuid_Should_ReturnNull_When_ExecutorFindsNoMatch()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetByPersonSourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+
+        var result = await CreateRepository().GetByPersonSourceMachineUuid(Guid.NewGuid());
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task GetByPersonSourceMachineUuid_Should_ConfigurePersonSourceMachineUuidParameter()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetByPersonSourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, SourceMachineRegistrations>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((SourceMachineRegistrations?)null);
+        var uuid = Guid.NewGuid();
+
+        await CreateRepository().GetByPersonSourceMachineUuid(uuid);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.PersonSourceMachineUuid].Value.ShouldBe(uuid);
+    }
+
+    [Test]
+    public void GetByPersonSourceMachineUuid_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetByPersonSourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetByPersonSourceMachineUuid(Guid.NewGuid()));
+    }
+
+    [Test]
     public async Task AddBySourceInformation_Should_ReturnNull_And_NotAddRegistration_When_NoMatchingSourceMachine()
     {
         _sqlExecutorMock

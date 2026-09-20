@@ -9,6 +9,15 @@ public interface IRegistrationRepository
     Task<SourceMachineRegistrations?> GetByUuid(Guid uuid);
 
     /// <summary>
+    /// Resolves a <c>PersonSourceMachineUuid</c> -- the multi-origin X-API-KEY model's second
+    /// credential type (MEDIA-34) -- to the one device it grants access to. IsEmailVerified/
+    /// IsSmsVerified on the result reflect the *person's own* verification, not the device's,
+    /// since the caller is authenticating as themselves. Returns null unless the person/device
+    /// association, the person, and the device are all active.
+    /// </summary>
+    Task<SourceMachineRegistrations?> GetByPersonSourceMachineUuid(Guid uuid);
+
+    /// <summary>
     /// Verifies the email OTP code for the pending registration matching <paramref name="emailAddress"/>,
     /// <paramref name="sourceMachineName"/>, and <paramref name="deviceTypeId"/>. Deliberately does not
     /// take the device's UUID/X-API-KEY -- that key is never issued to a client before verification

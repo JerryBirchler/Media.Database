@@ -160,6 +160,38 @@ public static class QueryGroupsPersons
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>
+    /// Resolves a <c>GroupPersonUuid</c> -- the multi-origin X-API-KEY model's third credential
+    /// type (MEDIA-34) -- to the group it grants access to. IsEmailVerified/IsSmsVerified come
+    /// from the person, not any device, since this credential authenticates the person across
+    /// every device in the group, not a single device. Requires the group/person association, the
+    /// person, and the group to all be active.
+    /// </summary>
+    public static string GetAccessByGroupPersonUuidSql => $@"
+        SELECT
+            g.{cg.GroupId},
+            g.{cg.GroupUuid},
+            g.{cg.Name},
+            p.{cp.IsEmailVerified},
+            p.{cp.IsSmsVerified}
+        FROM
+            {ts.GroupsPersons} AS gp
+        JOIN
+            {ts.Persons} AS p
+        ON
+            p.{cp.PersonId} = gp.{cgp.PersonId}
+            AND p.{cp.IsActive} = true
+        JOIN
+            {ts.Groups} AS g
+        ON
+            g.{cg.GroupId} = gp.{cgp.GroupId}
+            AND g.{cg.IsActive} = true
+        WHERE
+            gp.{cgp.GroupPersonUuid} = {pn.GroupPersonUuid}
+            AND gp.{cgp.IsActive} = true
+        LIMIT 1
+        ;";
+
     #endregion
 
     /// <summary>
@@ -217,5 +249,18 @@ public static class QueryGroupsPersons
             identifiers.Add(reader.ToPersonIdentifier());
 
         return identifiers;
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> -- the result of <see cref="GetAccessByGroupPersonUuidSql"/> -- to a <see cref="GroupAccess"/>.</summary>
+    public static GroupAccess ToGroupAccess(this NpgsqlDataReader reader)
+    {
+        return new GroupAccess
+        {
+            GroupId = reader.GetInt32(os.GroupId),
+            GroupUuid = reader.GetGuid(os.GroupUuid),
+            GroupName = reader.GetString(os.Name),
+            IsEmailVerified = reader.GetFieldValue<bool>(os.IsEmailVerified),
+            IsSmsVerified = reader.GetFieldValue<bool>(os.IsSmsVerified)
+        };
     }
 }
