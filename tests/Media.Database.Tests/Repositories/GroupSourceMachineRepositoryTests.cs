@@ -196,4 +196,57 @@ public class GroupSourceMachineRepositoryTests
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetSourceMachineIdentifiersByGroupIdAsync(3, false, null, 5));
     }
+
+    [Test]
+    public async Task GetActiveSourceMachineIdByGroupAndDisambiguationAsync_Should_ReturnSourceMachineId_When_ExecutorFindsMatch()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryGroupsSourceMachines.GetActiveSourceMachineIdByGroupAndDisambiguationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, int>>()))
+            .ReturnsAsync(42);
+
+        var result = await CreateRepository().GetActiveSourceMachineIdByGroupAndDisambiguationAsync(3, "Kitchen Tablet", DeviceTypes.Tablet, "aB3x9");
+
+        result.ShouldBe(42);
+    }
+
+    [Test]
+    public async Task GetActiveSourceMachineIdByGroupAndDisambiguationAsync_Should_ReturnNull_When_ExecutorFindsNoMatch()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryGroupsSourceMachines.GetActiveSourceMachineIdByGroupAndDisambiguationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, int>>()))
+            .ReturnsAsync((int?)null);
+
+        var result = await CreateRepository().GetActiveSourceMachineIdByGroupAndDisambiguationAsync(3, "Kitchen Tablet", DeviceTypes.Tablet, "aB3x9");
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task GetActiveSourceMachineIdByGroupAndDisambiguationAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryGroupsSourceMachines.GetActiveSourceMachineIdByGroupAndDisambiguationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, int>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, int>>((_, configure, _) => captured = configure)
+            .ReturnsAsync((int?)null);
+
+        await CreateRepository().GetActiveSourceMachineIdByGroupAndDisambiguationAsync(3, "Kitchen Tablet", DeviceTypes.Tablet, "aB3x9");
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.GroupId].Value.ShouldBe(3);
+        command.Parameters[pn.SourceMachineName].Value.ShouldBe("Kitchen Tablet");
+        command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)DeviceTypes.Tablet);
+        command.Parameters[pn.DisambiguationKey].Value.ShouldBe("aB3x9");
+    }
+
+    [Test]
+    public void GetActiveSourceMachineIdByGroupAndDisambiguationAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryGroupsSourceMachines.GetActiveSourceMachineIdByGroupAndDisambiguationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, int>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetActiveSourceMachineIdByGroupAndDisambiguationAsync(3, "Kitchen Tablet", DeviceTypes.Tablet, "aB3x9"));
+    }
 }

@@ -123,6 +123,32 @@ public static class QueryGroupsSourceMachines
         LIMIT {pn.Limit}
         ;";
 
+    /// <summary>
+    /// Resolves a group-scoped caller's deviceName/deviceType/disambiguationKey triple (MEDIA-34)
+    /// to the SourceMachineId of one specific active device within their own group -- the read-side
+    /// counterpart to the disambiguation the upload path uses, letting a GroupPersonUuid-
+    /// authenticated request single out one device without either UUID ever appearing on the wire.
+    /// Requires GroupsSourceMachines.IsActive, so a device removed from the group is never
+    /// resolvable this way even if its (SourceMachineName, DeviceTypeId, DisambiguationKey) still
+    /// matches.
+    /// </summary>
+    public static string GetActiveSourceMachineIdByGroupAndDisambiguationSql => $@"
+        SELECT
+            smr.{csmr.SourceMachineId}
+        FROM
+            {ts.SourceMachineRegistrations} AS smr
+        JOIN
+            {ts.GroupsSourceMachines} AS gsm ON gsm.{cgsm.SourceMachineId} = smr.{csmr.SourceMachineId}
+        WHERE
+            gsm.{cgsm.GroupId} = {pn.GroupId}
+            AND gsm.{cgsm.IsActive} = true
+            AND smr.{csmr.SourceMachineName} = {pn.SourceMachineName}
+            AND smr.{csmr.DeviceTypeId} = {pn.DeviceTypeId}
+            AND smr.{csmr.DisambiguationKey} = {pn.DisambiguationKey}
+            AND smr.{csmr.IsActive} = true
+        LIMIT 1
+        ;";
+
     #endregion
 
     /// <summary>

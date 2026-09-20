@@ -114,4 +114,26 @@ public class GroupSourceMachineRepository(
             throw;
         }
     }
+
+    public async Task<int?> GetActiveSourceMachineIdByGroupAndDisambiguationAsync(int groupId, string sourceMachineName, DeviceTypes deviceType, string disambiguationKey)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleValueAsync(
+                QueryGroupsSourceMachines.GetActiveSourceMachineIdByGroupAndDisambiguationSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.SourceMachineName, sourceMachineName);
+                    p.AddWithValue(pn.DeviceTypeId, (int)deviceType);
+                    p.AddWithValue(pn.DisambiguationKey, disambiguationKey);
+                },
+                reader => reader.GetInt32(0));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetActiveSourceMachineIdByGroupAndDisambiguationAsync failed for GroupId {GroupId}, SourceMachineName {SourceMachineName}", groupId, sourceMachineName);
+            throw;
+        }
+    }
 }
