@@ -18,6 +18,7 @@ public class BaseOtpVerificationResponseTests
             SourceMachineUuid = Guid.Empty,
             SourceMachineName = string.Empty,
             DeviceTypeId = default,
+            DisambiguationKey = string.Empty,
             FirstName = string.Empty,
             LastName = string.Empty
         };
@@ -34,6 +35,7 @@ public class BaseOtpVerificationResponseTests
         Guid sourceMachineUuid,
         string sourceMachineName,
         DeviceTypes deviceTypeId,
+        string disambiguationKey,
         string firstName,
         string lastName)
     {
@@ -43,6 +45,7 @@ public class BaseOtpVerificationResponseTests
             SourceMachineUuid = sourceMachineUuid,
             SourceMachineName = sourceMachineName,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = disambiguationKey,
             FirstName = firstName,
             LastName = lastName
         };
@@ -51,6 +54,7 @@ public class BaseOtpVerificationResponseTests
         response.SourceMachineUuid.ShouldBe(sourceMachineUuid);
         response.SourceMachineName.ShouldBe(sourceMachineName);
         response.DeviceTypeId.ShouldBe(deviceTypeId);
+        response.DisambiguationKey.ShouldBe(disambiguationKey);
         response.FirstName.ShouldBe(firstName);
         response.LastName.ShouldBe(lastName);
     }
@@ -75,6 +79,7 @@ public class OtpEmailResponseTests
         Guid sourceMachineUuid,
         string sourceMachineName,
         DeviceTypes deviceTypeId,
+        string disambiguationKey,
         string firstName,
         string lastName,
         string emailAddress,
@@ -86,6 +91,7 @@ public class OtpEmailResponseTests
             SourceMachineUuid = sourceMachineUuid,
             SourceMachineName = sourceMachineName,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = disambiguationKey,
             FirstName = firstName,
             LastName = lastName,
             EmailAddress = emailAddress,
@@ -102,6 +108,7 @@ public class OtpEmailResponseTests
         Guid sourceMachineUuid,
         string sourceMachineName,
         DeviceTypes deviceTypeId,
+        string disambiguationKey,
         string firstName,
         string lastName,
         string emailAddress,
@@ -113,6 +120,7 @@ public class OtpEmailResponseTests
             SourceMachineUuid = sourceMachineUuid,
             SourceMachineName = sourceMachineName,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = disambiguationKey,
             FirstName = firstName,
             LastName = lastName,
             EmailAddress = emailAddress,
@@ -134,6 +142,7 @@ public class OtpEmailResponseTests
             SourceMachineUuid = Guid.NewGuid(),
             SourceMachineName = "machine",
             DeviceTypeId = DeviceTypes.Phone,
+            DisambiguationKey = "aB3F9",
             FirstName = "Alice",
             LastName = "Smith",
             EmailAddress = "alice@example.com",
@@ -154,6 +163,7 @@ public class OtpSmsResponseTests
         Guid sourceMachineUuid,
         string sourceMachineName,
         DeviceTypes deviceTypeId,
+        string disambiguationKey,
         string firstName,
         string lastName,
         string cellPhoneNumber,
@@ -165,6 +175,7 @@ public class OtpSmsResponseTests
             SourceMachineUuid = sourceMachineUuid,
             SourceMachineName = sourceMachineName,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = disambiguationKey,
             FirstName = firstName,
             LastName = lastName,
             CellPhoneNumber = cellPhoneNumber,
@@ -180,6 +191,7 @@ public class OtpSmsResponseTests
         Guid sourceMachineUuid,
         string sourceMachineName,
         DeviceTypes deviceTypeId,
+        string disambiguationKey,
         string firstName,
         string lastName,
         string cellPhoneNumber,
@@ -191,6 +203,7 @@ public class OtpSmsResponseTests
             SourceMachineUuid = sourceMachineUuid,
             SourceMachineName = sourceMachineName,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = disambiguationKey,
             FirstName = firstName,
             LastName = lastName,
             CellPhoneNumber = cellPhoneNumber,
@@ -211,6 +224,7 @@ public class OtpSmsResponseTests
             SourceMachineUuid = Guid.NewGuid(),
             SourceMachineName = "machine",
             DeviceTypeId = DeviceTypes.Tablet,
+            DisambiguationKey = "cD7K2",
             FirstName = "Alice",
             LastName = "Smith",
             CellPhoneNumber = "555-0100",

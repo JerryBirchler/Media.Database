@@ -10,6 +10,7 @@ using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Serilog.Core;
 using System.Collections.Concurrent;
 
@@ -99,21 +100,46 @@ public class RegistrationRepository(
 
             // No existing row matched — this is a genuinely new device. GetBySourceInformationSql
             // is a lookup only; it never creates a row, so a brand-new device must be inserted here.
-            addSourceResponse ??= await _sqlExecutor.QuerySingleAsync
-            (
-                QueryRegistrations.AddBySourceInformationSql,
-                p =>
+            // DisambiguationKey is not unique on its own -- only (SourceMachineName, DeviceTypeId,
+            // DisambiguationKey) together is -- so a collision is retried with a freshly generated
+            // key rather than treated as a real failure. The keyspace (62^5) makes more than one or
+            // two retries astronomically unlikely; the bounded loop is a safety net, not an expected
+            // path.
+            if (addSourceResponse is null)
+            {
+                const int maxAttempts = 5;
+
+                for (var attempt = 1; ; attempt++)
                 {
-                    p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
-                    p.AddWithValue(pn.DeviceTypeId, (int)request.DeviceTypeId);
-                    p.AddWithValue(pn.EmailAddress, request.EmailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
-                    p.AddWithValue(pn.FirstName, request.FirstName);
-                    p.AddWithValue(pn.LastName, request.LastName);
-                    p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
-                },
-                reader => reader.ToNewSourceMachineRegistration()
-            );
+                    try
+                    {
+                        addSourceResponse = await _sqlExecutor.QuerySingleAsync
+                        (
+                            QueryRegistrations.AddBySourceInformationSql,
+                            p =>
+                            {
+                                p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
+                                p.AddWithValue(pn.DeviceTypeId, (int)request.DeviceTypeId);
+                                p.AddWithValue(pn.DisambiguationKey, DisambiguationKey.Generate());
+                                p.AddWithValue(pn.EmailAddress, request.EmailAddress);
+                                p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
+                                p.AddWithValue(pn.FirstName, request.FirstName);
+                                p.AddWithValue(pn.LastName, request.LastName);
+                                p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
+                            },
+                            reader => reader.ToNewSourceMachineRegistration()
+                        );
+
+                        break;
+                    }
+                    catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation
+                        && ex.ConstraintName == "IX_SourceMachineRegistrations_Name_DeviceType_DisambiguationKey"
+                        && attempt < maxAttempts)
+                    {
+                        _logger.LogWarning("DisambiguationKey collision on attempt {Attempt}/{MaxAttempts} for SourceMachineName {SourceMachineName}", attempt, maxAttempts, request.SourceMachineName);
+                    }
+                }
+            }
 
             if (addSourceResponse is null)
             {
@@ -418,6 +444,7 @@ public class RegistrationRepository(
                     reader.GetGuid(os.SourceMachineUuid),
                     reader.GetString(os.SourceMachineName),
                     (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+                    reader.GetString(os.DisambiguationKey),
                     reader.GetString(os.FirstName),
                     reader.GetString(os.LastName),
                     reader.GetString(os.EmailAddress),
@@ -453,6 +480,7 @@ public class RegistrationRepository(
                     reader.GetGuid(os.SourceMachineUuid),
                     reader.GetString(os.SourceMachineName),
                     (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
+                    reader.GetString(os.DisambiguationKey),
                     reader.GetString(os.FirstName),
                     reader.GetString(os.LastName),
                     reader.GetString(os.CellPhoneNumber),

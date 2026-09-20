@@ -84,6 +84,7 @@ public sealed class RegistrationsCdcSyncHandler(
                 p.AddWithValue(pn.SourceMachineUuid, registration.SourceMachineUuid);
                 p.AddWithValue(pn.SourceMachineName, registration.SourceMachineName);
                 p.AddWithValue(pn.DeviceTypeId, (int)registration.DeviceTypeId);
+                p.AddWithValue(pn.DisambiguationKey, registration.DisambiguationKey);
                 p.AddWithValue(pn.FirstName, registration.FirstName);
                 p.AddWithValue(pn.LastName, registration.LastName);
                 p.AddWithValue(pn.EmailAddress, registration.EmailAddress);

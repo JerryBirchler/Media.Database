@@ -42,6 +42,18 @@ public record SourceMachineRegistrations
     public required DeviceTypes DeviceTypeId { get; init; }
 
     /// <summary>
+    /// Gets the server-generated disambiguation key for this source machine -- 4-5 mixed-case
+    /// alphanumeric characters, not unique on its own but unique in combination with
+    /// <see cref="SourceMachineName"/> and <see cref="DeviceTypeId"/>. Together, those three
+    /// values let a caller authenticated via a group-scoped key identify which of the group's
+    /// devices an upload comes from, without ever needing to know that device's own
+    /// <see cref="SourceMachineUuid"/> (which is itself a valid X-API-KEY and must never be
+    /// exposed to anyone but the device's owner).
+    /// </summary>
+    [JsonPropertyName("disambiguationKey")]
+    public required string DisambiguationKey { get; init; } = string.Empty;
+
+    /// <summary>
     /// Gets the operating system of the source machine.
     /// </summary>
     [JsonPropertyName("operatingSystem")]

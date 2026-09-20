@@ -13,6 +13,7 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string CreatedByPersonId = x();
     public static readonly string Description = x();
     public static readonly string DeviceTypeId = x();
+    public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();

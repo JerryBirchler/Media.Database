@@ -12,40 +12,41 @@ public class MapRegistrationResponsesTests
 {
     [Test, AutoData]
     public void ToOtpEmailResponse_Should_PopulateApiKey_When_BothChannelsVerified(
-        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
+        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId, string disambiguationKey,
         string firstName, string lastName, string emailAddress, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: true);
+        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, disambiguationKey, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: true);
 
         result.ApiKey.ShouldBe(sourceMachineUuid);
     }
 
     [Test, AutoData]
     public void ToOtpEmailResponse_Should_Not_PopulateApiKey_When_SmsNotYetVerified(
-        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
+        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId, string disambiguationKey,
         string firstName, string lastName, string emailAddress, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: false);
+        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, disambiguationKey, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: false);
 
         result.ApiKey.ShouldBeNull();
     }
 
     [Test, AutoData]
     public void ToOtpEmailResponse_Should_Map_AllFields(
-        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
+        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId, string disambiguationKey,
         string firstName, string lastName, string emailAddress, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: false);
+        var result = mapper.ToOtpEmailResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, disambiguationKey, firstName, lastName, emailAddress, cellPhoneNumber, isEmailVerified: true, isSmsVerified: false);
 
         result.SourceMachineUuid.ShouldBe(sourceMachineUuid);
         result.SourceMachineName.ShouldBe(sourceMachineName);
         result.DeviceTypeId.ShouldBe(deviceTypeId);
+        result.DisambiguationKey.ShouldBe(disambiguationKey);
         result.FirstName.ShouldBe(firstName);
         result.LastName.ShouldBe(lastName);
         result.EmailAddress.ShouldBe(emailAddress);
@@ -55,40 +56,41 @@ public class MapRegistrationResponsesTests
 
     [Test, AutoData]
     public void ToOtpSmsResponse_Should_PopulateApiKey_When_BothChannelsVerified(
-        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
+        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId, string disambiguationKey,
         string firstName, string lastName, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpSmsResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, cellPhoneNumber, isSmsVerified: true, isEmailVerified: true);
+        var result = mapper.ToOtpSmsResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, disambiguationKey, firstName, lastName, cellPhoneNumber, isSmsVerified: true, isEmailVerified: true);
 
         result.ApiKey.ShouldBe(sourceMachineUuid);
     }
 
     [Test, AutoData]
     public void ToOtpSmsResponse_Should_Not_PopulateApiKey_When_EmailNotYetVerified(
-        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
+        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId, string disambiguationKey,
         string firstName, string lastName, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpSmsResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, cellPhoneNumber, isSmsVerified: true, isEmailVerified: false);
+        var result = mapper.ToOtpSmsResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, disambiguationKey, firstName, lastName, cellPhoneNumber, isSmsVerified: true, isEmailVerified: false);
 
         result.ApiKey.ShouldBeNull();
     }
 
     [Test, AutoData]
     public void ToOtpSmsResponse_Should_Map_AllFields(
-        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId,
+        Guid sourceMachineUuid, string sourceMachineName, DeviceTypes deviceTypeId, string disambiguationKey,
         string firstName, string lastName, string cellPhoneNumber)
     {
         var mapper = new MapRegistrationResponses();
 
-        var result = mapper.ToOtpSmsResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, firstName, lastName, cellPhoneNumber, isSmsVerified: true, isEmailVerified: false);
+        var result = mapper.ToOtpSmsResponse(sourceMachineUuid, sourceMachineName, deviceTypeId, disambiguationKey, firstName, lastName, cellPhoneNumber, isSmsVerified: true, isEmailVerified: false);
 
         result.SourceMachineUuid.ShouldBe(sourceMachineUuid);
         result.SourceMachineName.ShouldBe(sourceMachineName);
         result.DeviceTypeId.ShouldBe(deviceTypeId);
+        result.DisambiguationKey.ShouldBe(disambiguationKey);
         result.FirstName.ShouldBe(firstName);
         result.LastName.ShouldBe(lastName);
         result.CellPhoneNumber.ShouldBe(cellPhoneNumber);

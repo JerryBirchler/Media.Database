@@ -124,6 +124,7 @@ public class SourceInformationResponseTests
             SourceMachineUuid = Guid.Empty,
             SourceMachineName = string.Empty,
             DeviceTypeId = default,
+            DisambiguationKey = string.Empty,
             EmailAddress = string.Empty,
             CellPhoneNumber = string.Empty,
             FirstName = string.Empty,
@@ -144,6 +145,7 @@ public class SourceInformationResponseTests
         Guid sourceMachineUuid,
         string sourceMachineName,
         DeviceTypes deviceTypeId,
+        string disambiguationKey,
         string emailAddress,
         string cellPhoneNumber,
         string firstName,
@@ -158,6 +160,7 @@ public class SourceInformationResponseTests
             SourceMachineUuid = sourceMachineUuid,
             SourceMachineName = sourceMachineName,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = disambiguationKey,
             EmailAddress = emailAddress,
             CellPhoneNumber = cellPhoneNumber,
             FirstName = firstName,
@@ -171,6 +174,7 @@ public class SourceInformationResponseTests
         response.SourceMachineUuid.ShouldBe(sourceMachineUuid);
         response.SourceMachineName.ShouldBe(sourceMachineName);
         response.DeviceTypeId.ShouldBe(deviceTypeId);
+        response.DisambiguationKey.ShouldBe(disambiguationKey);
         response.EmailAddress.ShouldBe(emailAddress);
         response.CellPhoneNumber.ShouldBe(cellPhoneNumber);
         response.FirstName.ShouldBe(firstName);

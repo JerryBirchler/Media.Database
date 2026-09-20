@@ -75,6 +75,7 @@ public class RegistrationRepositoryTests
             SourceMachineUuid = sourceMachineUuid ?? Guid.NewGuid(),
             SourceMachineName = _fixture.Create<string>(),
             DeviceTypeId = DeviceTypes.PC,
+            DisambiguationKey = _fixture.Create<string>(),
             OperatingSystem = _fixture.Create<string>(),
             FirstName = _fixture.Create<string>(),
             LastName = _fixture.Create<string>(),
@@ -708,6 +709,7 @@ public class RegistrationRepositoryTests
         {
             SourceMachineName = _fixture.Create<string>(),
             DeviceTypeId = DeviceTypes.PC,
+            DisambiguationKey = _fixture.Create<string>(),
             FirstName = _fixture.Create<string>(),
             LastName = _fixture.Create<string>(),
             EmailAddress = _fixture.Create<string>(),
@@ -774,6 +776,7 @@ public class RegistrationRepositoryTests
         {
             SourceMachineName = _fixture.Create<string>(),
             DeviceTypeId = DeviceTypes.PC,
+            DisambiguationKey = _fixture.Create<string>(),
             FirstName = _fixture.Create<string>(),
             LastName = _fixture.Create<string>(),
             CellPhoneNumber = _fixture.Create<string>(),

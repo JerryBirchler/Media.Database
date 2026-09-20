@@ -120,6 +120,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string SourceMachineUuid = y();
         public static readonly string SourceMachineName = y();
         public static readonly string DeviceTypeId = y();
+        public static readonly string DisambiguationKey = y();
         public static readonly string EmailAddress = y();
         public static readonly string CellPhoneNumber = y();
         public static readonly string FirstName = y();

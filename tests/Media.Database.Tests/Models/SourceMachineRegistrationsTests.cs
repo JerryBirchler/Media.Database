@@ -23,6 +23,7 @@ public class SourceMachineRegistrationsTests
             SourceMachineUuid = Guid.Empty,
             SourceMachineName = string.Empty,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = string.Empty,
             OperatingSystem = string.Empty,
             FirstName = string.Empty,
             LastName = string.Empty,
@@ -65,6 +66,7 @@ public class SourceMachineRegistrationsTests
         Guid sourceMachineUuid,
         string sourceMachineName,
         DeviceTypes deviceTypeId,
+        string disambiguationKey,
         string operatingSystem,
         string firstName,
         string lastName,
@@ -89,6 +91,7 @@ public class SourceMachineRegistrationsTests
             SourceMachineUuid = sourceMachineUuid,
             SourceMachineName = sourceMachineName,
             DeviceTypeId = deviceTypeId,
+            DisambiguationKey = disambiguationKey,
             OperatingSystem = operatingSystem,
             FirstName = firstName,
             LastName = lastName,
@@ -112,6 +115,7 @@ public class SourceMachineRegistrationsTests
         registration.SourceMachineUuid.ShouldBe(sourceMachineUuid);
         registration.SourceMachineName.ShouldBe(sourceMachineName);
         registration.DeviceTypeId.ShouldBe(deviceTypeId);
+        registration.DisambiguationKey.ShouldBe(disambiguationKey);
         registration.OperatingSystem.ShouldBe(operatingSystem);
         registration.FirstName.ShouldBe(firstName);
         registration.LastName.ShouldBe(lastName);

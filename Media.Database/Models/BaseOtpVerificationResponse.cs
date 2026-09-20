@@ -41,12 +41,22 @@ namespace Media.Database.Models
         public required string SourceMachineName { get; set; } = string.Empty;
 
         /// <summary>
-        /// The device type ID, as reported by the source machine itself. 
+        /// The device type ID, as reported by the source machine itself.
         /// This is not guaranteed to be unique, it may not be null or empty.
         /// </summary>
         [property: JsonPropertyName("deviceTypeId")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public required DeviceTypes DeviceTypeId { get; set; }
+
+        /// <summary>
+        /// The server-generated disambiguation key for this device -- safe to expose unconditionally
+        /// (unlike <see cref="SourceMachineUuid"/>/<see cref="ApiKey"/>), since it carries no
+        /// authentication power on its own. Together with <see cref="SourceMachineName"/> and
+        /// <see cref="DeviceTypeId"/>, it lets a caller authenticated via a group-scoped key
+        /// identify which of the group's devices an upload comes from.
+        /// </summary>
+        [property: JsonPropertyName("disambiguationKey")]
+        public required string DisambiguationKey { get; set; } = string.Empty;
 
         /// <summary>
         /// The first name of the user associated with the source machine.
