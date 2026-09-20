@@ -58,8 +58,7 @@ public static class QueryRegistrations
             {cssmr.LastName},
             {cssmr.OperatingSystem},
             {cssmr.InsertedOn},
-            {cssmr.IsActive},
-            {cssmr.IsEncrypted}
+            {cssmr.IsActive}
         ;";
 
     /// <summary>
@@ -82,8 +81,7 @@ public static class QueryRegistrations
             {cssmr.LastName},
             {cssmr.OperatingSystem},
             {cssmr.InsertedOn},
-            {cssmr.IsActive},
-            {cssmr.IsEncrypted}
+            {cssmr.IsActive}
         ;";
 
     /// <summary>
@@ -114,7 +112,6 @@ public static class QueryRegistrations
             COALESCE(r.{csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
             smr.{cssmr.OperatingSystem},
             smr.{cssmr.IsActive},
-            smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
             smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
@@ -159,7 +156,6 @@ public static class QueryRegistrations
             COALESCE(r.{csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
             smr.{cssmr.OperatingSystem},
             smr.{cssmr.IsActive},
-            smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
             smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
@@ -204,7 +200,6 @@ public static class QueryRegistrations
             COALESCE(r.{csr.IsSmsVerified}, False) AS ""IsSmsVerified"",
             smr.{cssmr.OperatingSystem},
             smr.{cssmr.IsActive},
-            smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
             smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
@@ -253,7 +248,6 @@ public static class QueryRegistrations
             p.{cp.IsSmsVerified},
             smr.{cssmr.OperatingSystem},
             smr.{cssmr.IsActive},
-            smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
             smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
@@ -426,16 +420,6 @@ public static class QueryRegistrations
             AND {cssmr.GroupShellId} IS NULL
         ;";
 
-    /// <summary>
-    /// SQL to set a device's <c>IsEncrypted</c> override flag. Device-owner authorization is
-    /// enforced by the caller (see RegistrationService.SetIsEncryptedAsync), not here.
-    /// </summary>
-    public static string SetSourceMachineIsEncryptedSql => $@"
-        UPDATE {ts.SourceMachineRegistrations} SET
-            {cssmr.IsEncrypted} = {pn.IsEncrypted}
-        WHERE
-            {cssmr.SourceMachineId} = {pn.SourceMachineId}
-        ;";
 
     #endregion
 
@@ -551,7 +535,6 @@ public static class QueryRegistrations
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
             IsActive = reader.GetFieldValue<bool>(os.IsActive),
-            IsEncrypted = reader.GetFieldValue<bool?>(os.IsEncrypted),
             OwningPersonId = reader.GetFieldValue<int?>(os.OwningPersonId),
             GroupShellId = reader.GetFieldValue<int?>(os.GroupShellId),
             OtpEmail = hasRegistration ? reader.GetString(os.OtpEmail) : string.Empty,
@@ -591,7 +574,6 @@ public static class QueryRegistrations
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
             IsActive = reader.GetFieldValue<bool>(os.IsActive),
-            IsEncrypted = reader.GetFieldValue<bool?>(os.IsEncrypted),
             OwningPersonId = reader.GetFieldValue<int?>(os.OwningPersonId),
             GroupShellId = reader.GetFieldValue<int?>(os.GroupShellId),
             OtpEmail = string.Empty,
@@ -629,7 +611,6 @@ public static class QueryRegistrations
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             UpdatedOn = null,
             IsActive = reader.GetFieldValue<bool>(os.IsActive),
-            IsEncrypted = reader.GetFieldValue<bool?>(os.IsEncrypted),
             OtpEmail = string.Empty,
             OtpCellPhone = string.Empty,
             RegistrationInsertedOn = null,
@@ -657,8 +638,7 @@ public static class QueryRegistrations
             LastName = reader.GetString(os.LastName),
             OperatingSystem = reader.GetString(os.OperatingSystem),
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
-            IsActive = reader.GetFieldValue<bool>(os.IsActive),
-            IsEncrypted = reader.GetFieldValue<bool?>(os.IsEncrypted)
+            IsActive = reader.GetFieldValue<bool>(os.IsActive)
         };
     }
 

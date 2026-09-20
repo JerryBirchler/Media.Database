@@ -68,9 +68,4 @@ public interface IRegistrationRepository
     /// </summary>
     Task SetGroupShellIdIfUnsetAsync(int sourceMachineId, int groupShellId);
 
-    /// <summary>
-    /// Sets a device's <see cref="SourceMachineRegistrations.IsEncrypted"/> override flag.
-    /// Device-owner authorization is enforced by the caller, not here.
-    /// </summary>
-    Task SetIsEncryptedAsync(int sourceMachineId, bool isEncrypted);
 }

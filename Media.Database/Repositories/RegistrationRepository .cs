@@ -611,24 +611,4 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task SetIsEncryptedAsync(int sourceMachineId, bool isEncrypted)
-    {
-        try
-        {
-            await _sqlExecutor.ExecuteAsync
-            (
-                QueryRegistrations.SetSourceMachineIsEncryptedSql,
-                p =>
-                {
-                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
-                    p.AddWithValue(pn.IsEncrypted, isEncrypted);
-                }
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "SetIsEncryptedAsync failed for SourceMachineId {SourceMachineId}", sourceMachineId);
-            throw;
-        }
-    }
 }
