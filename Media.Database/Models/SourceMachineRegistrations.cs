@@ -136,6 +136,14 @@ public record SourceMachineRegistrations
     public int? OwningPersonId { get; init; }
 
     /// <summary>
+    /// Gets the id of the device's <see cref="Models.GroupShell"/> (MEDIA-37), or
+    /// <see langword="null"/> if none has been assigned yet. Internal use only -- never serialized
+    /// to a client.
+    /// </summary>
+    [JsonIgnore]
+    public int? GroupShellId { get; init; }
+
+    /// <summary>
     /// Gets the one-time password (OTP) email address for the source machine owner. See
     /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
     /// </summary>

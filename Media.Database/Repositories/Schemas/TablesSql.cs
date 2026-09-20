@@ -155,6 +155,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
         public static readonly string OwningPersonId = y();
+        public static readonly string GroupShellId = y();
     }
 
     public static class WordsColumns

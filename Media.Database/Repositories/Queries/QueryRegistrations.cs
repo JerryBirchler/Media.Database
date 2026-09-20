@@ -116,6 +116,7 @@ public static class QueryRegistrations
             smr.{cssmr.IsActive},
             smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
+            smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
             smr.{cssmr.UpdatedOn},
             r.{csr.OtpEmail},
@@ -160,6 +161,7 @@ public static class QueryRegistrations
             smr.{cssmr.IsActive},
             smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
+            smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
             smr.{cssmr.UpdatedOn},
             r.{csr.OtpEmail},
@@ -204,6 +206,7 @@ public static class QueryRegistrations
             smr.{cssmr.IsActive},
             smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
+            smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
             smr.{cssmr.UpdatedOn},
             r.{csr.OtpEmail},
@@ -252,6 +255,7 @@ public static class QueryRegistrations
             smr.{cssmr.IsActive},
             smr.{cssmr.IsEncrypted},
             smr.{cssmr.OwningPersonId},
+            smr.{cssmr.GroupShellId},
             smr.{cssmr.InsertedOn},
             smr.{cssmr.UpdatedOn}
         FROM
@@ -409,6 +413,20 @@ public static class QueryRegistrations
         ;";
 
     /// <summary>
+    /// SQL to permanently set <c>SourceMachineRegistrations.GroupShellId</c> (MEDIA-37) -- the
+    /// same "WHERE ... IS NULL" pattern as <see cref="SetOwningPersonIfUnsetSql"/>, so a device's
+    /// shell assignment is a one-time thing this query can make, never a reassignment. Promotion
+    /// or a later shell/group change (not yet built) would need its own, deliberate query.
+    /// </summary>
+    public static string SetGroupShellIdIfUnsetSql => $@"
+        UPDATE {ts.SourceMachineRegistrations} SET
+            {cssmr.GroupShellId} = {pn.GroupShellId}
+        WHERE
+            {cssmr.SourceMachineId} = {pn.SourceMachineId}
+            AND {cssmr.GroupShellId} IS NULL
+        ;";
+
+    /// <summary>
     /// SQL to set a device's <c>IsEncrypted</c> override flag. Device-owner authorization is
     /// enforced by the caller (see RegistrationService.SetIsEncryptedAsync), not here.
     /// </summary>
@@ -535,6 +553,7 @@ public static class QueryRegistrations
             IsActive = reader.GetFieldValue<bool>(os.IsActive),
             IsEncrypted = reader.GetFieldValue<bool?>(os.IsEncrypted),
             OwningPersonId = reader.GetFieldValue<int?>(os.OwningPersonId),
+            GroupShellId = reader.GetFieldValue<int?>(os.GroupShellId),
             OtpEmail = hasRegistration ? reader.GetString(os.OtpEmail) : string.Empty,
             OtpCellPhone = hasRegistration ? reader.GetString(os.OtpCellPhone) : string.Empty,
             RegistrationInsertedOn = hasRegistration ? reader.GetFieldValue<DateTimeOffset?>(os.RegistrationInsertedOn) : null,
@@ -574,6 +593,7 @@ public static class QueryRegistrations
             IsActive = reader.GetFieldValue<bool>(os.IsActive),
             IsEncrypted = reader.GetFieldValue<bool?>(os.IsEncrypted),
             OwningPersonId = reader.GetFieldValue<int?>(os.OwningPersonId),
+            GroupShellId = reader.GetFieldValue<int?>(os.GroupShellId),
             OtpEmail = string.Empty,
             OtpCellPhone = string.Empty,
             RegistrationInsertedOn = null,

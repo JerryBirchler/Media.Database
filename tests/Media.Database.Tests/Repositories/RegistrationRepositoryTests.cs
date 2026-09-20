@@ -1017,4 +1017,31 @@ public class RegistrationRepositoryTests
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetOwningPersonIfUnsetAsync(1, 2));
     }
+
+    [Test]
+    public async Task SetGroupShellIdIfUnsetAsync_Should_ConfigureParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryRegistrations.SetGroupShellIdIfUnsetSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>>((_, configure) => captured = configure)
+            .ReturnsAsync(1);
+
+        await CreateRepository().SetGroupShellIdIfUnsetAsync(sourceMachineId: 11, groupShellId: 22);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(11);
+        command.Parameters[pn.GroupShellId].Value.ShouldBe(22);
+    }
+
+    [Test]
+    public void SetGroupShellIdIfUnsetAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryRegistrations.SetGroupShellIdIfUnsetSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetGroupShellIdIfUnsetAsync(1, 2));
+    }
 }

@@ -62,6 +62,13 @@ public interface IRegistrationRepository
     Task SetOwningPersonIfUnsetAsync(int sourceMachineId, int personId);
 
     /// <summary>
+    /// Permanently sets <c>SourceMachineRegistrations.GroupShellId</c> to <paramref name="groupShellId"/>
+    /// for <paramref name="sourceMachineId"/> -- a no-op if already set (MEDIA-37: a device's shell
+    /// assignment is a one-time thing this can make, never a reassignment).
+    /// </summary>
+    Task SetGroupShellIdIfUnsetAsync(int sourceMachineId, int groupShellId);
+
+    /// <summary>
     /// Sets a device's <see cref="SourceMachineRegistrations.IsEncrypted"/> override flag.
     /// Device-owner authorization is enforced by the caller, not here.
     /// </summary>

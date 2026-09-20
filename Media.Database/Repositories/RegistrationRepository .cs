@@ -590,6 +590,27 @@ public class RegistrationRepository(
         }
     }
 
+    public async Task SetGroupShellIdIfUnsetAsync(int sourceMachineId, int groupShellId)
+    {
+        try
+        {
+            await _sqlExecutor.ExecuteAsync
+            (
+                QueryRegistrations.SetGroupShellIdIfUnsetSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.GroupShellId, groupShellId);
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetGroupShellIdIfUnsetAsync failed for SourceMachineId {SourceMachineId}, GroupShellId {GroupShellId}", sourceMachineId, groupShellId);
+            throw;
+        }
+    }
+
     public async Task SetIsEncryptedAsync(int sourceMachineId, bool isEncrypted)
     {
         try
