@@ -10,6 +10,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
     public static readonly string CreatedByPersonId = x();
+    public static readonly string DataCategory = x();
     public static readonly string Description = x();
     public static readonly string DeviceTypeId = x();
     public static readonly string DisambiguationKey = x();
@@ -18,6 +19,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string FirstName = x();
     public static readonly string GroupId = x();
     public static readonly string GroupPersonUuid = x();
+    public static readonly string GroupShellId = x();
     public static readonly string GroupUuid = x();
     public static readonly string Id = x();
     public static readonly string IncludeInactive = x();
@@ -46,6 +48,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string PersonId = x();
     public static readonly string PersonSourceMachineUuid = x();
     public static readonly string PersonUuid = x();
+    public static readonly string PromotedGroupId = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();
@@ -64,6 +67,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string Word = x();
     public static readonly string WordId = x();
     public static readonly string WordUuid = x();
+    public static readonly string WrappedDek = x();
 
     /// <summary>
     /// Formats a raw field name as a PostgreSQL command parameter name.

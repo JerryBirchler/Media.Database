@@ -9,7 +9,9 @@ public class Tables : BaseSchema<Tables, NoSubFields>
 {
     public static readonly string CanBeEncryptedFields = x();
     public static readonly string Files = x();
+    public static readonly string GroupEncryptionKeys = x();
     public static readonly string Groups = x();
+    public static readonly string GroupShell = x();
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
     public static readonly string Persons = x();

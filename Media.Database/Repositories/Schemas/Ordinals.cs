@@ -13,15 +13,19 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
     public static readonly string CreatedByPersonId = x();
+    public static readonly string DataCategory = x();
     public static readonly string Description = x();
     public static readonly string DeviceTypeId = x();
     public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();
+    public static readonly string GroupEncryptionKeyId = x();
+    public static readonly string GroupEncryptionKeyUuid = x();
     public static readonly string GroupId = x();
     public static readonly string GroupPersonId = x();
     public static readonly string GroupPersonUuid = x();
+    public static readonly string GroupShellId = x();
     public static readonly string GroupSourceMachineId = x();
     public static readonly string GroupSourceMachineUuid = x();
     public static readonly string GroupUuid = x();
@@ -56,6 +60,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string PersonSourceMachineId = x();
     public static readonly string PersonSourceMachineUuid = x();
     public static readonly string PersonUuid = x();
+    public static readonly string PromotedGroupId = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();
@@ -74,4 +79,5 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string Word = x();
     public static readonly string WordId = x();
     public static readonly string WordUuid = x();
+    public static readonly string WrappedDek = x();
 }

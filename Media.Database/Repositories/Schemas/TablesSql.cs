@@ -9,7 +9,9 @@ namespace Media.Database.Repositories.Schemas;
 public class TablesSql : BaseSchema<TablesSql, Tables>
 {
     public static readonly string Files = x();
+    public static readonly string GroupEncryptionKeys = x();
     public static readonly string Groups = x();
+    public static readonly string GroupShell = x();
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
     public static readonly string Persons = x();
@@ -61,6 +63,26 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string Description = y();
         public static readonly string IsActive = y();
         public static readonly string IsEncrypted = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupShellColumns
+    {
+        public static readonly string GroupShellId = y();
+        public static readonly string PromotedGroupId = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupEncryptionKeysColumns
+    {
+        public static readonly string GroupEncryptionKeyId = y();
+        public static readonly string GroupEncryptionKeyUuid = y();
+        public static readonly string GroupShellId = y();
+        public static readonly string DataCategory = y();
+        public static readonly string WrappedDek = y();
+        public static readonly string IsActive = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }
