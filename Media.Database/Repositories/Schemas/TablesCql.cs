@@ -12,6 +12,7 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
     public static readonly string CanBeEncryptedFields = x();
     public static readonly string Files = x();
     public static readonly string Groups = x();
+    public static readonly string GroupUuidOrchestration = x();
     public static readonly string Persons = x();
     public static readonly string Registrations = x();
     public static readonly string WordFiles = x();
@@ -23,6 +24,15 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
         public static readonly string ReleaseIntroduced = y();
         public static readonly string ReleaseRemoved = y();
         public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupUuidOrchestrationColumns
+    {
+        public static readonly string PersonUuid = y();
+        public static readonly string GroupShellId = y();
+        public static readonly string EncryptedUuidBlob = y();
+        public static readonly string GroupEncryptionKeyUuid = y();
         public static readonly string UpdatedOn = y();
     }
 

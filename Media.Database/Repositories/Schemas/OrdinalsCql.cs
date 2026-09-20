@@ -13,9 +13,12 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string DeviceTypeId = x();
     public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();
+    public static readonly string EncryptedUuidBlob = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();
+    public static readonly string GroupEncryptionKeyUuid = x();
     public static readonly string GroupId = x();
+    public static readonly string GroupShellId = x();
     public static readonly string GroupUuid = x();
     public static readonly string Id = x();
     public static readonly string InsertedOn = x();

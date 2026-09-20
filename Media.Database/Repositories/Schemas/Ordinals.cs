@@ -18,6 +18,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string DeviceTypeId = x();
     public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();
+    public static readonly string EncryptedUuidBlob = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();
     public static readonly string GroupEncryptionKeyId = x();
