@@ -1,6 +1,7 @@
 using Media.Database.Repositories.Queries;
 using NUnit.Framework;
 using Shouldly;
+using System;
 
 namespace Media.Database.Tests.Queries;
 
@@ -82,7 +83,24 @@ public class QueryWordsTests
     public void GeneralFileIdentifierQueries_Should_Not_Select_SourceMachineId(string propertyName)
     {
         var sql = (string)typeof(QueryWords).GetProperty(propertyName)!.GetValue(null)!;
-        sql.ShouldNotContain("SourceMachineId");
+        var selectClause = sql[..sql.IndexOf("FROM", StringComparison.Ordinal)];
+        selectClause.ShouldNotContain("SourceMachineId");
+    }
+
+    [TestCase(nameof(QueryWords.GetFileIdentifiersByWordOriginSql))]
+    [TestCase(nameof(QueryWords.GetFileIdentifiersByWordFileIdSql))]
+    [TestCase(nameof(QueryWords.GetFileIdentifiersByFileIdWordSql))]
+    [TestCase(nameof(QueryWords.GetFileIdentifiersByFileIdOriginSql))]
+    [TestCase(nameof(QueryWords.GetFileIdentifiersByFilePathOriginSql))]
+    [TestCase(nameof(QueryWords.GetFileIdentifiersByFilePathWordSql))]
+    [TestCase(nameof(QueryWords.GetFileIdentifiersByWordFilePathSql))]
+    public void GeneralFileIdentifierQueries_Should_FilterBy_SourceMachineIdOrGroupId(string propertyName)
+    {
+        var sql = (string)typeof(QueryWords).GetProperty(propertyName)!.GetValue(null)!;
+        var whereClause = sql[sql.IndexOf("FROM", StringComparison.Ordinal)..];
+        whereClause.ShouldContain("SourceMachineId");
+        whereClause.ShouldContain("GroupId");
+        whereClause.ShouldContain("GroupsSourceMachines");
     }
 
     [Test]

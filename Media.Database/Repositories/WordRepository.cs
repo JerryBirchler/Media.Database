@@ -83,7 +83,7 @@ public class WordRepository(
     /// <inheritdoc/>
     public async Task<List<WordFileIdentifier>> GetFilePageIdentifiers(
         WordFilesOrderBy orderBy, WordFileIdentifier? next, WordOrigin? origin,
-        bool? isCurrent, bool? isProperName, int limit)
+        bool? isCurrent, bool? isProperName, int limit, int? sourceMachineId, int? groupId)
     {
         var sql = orderBy switch
         {
@@ -113,6 +113,8 @@ public class WordRepository(
                     p.AddWithValue(pn.Origin, NpgsqlTypes.NpgsqlDbType.Integer, ((int?)origin).ToNullableValueForSql());
                     p.AddWithValue(pn.IsCurrent, NpgsqlTypes.NpgsqlDbType.Boolean, isCurrent.ToNullableValueForSql());
                     p.AddWithValue(pn.IsProperName, NpgsqlTypes.NpgsqlDbType.Boolean, isProperName.ToNullableValueForSql());
+                    p.AddWithValue(pn.SourceMachineId, NpgsqlTypes.NpgsqlDbType.Integer, sourceMachineId.ToNullableValueForSql());
+                    p.AddWithValue(pn.GroupId, NpgsqlTypes.NpgsqlDbType.Integer, groupId.ToNullableValueForSql());
                     p.AddWithValue(pn.Limit, limit);
                 },
                 reader => reader.ToWordFileIdentifier());

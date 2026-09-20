@@ -58,7 +58,7 @@ public class WordRepositoryQueryTests
             .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByWordOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
             .ReturnsAsync(expected);
 
-        var result = await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10);
+        var result = await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10, sourceMachineId: 1, groupId: null);
 
         result.ShouldBe(expected);
     }
@@ -70,7 +70,7 @@ public class WordRepositoryQueryTests
             .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByFilePathOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
             .ReturnsAsync([]);
 
-        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.FilePathOrigin, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10);
+        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.FilePathOrigin, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10, sourceMachineId: 1, groupId: null);
 
         _sqlExecutorMock.Verify(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByFilePathOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()), Times.Once);
     }
@@ -85,7 +85,7 @@ public class WordRepositoryQueryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, WordFileIdentifier>>((_, configure, _) => captured = configure)
             .ReturnsAsync([]);
 
-        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next, origin: null, isCurrent: null, isProperName: null, limit: 10);
+        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next, origin: null, isCurrent: null, isProperName: null, limit: 10, sourceMachineId: 1, groupId: null);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
@@ -103,13 +103,47 @@ public class WordRepositoryQueryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, WordFileIdentifier>>((_, configure, _) => captured = configure)
             .ReturnsAsync([]);
 
-        CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10).GetAwaiter().GetResult();
+        CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10, sourceMachineId: 1, groupId: null).GetAwaiter().GetResult();
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.Word].Value.ShouldBe(DBNull.Value);
         command.Parameters[pn.FileId].Value.ShouldBe(DBNull.Value);
         command.Parameters[pn.OriginalFilePath].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public async Task GetFilePageIdentifiers_Should_ConfigureSourceMachineIdAndGroupIdParameters()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByWordOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, WordFileIdentifier>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10, sourceMachineId: 7, groupId: null);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(7);
+        command.Parameters[pn.GroupId].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public async Task GetFilePageIdentifiers_Should_ConfigureGroupIdParameter_When_GroupScoped()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryWords.GetFileIdentifiersByWordOriginSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, WordFileIdentifier>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, WordFileIdentifier>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetFilePageIdentifiers(WordFilesOrderBy.WordOriginFileId, next: null, origin: null, isCurrent: null, isProperName: null, limit: 10, sourceMachineId: null, groupId: 9);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.GroupId].Value.ShouldBe(9);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(DBNull.Value);
     }
 
     [Test]

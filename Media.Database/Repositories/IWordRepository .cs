@@ -31,10 +31,16 @@ public interface IWordRepository
     /// <param name="isCurrent">Whether to filter to current files only, or null to match any.</param>
     /// <param name="isProperName">Whether to filter to proper names only, or null to match any.</param>
     /// <param name="limit">The maximum number of rows to return.</param>
+    /// <param name="sourceMachineId">
+    /// Collapses results onto this device only (MEDIA-34). Exactly one of this or
+    /// <paramref name="groupId"/> is ever non-null on a given call, mirroring which credential
+    /// origin resolved the caller.
+    /// </param>
+    /// <param name="groupId">Collapses results onto every active device in this group (MEDIA-34). See <paramref name="sourceMachineId"/>.</param>
     /// <returns>The matching rows' identifiers, in the same order the full page would be returned.</returns>
     Task<List<WordFileIdentifier>> GetFilePageIdentifiers(
         WordFilesOrderBy orderBy, WordFileIdentifier? next, WordOrigin? origin,
-        bool? isCurrent, bool? isProperName, int limit);
+        bool? isCurrent, bool? isProperName, int limit, int? sourceMachineId, int? groupId);
 
     /// <summary>
     /// Hydrates full word/file rows for a set of (WordId, FileId) pairs, preferring Scylla's

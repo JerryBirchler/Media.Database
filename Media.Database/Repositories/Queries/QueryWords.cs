@@ -2,6 +2,7 @@
 using Npgsql;
 
 #pragma warning disable CS8981
+using cgsm = Media.Database.Repositories.Schemas.TablesSql.GroupsSourceMachinesColumns;
 using csw = Media.Database.Repositories.Schemas.TablesSql.WordsColumns;
 using cswf = Media.Database.Repositories.Schemas.TablesSql.WordFilesColumns;
 using csvwf = Media.Database.Repositories.Schemas.TablesSql.View_WordFilesColumns;
@@ -84,6 +85,20 @@ public static class QueryWords
             AND ({pn.IsProperName} IS NULL OR {pn.IsProperName} = {csvwf.IsProperName})";
 
     /// <summary>
+    /// Shared WHERE-clause fragment collapsing word search results onto the caller's own access
+    /// (MEDIA-34): exactly one of the two parameters is ever bound on a given request, mirroring
+    /// which of the two mutually exclusive credential origins resolved it (see
+    /// ApiKeyAuthenticationOptions.SourceMachineIdClaimType/GroupIdClaimType) -- a device-scoped
+    /// caller (SourceMachineUuid/PersonSourceMachineUuid) sees only its own words, a group-scoped
+    /// caller (GroupPersonUuid) sees every active device in its group's words, via the
+    /// <c>gsm</c>-aliased LEFT JOIN <see cref="SelectIdentifiers"/> already carries -- safe from row
+    /// fan-out since GroupsSourceMachines allows at most one active row per device (MEDIA-11).
+    /// </summary>
+    public static string AndScope => $@"
+            AND ({pn.SourceMachineId} IS NULL OR vwf.{csvwf.SourceMachineId} = {pn.SourceMachineId})
+            AND ({pn.GroupId} IS NULL OR gsm.{cgsm.GroupId} = {pn.GroupId})";
+
+    /// <summary>
     /// Columns needed to identify a word/file pairing for keyset-pagination cursor computation and
     /// later hydration (see Models.WordFileIdentifier) -- cheap enough to fetch a wide look-ahead
     /// range without paying for a full row nobody is about to render.
@@ -95,12 +110,21 @@ public static class QueryWords
             {csvwf.Word},
             {csvwf.OriginalFilePath}";
 
-    /// <summary>Shared SELECT clause for the identifier-only word/file view queries below.</summary>
+    /// <summary>
+    /// Shared SELECT clause for the identifier-only word/file view queries below. Joins
+    /// GroupsSourceMachines (MEDIA-34) so <see cref="AndScope"/> can filter by group without a
+    /// subquery -- the join can never fan out rows, since GroupsSourceMachines allows at most one
+    /// active row per device (MEDIA-11).
+    /// </summary>
     private static string SelectIdentifiers => $@"
         SELECT
             {SelectIdentifierColumns}
         FROM
-            {ts.View_WordFiles}";
+            {ts.View_WordFiles} AS vwf
+        LEFT JOIN
+            {ts.GroupsSourceMachines} AS gsm
+        ON
+            gsm.{cgsm.SourceMachineId} = vwf.{csvwf.SourceMachineId} AND gsm.{cgsm.IsActive} = true";
 
     /// <summary>Identifier-only page of word/file rows, ordered by word, then origin, then file.</summary>
     public static string GetFileIdentifiersByWordOriginSql => $@"
@@ -113,6 +137,7 @@ public static class QueryWords
                 COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
             )
             {AndFilePages}
+            {AndScope}
         ORDER BY
             {csvwf.IsCurrent} DESC,
             {csvwf.Word} ASC,
@@ -132,6 +157,7 @@ public static class QueryWords
                 COALESCE({pn.Origin}, -1)
             )
             {AndFilePages}
+            {AndScope}
         ORDER BY
             {csvwf.IsCurrent} DESC,
             {csvwf.Word} ASC,
@@ -151,6 +177,7 @@ public static class QueryWords
                 COALESCE({pn.Origin}, -1)
             )
             {AndFilePages}
+            {AndScope}
         ORDER BY
             {csvwf.IsCurrent} DESC,
             {csvwf.FileId} ASC,
@@ -170,6 +197,7 @@ public static class QueryWords
                 COALESCE({pn.Word}, '')
             )
             {AndFilePages}
+            {AndScope}
         ORDER BY
             {csvwf.IsCurrent} DESC,
             {csvwf.FileId} ASC,
@@ -190,6 +218,7 @@ public static class QueryWords
                 COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
             )
             {AndFilePages}
+            {AndScope}
         ORDER BY
             {csvwf.IsCurrent} DESC,
             {csvwf.OriginalFilePath} ASC,
@@ -211,6 +240,7 @@ public static class QueryWords
                 COALESCE({pn.FileId}, '00000000-0000-0000-0000-000000000000'::uuid)
             )
             {AndFilePages}
+            {AndScope}
         ORDER BY
             {csvwf.IsCurrent} DESC,
             {csvwf.OriginalFilePath} ASC,
@@ -232,6 +262,7 @@ public static class QueryWords
                 COALESCE({pn.Origin}, -1)
             )
             {AndFilePages}
+            {AndScope}
         ORDER BY
             {csvwf.IsCurrent} DESC,
             {csvwf.Word} ASC,
