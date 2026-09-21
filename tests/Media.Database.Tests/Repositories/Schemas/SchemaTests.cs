@@ -1,11 +1,11 @@
-using Media.Database.Repositories.Schemas;
+﻿using Media.Database.Repositories.Schemas;
 using NUnit.Framework;
 using Shouldly;
 
 namespace Media.Database.Tests.Repositories.Schemas;
 
 [TestFixture]
-public class ISchemaTests
+public class SchemaTests
 {
     [Test]
     public void ISchema_Should_Be_An_Interface()
