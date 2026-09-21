@@ -19,6 +19,12 @@ public interface IPersonRepository
     Task<Person?> GetByUuidAsync(Guid personUuid);
 
     /// <summary>
+    /// Retrieves a person by the contact information used to create them. A pure read -- unlike
+    /// <see cref="FindOrCreateAsync"/>, it never creates.
+    /// </summary>
+    Task<Person?> GetByContactInformationAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber);
+
+    /// <summary>
     /// Creates a new person with an explicit creator -- the <c>POST /api/persons</c> path.
     /// </summary>
     Task<Person?> CreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber, int createdByPersonId);

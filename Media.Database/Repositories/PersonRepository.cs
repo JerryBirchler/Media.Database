@@ -1,4 +1,4 @@
-using Media.Common.Helpers.Fluent;
+﻿using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -68,6 +68,28 @@ public class PersonRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "FindOrCreateAsync failed for EmailAddress {EmailAddress}", emailAddress);
+            throw;
+        }
+    }
+
+    public async Task<Person?> GetByContactInformationAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryPersons.GetByContactInformationSql,
+                p =>
+                {
+                    p.AddWithValue(pn.FirstName, firstName);
+                    p.AddWithValue(pn.LastName, lastName);
+                    p.AddWithValue(pn.EmailAddress, emailAddress);
+                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                },
+                reader => reader.ToPerson(_personResponseMapper));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetByContactInformationAsync failed");
             throw;
         }
     }
