@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace Media.Database.Models;
 
@@ -139,6 +139,14 @@ public record SourceMachineRegistrations
     /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
     /// </summary>
     [JsonIgnore]
+    /// <summary>
+    /// Gets the channel this customer chose to receive their generated group encryption key on, or
+    /// <see langword="null"/> if they never expressed one (rows predating the choice). The API
+    /// applies <see cref="KeyDeliveryMethods.Sms"/> as the default rather than the column doing so,
+    /// so a null here means "never asked" instead of falsely claiming the customer picked SMS.
+    /// </summary>
+    public KeyDeliveryMethods? KeyDeliveryMethod { get; init; }
+
     public string OtpEmail { get; set; } = string.Empty;
 
     /// <summary>

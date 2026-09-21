@@ -1,4 +1,4 @@
-using Cassandra;
+﻿using Cassandra;
 using Media.Database.Helpers;
 using Media.Database.Models;
 using Npgsql;
@@ -412,6 +412,19 @@ public static class QueryRegistrations
     /// shell assignment is a one-time thing this query can make, never a reassignment. Promotion
     /// or a later shell/group change (not yet built) would need its own, deliberate query.
     /// </summary>
+    /// <summary>
+    /// SQL to set the channel a customer chose to receive their generated group encryption key on.
+    /// Deliberately NOT a "WHERE ... IS NULL" one-time set like
+    /// <see cref="SetGroupShellIdIfUnsetSql"/>: a delivery preference is a preference, and the
+    /// customer is allowed to change it.
+    /// </summary>
+    public static string SetKeyDeliveryMethodSql => $@"
+        UPDATE {ts.SourceMachineRegistrations} SET
+            {cssmr.KeyDeliveryMethod} = {pn.KeyDeliveryMethod}
+        WHERE
+            {cssmr.SourceMachineId} = {pn.SourceMachineId}
+        ;";
+
     public static string SetGroupShellIdIfUnsetSql => $@"
         UPDATE {ts.SourceMachineRegistrations} SET
             {cssmr.GroupShellId} = {pn.GroupShellId}

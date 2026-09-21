@@ -1,4 +1,4 @@
-using Media.Database.Models;
+﻿using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -67,5 +67,13 @@ public interface IRegistrationRepository
     /// assignment is a one-time thing this can make, never a reassignment).
     /// </summary>
     Task SetGroupShellIdIfUnsetAsync(int sourceMachineId, int groupShellId);
+
+    /// <summary>
+    /// Records the channel this customer chose to receive their generated group encryption key on.
+    /// Overwrites any previous choice -- a preference the customer may change, unlike the one-time
+    /// assignments above.
+    /// </summary>
+    Task SetKeyDeliveryMethodAsync(int sourceMachineId, KeyDeliveryMethods keyDeliveryMethod);
+
 
 }

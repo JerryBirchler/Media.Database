@@ -1,4 +1,4 @@
-using Media.Database.Helpers;
+﻿using Media.Database.Helpers;
 using Media.Common.Helpers;
 using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
@@ -586,6 +586,27 @@ public class RegistrationRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "SetOwningPersonIfUnsetAsync failed for SourceMachineId {SourceMachineId}, PersonId {PersonId}", sourceMachineId, personId);
+            throw;
+        }
+    }
+
+    public async Task SetKeyDeliveryMethodAsync(int sourceMachineId, KeyDeliveryMethods keyDeliveryMethod)
+    {
+        try
+        {
+            await _sqlExecutor.ExecuteAsync
+            (
+                QueryRegistrations.SetKeyDeliveryMethodSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                    p.AddWithValue(pn.KeyDeliveryMethod, (int)keyDeliveryMethod);
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetKeyDeliveryMethodAsync failed for SourceMachineId {SourceMachineId}, KeyDeliveryMethod {KeyDeliveryMethod}", sourceMachineId, keyDeliveryMethod);
             throw;
         }
     }

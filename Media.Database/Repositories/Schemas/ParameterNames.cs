@@ -35,6 +35,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
     public static readonly string IsSuperAdmin = x();
+    public static readonly string KeyDeliveryMethod = x();
     public static readonly string KeyPurpose = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
