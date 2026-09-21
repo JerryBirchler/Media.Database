@@ -1,0 +1,3 @@
+# Line endings are declared here rather than left to each machine's core.autocrlf,
+# which is what let the working tree drift to a mix of LF and CRLF.
+* text=auto eol=lf
