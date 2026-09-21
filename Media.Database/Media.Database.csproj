@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Media.Common\Media.Common\Media.Common.csproj" />
+    <ProjectReference Include="..\..\Media.Common\Media.Common.Analyzers\Media.Common.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\Media.Common\Media.Common.Analyzers.CodeFixes\Media.Common.Analyzers.CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Installs the Husky.Net git hooks (.husky/pre-commit, .husky/pre-push) automatically on
