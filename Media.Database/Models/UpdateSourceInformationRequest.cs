@@ -12,10 +12,11 @@ namespace Media.Database.Models
     public record UpdateSourceInformationRequest
     {
         /// <summary>
-        /// The source machine UUID as determined at the time of registration. 
+        /// The source machine's integer identifier. Deliberately not the SourceMachineUuid: that
+        /// value is itself a valid x-api-key, so it stays out of every path that doesn't need it.
         /// </summary>
-        [property: JsonPropertyName("sourceMachineUuid")]
-        public required Guid SourceMachineUuid { get; set; } = Guid.Empty;
+        [property: JsonPropertyName("sourceMachineId")]
+        public required int SourceMachineId { get; set; }
 
         /// <summary>
         /// The email address of the user associated with the source machine. 
@@ -33,7 +34,6 @@ namespace Media.Database.Models
         [property: JsonPropertyName("cellPhoneNumber")]
         public required string CellPhoneNumber { get; set; } = string.Empty;
 
-        /// <summary>
         /// <summary>
         /// The operating system of the source machine.
         /// This may not be null or empty. For example, 'Android', 'iOS', 'Windows', 'Linux', etc. 

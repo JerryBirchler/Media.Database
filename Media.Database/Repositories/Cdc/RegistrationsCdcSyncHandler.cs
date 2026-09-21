@@ -55,13 +55,9 @@ public sealed class RegistrationsCdcSyncHandler(
 
         if (current is null)
         {
-            // No current SourceMachineRegistrations+Registrations join exists for this device --
-            // the raw Registrations table has no SourceMachineUuid column of its own (only
-            // SourceMachineRegistrations does), and Scylla's Registrations table is partitioned by
-            // SourceMachineUuid, so there is no reliable key to target a Scylla delete with here.
-            // In practice nothing in the application ever physically deletes a Registrations row
-            // (only inserts and IsCurrent updates), so this should not occur outside manual data
-            // surgery -- log it rather than guess at a partition key.
+            // Nothing in the application physically deletes a Registrations row (only inserts and
+            // IsCurrent updates), so a missing join means manual data surgery rather than a real
+            // delete to propagate.
             _logger.WithCaller().LogWarning(
                 "No current registration join found for SourceMachineId {SourceMachineId}; leaving Scylla untouched",
                 sourceMachineId);
@@ -81,7 +77,6 @@ public sealed class RegistrationsCdcSyncHandler(
             {
                 p.AddWithValue(pn.RegistrationId, registration.RegistrationId);
                 p.AddWithValue(pn.SourceMachineId, registration.SourceMachineId);
-                p.AddWithValue(pn.SourceMachineUuid, registration.SourceMachineUuid);
                 p.AddWithValue(pn.SourceMachineName, registration.SourceMachineName);
                 p.AddWithValue(pn.DeviceTypeId, (int)registration.DeviceTypeId);
                 p.AddWithValue(pn.DisambiguationKey, registration.DisambiguationKey);

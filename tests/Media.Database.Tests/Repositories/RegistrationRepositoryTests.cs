@@ -420,7 +420,7 @@ public class RegistrationRepositoryTests
     public async Task UpdateSourceInformation_Should_ReturnNull_When_ExistingRegistrationNotFound()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = _fixture.Create<UpdateSourceInformationRequest>();
 
@@ -436,14 +436,14 @@ public class RegistrationRepositoryTests
     {
         var existing = CreateRegistration();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineUuid = existing.SourceMachineUuid,
+            SourceMachineId = existing.SourceMachineId,
             EmailAddress = existing.EmailAddress,
             CellPhoneNumber = existing.CellPhoneNumber,
             OperatingSystem = existing.OperatingSystem
@@ -461,14 +461,14 @@ public class RegistrationRepositoryTests
         var existing = CreateRegistration();
         var updated = existing with { OperatingSystem = "updated-os" };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(updated);
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineUuid = existing.SourceMachineUuid,
+            SourceMachineId = existing.SourceMachineId,
             EmailAddress = existing.EmailAddress,
             CellPhoneNumber = existing.CellPhoneNumber,
             OperatingSystem = "updated-os"
@@ -497,7 +497,7 @@ public class RegistrationRepositoryTests
             UpdatedOn = null
         };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -510,7 +510,7 @@ public class RegistrationRepositoryTests
             .ReturnsAsync(addResponse);
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineUuid = existing.SourceMachineUuid,
+            SourceMachineId = existing.SourceMachineId,
             EmailAddress = "new@example.com",
             CellPhoneNumber = "555-0199",
             OperatingSystem = existing.OperatingSystem
@@ -531,7 +531,7 @@ public class RegistrationRepositoryTests
     {
         _unitOfWorkMock.Setup(u => u.CurrentTransaction).Returns((NpgsqlTransaction)null!);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var request = _fixture.Create<UpdateSourceInformationRequest>();
 
@@ -554,7 +554,7 @@ public class RegistrationRepositoryTests
             UpdatedOn = null
         };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -569,7 +569,7 @@ public class RegistrationRepositoryTests
             .ReturnsAsync(addResponse);
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineUuid = existing.SourceMachineUuid,
+            SourceMachineId = existing.SourceMachineId,
             EmailAddress = "new2@example.com",
             CellPhoneNumber = "555-0200",
             OperatingSystem = existing.OperatingSystem
@@ -595,7 +595,7 @@ public class RegistrationRepositoryTests
         var existing = CreateRegistration();
         var updated = existing with { EmailAddress = "new3@example.com", CellPhoneNumber = "555-0201" };
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.UpdateSourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -608,7 +608,7 @@ public class RegistrationRepositoryTests
             .ReturnsAsync((AddRegistrationResponse?)null);
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineUuid = existing.SourceMachineUuid,
+            SourceMachineId = existing.SourceMachineId,
             EmailAddress = "new3@example.com",
             CellPhoneNumber = "555-0201",
             OperatingSystem = existing.OperatingSystem

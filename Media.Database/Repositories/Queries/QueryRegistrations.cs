@@ -70,7 +70,7 @@ public static class QueryRegistrations
             {cssmr.CellPhoneNumber} = {pn.CellPhoneNumber},
             {cssmr.OperatingSystem} = {pn.OperatingSystem}
         WHERE
-            {cssmr.SourceMachineUuid} = {pn.SourceMachineUuid}
+            {cssmr.SourceMachineId} = {pn.SourceMachineId}
         RETURNING
             {cssmr.SourceMachineUuid},
             {cssmr.SourceMachineName},
@@ -446,7 +446,6 @@ public static class QueryRegistrations
         SELECT
             {ccr.RegistrationId},
             {ccr.SourceMachineId},
-            {ccr.SourceMachineUuid},
             {ccr.SourceMachineName},
             {ccr.DeviceTypeId},
             {ccr.DisambiguationKey},
@@ -473,7 +472,6 @@ public static class QueryRegistrations
 
     public static string UpsertRegistrationCql => $@"
         INSERT INTO {tc.Registrations} (
-            {ccr.SourceMachineUuid},
             {ccr.RegistrationId},
             {ccr.SourceMachineId},
             {ccr.SourceMachineName},
@@ -494,7 +492,6 @@ public static class QueryRegistrations
             {ccr.RegistrationInsertedOn},
             {ccr.RegistrationUpdatedOn}
         ) VALUES (
-            {pn.SourceMachineUuid},
             {pn.RegistrationId},
             {pn.SourceMachineId},
             {pn.SourceMachineName},
@@ -699,7 +696,6 @@ public static class QueryRegistrations
         {
             RegistrationId = row.GetValue<int>(ccr.RegistrationId),
             SourceMachineId = row.GetValue<int>(ccr.SourceMachineId),
-            SourceMachineUuid = row.GetValue<Guid>(ccr.SourceMachineUuid),
             SourceMachineName = row.GetValue<string>(ccr.SourceMachineName),
             DeviceTypeId = (DeviceTypes)row.GetValue<int>(ccr.DeviceTypeId),
             DisambiguationKey = row.GetValue<string>(ccr.DisambiguationKey),

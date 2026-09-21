@@ -102,7 +102,6 @@ public class RegistrationsCdcSyncHandlerTests
         await sut.ApplyAsync(record, CancellationToken.None);
 
         captured.ShouldNotBeNull();
-        captured!["@SOURCEMACHINEUUID"].ShouldBe(registration.SourceMachineUuid);
         captured["@SOURCEMACHINEID"].ShouldBe(registration.SourceMachineId);
         captured["@SOURCEMACHINENAME"].ShouldBe(registration.SourceMachineName);
     }

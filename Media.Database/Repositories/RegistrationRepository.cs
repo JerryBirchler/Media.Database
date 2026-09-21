@@ -278,8 +278,8 @@ public class RegistrationRepository(
             var existingRegistration = await _sqlExecutor.QuerySingleAsync
             (
                 uow,
-                QueryRegistrations.GetBySourceMachineUuidSql,
-                p => p.AddWithValue(pn.SourceMachineUuid, request.SourceMachineUuid),
+                QueryRegistrations.GetBySourceMachineIdSql,
+                p => p.AddWithValue(pn.SourceMachineId, request.SourceMachineId),
                 reader => reader.ToSourceMachineRegistration()
             );
 
@@ -295,7 +295,7 @@ public class RegistrationRepository(
                 QueryRegistrations.UpdateSourceInformationSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineUuid, request.SourceMachineUuid);
+                    p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
                     p.AddWithValue(pn.EmailAddress, request.EmailAddress);
                     p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
                     p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
@@ -322,7 +322,7 @@ public class RegistrationRepository(
                 QueryRegistrations.InactivateRegistrationsBySourceMachineUuidSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineUuid, request.SourceMachineUuid);
+                    p.AddWithValue(pn.SourceMachineUuid, existingRegistration.SourceMachineUuid);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
                 },
                 reader => reader.ToRegistrationIds()
@@ -337,7 +337,7 @@ public class RegistrationRepository(
                 QueryRegistrations.AddRegistrationBySourceMachineUuidSql,
                 p =>
                 {
-                    p.AddWithValue(pn.SourceMachineUuid, request.SourceMachineUuid);
+                    p.AddWithValue(pn.SourceMachineUuid, existingRegistration.SourceMachineUuid);
                     p.AddWithValue(pn.OtpEmail, otpEmail);
                     p.AddWithValue(pn.OtpCellPhone, otpCellPhone);
                 },
@@ -362,7 +362,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpdateSourceInformation failed for SourceMachineUuid {SourceMachineUuid}", request.SourceMachineUuid);
+            _logger.LogError(ex, "UpdateSourceInformation failed for SourceMachineId {SourceMachineId}", request.SourceMachineId);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();

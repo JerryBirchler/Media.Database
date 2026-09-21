@@ -75,14 +75,14 @@ public class UpdateSourceInformationRequestTests
         // Act
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineUuid = Guid.Empty,
+            SourceMachineId = 0,
             EmailAddress = string.Empty,
             CellPhoneNumber = string.Empty,
             OperatingSystem = string.Empty
         };
 
         // Assert
-        request.SourceMachineUuid.ShouldBe(Guid.Empty);
+        request.SourceMachineId.ShouldBe(0);
         request.EmailAddress.ShouldBe(string.Empty);
         request.CellPhoneNumber.ShouldBe(string.Empty);
         request.OperatingSystem.ShouldBe(string.Empty);
@@ -90,7 +90,7 @@ public class UpdateSourceInformationRequestTests
 
     [Test, AutoData]
     public void UpdateSourceInformationRequest_Should_Allow_Property_Assignment(
-        Guid sourceMachineUuid,
+        int sourceMachineId,
         string emailAddress,
         string cellPhoneNumber,
         string operatingSystem)
@@ -98,14 +98,14 @@ public class UpdateSourceInformationRequestTests
         // Act
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineUuid = sourceMachineUuid,
+            SourceMachineId = sourceMachineId,
             EmailAddress = emailAddress,
             CellPhoneNumber = cellPhoneNumber,
             OperatingSystem = operatingSystem
         };
 
         // Assert
-        request.SourceMachineUuid.ShouldBe(sourceMachineUuid);
+        request.SourceMachineId.ShouldBe(sourceMachineId);
         request.EmailAddress.ShouldBe(emailAddress);
         request.CellPhoneNumber.ShouldBe(cellPhoneNumber);
         request.OperatingSystem.ShouldBe(operatingSystem);

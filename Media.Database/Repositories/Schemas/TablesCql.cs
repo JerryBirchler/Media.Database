@@ -95,7 +95,6 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
 
     public static class RegistrationsColumns
     {
-        public static readonly string SourceMachineUuid = y();
         public static readonly string RegistrationId = y();
         public static readonly string SourceMachineId = y();
         public static readonly string SourceMachineName = y();
