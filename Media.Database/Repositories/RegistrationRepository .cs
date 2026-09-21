@@ -203,6 +203,28 @@ public class RegistrationRepository(
         }
     }
 
+    public async Task<SourceMachineRegistrations?> GetBySourceInformationAsync(string sourceMachineName, DeviceTypes deviceTypeId, string firstName, string lastName)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryRegistrations.GetBySourceInformationSql,
+                p =>
+                {
+                    p.AddWithValue(pn.SourceMachineName, sourceMachineName);
+                    p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
+                    p.AddWithValue(pn.FirstName, firstName);
+                    p.AddWithValue(pn.LastName, lastName);
+                },
+                reader => reader.ToSourceMachineRegistration());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetBySourceInformationAsync failed for {SourceMachineName}", sourceMachineName);
+            throw;
+        }
+    }
+
     public async Task<SourceMachineRegistrations?> GetByUuid(Guid uuid)
     {
         try

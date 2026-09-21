@@ -9,6 +9,12 @@ public interface IRegistrationRepository
     Task<SourceMachineRegistrations?> GetByUuid(Guid uuid);
 
     /// <summary>
+    /// Retrieves a registration by the source information a caller knows before it holds any
+    /// credential -- the same keys the registration flow itself matches on.
+    /// </summary>
+    Task<SourceMachineRegistrations?> GetBySourceInformationAsync(string sourceMachineName, DeviceTypes deviceTypeId, string firstName, string lastName);
+
+    /// <summary>
     /// Resolves a <c>PersonSourceMachineUuid</c> -- the multi-origin x-api-key model's second
     /// credential type (MEDIA-34) -- to the one device it grants access to. IsEmailVerified/
     /// IsSmsVerified on the result reflect the *person's own* verification, not the device's,
