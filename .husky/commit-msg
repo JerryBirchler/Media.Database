@@ -1,0 +1,34 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Requires every commit message to reference both:
+#   1. A Plane ticket in this repo's own project (DATABASE), e.g. "DATABASE-42" -- since each repo
+#      has its own separate Plane project/issue-key sequence, this prefix is repo-specific and must
+#      not be copy-pasted as-is into another repo's hook.
+#   2. The cross-repo "Media" epic/story it relates to, e.g. "MEDIA-7".
+# Either reference can appear anywhere in the subject or body.
+#
+# Added after DATABASE-N numbering drifted: this repo had only pre-commit and pre-push, so nothing
+# ever checked the reference. Commits kept incrementing from the last commit rather than naming a
+# ticket that existed, and the two sequences diverged silently. Media.Api and Media.Schema both
+# enforced this and neither drifted -- the discipline held exactly where a hook enforced it.
+#
+# Unlike Media.Api's copy, BUG-N carries no special meaning here: the four-node file version and its
+# bugfix counter live in Media.Api alone, so there is nothing in this repo for it to bump.
+prefix="DATABASE"
+commit_msg_file="$1"
+
+first_line=$(head -n1 "$commit_msg_file")
+case "$first_line" in
+  "Merge "*) exit 0 ;;
+esac
+
+missing=""
+grep -qE "\b${prefix}-[0-9]+\b" "$commit_msg_file" || missing="${missing}${prefix}-N "
+grep -qE "\bMEDIA-[0-9]+\b" "$commit_msg_file" || missing="${missing}MEDIA-N "
+
+if [ -n "$missing" ]; then
+  echo "Commit message must reference: $missing" >&2
+  echo "Example: git commit -m \"${prefix}-123: short description (MEDIA-45)\"" >&2
+  exit 1
+fi
