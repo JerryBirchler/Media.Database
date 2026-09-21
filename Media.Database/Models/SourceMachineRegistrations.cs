@@ -135,11 +135,6 @@ public record SourceMachineRegistrations
     public int? GroupShellId { get; init; }
 
     /// <summary>
-    /// Gets the one-time password (OTP) email address for the source machine owner. See
-    /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
-    /// </summary>
-    [JsonIgnore]
-    /// <summary>
     /// Gets the channel this customer chose to receive their generated group encryption key on, or
     /// <see langword="null"/> if they never expressed one (rows predating the choice). The API
     /// applies <see cref="KeyDeliveryMethods.Sms"/> as the default rather than the column doing so,
@@ -147,6 +142,14 @@ public record SourceMachineRegistrations
     /// </summary>
     public KeyDeliveryMethods? KeyDeliveryMethod { get; init; }
 
+    /// <summary>
+    /// Gets the one-time password (OTP) email address for the source machine owner. See
+    /// <see cref="RegistrationId"/> for why this isn't <c>required</c>.
+    ///
+    /// Never serialized: returning the code to the caller would make email verification vacuous,
+    /// since proving control of an inbox is the entire point of sending it there.
+    /// </summary>
+    [JsonIgnore]
     public string OtpEmail { get; set; } = string.Empty;
 
     /// <summary>
