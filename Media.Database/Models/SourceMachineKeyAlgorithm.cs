@@ -1,4 +1,4 @@
-namespace Media.Database.Models;
+﻿namespace Media.Database.Models;
 
 /// <summary>
 /// The signature algorithm a device's public key is for. Stored per key rather than assumed
@@ -7,6 +7,16 @@ namespace Media.Database.Models;
 /// </summary>
 public enum SourceMachineKeyAlgorithm
 {
-    /// <summary>Ed25519 (EdDSA over Curve25519).</summary>
+    /// <summary>
+    /// ECDSA over NIST P-256 with SHA-256 -- the JWS "ES256" algorithm. The only algorithm
+    /// supported today, chosen because .NET implements it natively; Ed25519 would require a
+    /// third-party crypto dependency.
+    /// </summary>
+    Es256,
+
+    /// <summary>
+    /// Ed25519 (EdDSA over Curve25519). Reserved, not yet accepted -- .NET has no built-in
+    /// implementation, so supporting it means taking on BouncyCastle or NSec first.
+    /// </summary>
     Ed25519
 }

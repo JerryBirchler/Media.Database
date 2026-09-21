@@ -51,6 +51,20 @@ public static class QuerySourceMachineKeys
         ;";
 
     /// <summary>
+    /// SQL to fetch an active key by its identifier -- the lookup a presented assertion's "kid"
+    /// resolves through, so verification never has to try every key a device has enrolled.
+    /// </summary>
+    public static string GetActiveByUuidSql => $@"
+        SELECT{AllColumns}
+        FROM
+            {ts.SourceMachineKeys}
+        WHERE
+            {csk.SourceMachineKeyUuid} = {pn.SourceMachineKeyUuid}
+            AND {csk.IsActive} = true
+        LIMIT 1
+        ;";
+
+    /// <summary>
     /// SQL to resolve a presented public key to its active enrollment. Returns nothing for a
     /// revoked key, which is what makes revocation take effect.
     /// </summary>

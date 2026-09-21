@@ -1,4 +1,4 @@
-using Media.Common.Helpers.Fluent;
+﻿using Media.Common.Helpers.Fluent;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Microsoft.Extensions.Logging;
@@ -72,6 +72,22 @@ public class SourceMachineKeyRepository(
         {
             // Deliberately does not log the key itself.
             _logger.LogError(ex, "GetActiveByPublicKeyAsync failed");
+            throw;
+        }
+    }
+
+    public async Task<SourceMachineKey?> GetActiveByUuidAsync(Guid sourceMachineKeyUuid)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QuerySourceMachineKeys.GetActiveByUuidSql,
+                p => p.AddWithValue(pn.SourceMachineKeyUuid, sourceMachineKeyUuid),
+                reader => reader.ToSourceMachineKey());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetActiveByUuidAsync failed for SourceMachineKeyUuid {SourceMachineKeyUuid}", sourceMachineKeyUuid);
             throw;
         }
     }

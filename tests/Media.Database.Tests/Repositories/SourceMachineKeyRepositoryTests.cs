@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using AutoFixture;
 using Media.Database.Models;
 using Media.Database.Repositories;
@@ -146,5 +146,30 @@ public class SourceMachineKeyRepositoryTests
 
         captured.ShouldNotBeNull();
         captured!["RevokedOn"].Value.ShouldBe(captured["UpdatedOn"].Value);
+    }
+
+    [Test]
+    public async Task GetActiveByUuidAsync_Should_ReturnTheKey_When_ItIsStillActive()
+    {
+        var expected = _fixture.Build<SourceMachineKey>().With(k => k.IsActive, true).Create();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QuerySourceMachineKeys.GetActiveByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineKey>>()))
+            .ReturnsAsync(expected);
+
+        var result = await CreateRepository().GetActiveByUuidAsync(_fixture.Create<Guid>());
+
+        result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetActiveByUuidAsync_Should_ReturnNull_When_TheKeyIsRevokedOrUnknown()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QuerySourceMachineKeys.GetActiveByUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineKey>>()))
+            .ReturnsAsync((SourceMachineKey?)null);
+
+        var result = await CreateRepository().GetActiveByUuidAsync(_fixture.Create<Guid>());
+
+        result.ShouldBeNull();
     }
 }

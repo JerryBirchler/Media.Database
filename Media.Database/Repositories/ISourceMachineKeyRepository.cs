@@ -1,4 +1,4 @@
-using Media.Database.Models;
+﻿using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -30,6 +30,13 @@ public interface ISourceMachineKeyRepository
     /// unknown or revoked.
     /// </summary>
     Task<SourceMachineKey?> GetActiveByPublicKeyAsync(string publicKey);
+
+    /// <summary>
+    /// Fetches an active key by its identifier, or <see langword="null"/> if it is unknown or
+    /// revoked.
+    /// </summary>
+    Task<SourceMachineKey?> GetActiveByUuidAsync(Guid sourceMachineKeyUuid);
+
 
     /// <summary>
     /// Revokes a key -- a no-op, returning <see langword="null"/>, if it is already revoked or does
