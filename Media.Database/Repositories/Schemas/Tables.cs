@@ -1,4 +1,4 @@
-namespace Media.Database.Repositories.Schemas;
+﻿namespace Media.Database.Repositories.Schemas;
 
 /// <summary>
 /// Canonical registry of table/view names, used unformatted as the root of the table-name
@@ -18,6 +18,7 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string Persons = x();
     public static readonly string PersonsSourceMachines = x();
     public static readonly string Registrations = x();
+    public static readonly string SourceMachineKeys = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();
     public static readonly string View_WordFiles = x();

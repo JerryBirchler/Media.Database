@@ -1,4 +1,4 @@
-namespace Media.Database.Repositories.Schemas;
+﻿namespace Media.Database.Repositories.Schemas;
 
 /// <summary>
 /// Registry of PostgreSQL command parameter names (formatted with a leading <c>@</c>), validated
@@ -6,6 +6,7 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
 {
+    public static readonly string Algorithm = x();
     public static readonly string CameFromFileId = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
@@ -34,6 +35,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
     public static readonly string IsSuperAdmin = x();
+    public static readonly string KeyPurpose = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
     public static readonly string Limit = x();
@@ -51,13 +53,17 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string PersonSourceMachineUuid = x();
     public static readonly string PersonUuid = x();
     public static readonly string PromotedGroupId = x();
+    public static readonly string PublicKey = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();
     public static readonly string ReleaseIntroduced = x();
     public static readonly string ReleaseRemoved = x();
+    public static readonly string RevokedOn = x();
     public static readonly string SourceInsertedOn = x();
     public static readonly string SourceMachineId = x();
+    public static readonly string SourceMachineKeyId = x();
+    public static readonly string SourceMachineKeyUuid = x();
     public static readonly string SourceMachineName = x();
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();

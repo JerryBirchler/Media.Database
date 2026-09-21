@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace Media.Database.Repositories.Schemas;
 
@@ -17,6 +17,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     public static readonly string Persons = x();
     public static readonly string PersonsSourceMachines = x();
     public static readonly string Registrations = x();
+    public static readonly string SourceMachineKeys = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();
     public static readonly string View_WordFiles = x();
@@ -83,6 +84,20 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string DataCategory = y();
         public static readonly string WrappedDek = y();
         public static readonly string IsActive = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class SourceMachineKeysColumns
+    {
+        public static readonly string SourceMachineKeyId = y();
+        public static readonly string SourceMachineKeyUuid = y();
+        public static readonly string SourceMachineId = y();
+        public static readonly string KeyPurpose = y();
+        public static readonly string Algorithm = y();
+        public static readonly string PublicKey = y();
+        public static readonly string IsActive = y();
+        public static readonly string RevokedOn = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }
