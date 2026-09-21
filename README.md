@@ -55,6 +55,82 @@ Media.Database/
 	└── Media.Database.Tests/        # Unit tests
 ```
 
+## Design Patterns in Use
+
+Named here so the code can be read with intent rather than reverse-engineered. Each entry says
+where the pattern lives and what problem it solves *in this codebase* -- not what a textbook says
+it does.
+
+### Compile-time schema binding (the one that shapes everything else)
+
+`Repositories/Schemas/` -- `Tables`, `TablesSql`, `TablesCql`, `ColumnsSql`, `OrdinalsSql`,
+`ParameterNames`, all deriving from `BaseSchema<TParent, TChild>`.
+
+Every table, column, ordinal and parameter name is a `static readonly string` whose value is
+derived from its own member name, and each registry validates against a parent registry. A
+mistyped column is therefore a **build error**, not a runtime one -- which is the entire design
+intent. The trade is deliberate: this is harder to unit test than a dynamic mapper, and that cost
+is accepted because a compile error beats a test that might not exist.
+
+This is also why there is no ORM here. An ORM would move identifier correctness back to runtime
+and put generated SQL between the author and the query plan.
+
+### Symmetric ports over two stores
+
+`ISqlQueryExecutor` (PostgreSQL/Npgsql) and `ICqlQueryExecutor` (Scylla/Cassandra) expose
+deliberately isomorphic surfaces:
+
+```
+QuerySingleAsync<T>(string sql, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader,T>)
+QuerySingleAsync<T>(string cql, Action<Dictionary<string,object>>,  Func<Row,T>)
+```
+
+Same names, same arity, same shape; only the store-specific parameter bag and reader differ.
+Learning one store teaches the other. Preserving this symmetry is a hard constraint -- it is the
+reason micro-ORMs that cover only ADO.NET have been evaluated and declined.
+
+### Query objects with co-located mappers
+
+`Repositories/Queries/QueryXxx.cs` holds the SQL/CQL text for an aggregate alongside the
+extension-method mappers that materialise its rows (`reader.ToFile()`, `row.ToPerson()`). Query
+text stays readable and greppable, mapping stays next to the shape it maps, and repositories stay
+thin.
+
+### Repository and Unit of Work
+
+`IFileRepository`, `IRegistrationRepository`, `IPersonRepository` and friends wrap the executors
+per aggregate. `IUnitOfWork` carries a transaction across several writes where one must not land
+without the others -- device registration being the clearest case.
+
+### Set-once writes for permanent assignments
+
+`SetOwningPersonIfUnsetAsync`, `SetGroupShellIdIfUnsetAsync`, `PromoteIfUnpromotedAsync`,
+`RevokeIfActiveAsync`.
+
+Each carries its permanence in the `WHERE` clause (`... AND Column IS NULL`, `... AND IsActive =
+true`) rather than in a service-layer check, so the guarantee holds under concurrency and the
+operation is idempotent: a second call changes nothing and returns nothing.
+
+### Deactivation over deletion
+
+`IsActive` flags plus `RevokedOn`/`UpdatedOn` stamps instead of `DELETE`, with unique partial
+indexes (`WHERE IsActive = true`) enforcing "one active row per key". History survives, so it
+stays possible to answer what was true at a past moment -- which matters for credentials and
+encryption keys specifically.
+
+### Envelope encryption
+
+`GroupEncryptionKey` stores a wrapped Data Encryption Key; the customer's key is the wrapping key
+and is never persisted. Rotating the outer key re-wraps a small value instead of re-encrypting
+bulk data. Separate DEKs per `EncryptionDataCategory` keep blast radius contained.
+
+### Polyglot persistence with identify-then-hydrate
+
+Paged reads identify rows in PostgreSQL and hydrate them from Scylla. PostgreSQL owns
+relationships and ordering; Scylla owns read throughput. CDC handlers
+(`Repositories/Cdc/*CdcSyncHandler.cs`) keep the Scylla side current from Postgres's own change
+stream rather than dual writes.
+
 ## Getting Started
 
 ### Installation
@@ -165,25 +241,54 @@ public class WordIndexService
 
 ## Repository Interfaces
 
+Thirteen repositories, one per aggregate. Every method documented below was verified against the
+interface rather than remembered -- an earlier revision of this file listed four `IFileRepository`
+methods that do not exist.
+
 ### IFileRepository
-- `CreateFileAsync(CreateFileRequest request)` - Create a new file entry
-- `UpdateFileAsync(UpdateFileRequest request)` - Update existing file
-- `GetFileAsync(Guid fileId)` - Retrieve file by ID
-- `DeleteFileAsync(Guid fileId)` - Remove file entry
+- `Upsert` / `Update` / `Delete` -- write a file and its metadata
+- `GetById` / `GetByIds` -- read one or many, hydrating from Scylla where available
+- `GetCurrentBySourceMachineId` -- the current version of a path for a device
+- `GetCurrentPagesBySourceMachineId` / `GetCurrentPageIdentifiersBySourceMachineId` -- keyset
+  pagination, identifiers first so hydration can be batched
+- `GetHistoryPagesBySourceMachineId` / `DeleteHistoryBySourceMachineId` -- prior versions of a path
 
 ### IWordRepository
-- `UpsertWordAsync(UpsertWordRequest request)` - Insert or update word
-- `DeleteWordAsync(DeleteWordRequest request)` - Remove word entry
-- `GetWordFilesAsync(string word)` - Find files containing word
+- `GetByUuid` -- a single indexed word
+- `GetFilePageIdentifiers` / `GetByIds` -- identify-then-hydrate paging over word-to-file links
+- `GetWordsByFileId` -- the inverse traversal
+
+### The rest
+
+`IRegistrationRepository` (devices and their OTP lifecycle), `IPersonRepository`,
+`IPersonSourceMachineRepository`, `IGroupRepository`, `IGroupPersonRepository`,
+`IGroupSourceMachineRepository`, `IGroupShellRepository`, `IGroupEncryptionKeyRepository`,
+`IGroupUuidOrchestrationRepository`, `ISourceMachineKeyRepository` and
+`ICanBeEncryptedFieldsRepository`.
 
 ## Database Schema
 
-The library supports dynamic schema detection and handles both SQL and CQL databases through a unified abstraction:
+Identifiers are **bound at compile time**, not detected at runtime. `Repositories/Schemas/` is the
+single source of truth for every table, column, ordinal and parameter name, and a mistyped
+identifier fails the build. See [Design Patterns in Use](#design-patterns-in-use).
 
-- **SQL Mode**: Uses PostgreSQL with structured tables and relationships
-- **CQL Mode**: Uses Cassandra/ScyllaDB with denormalized document structure
+> An earlier revision of this file described "dynamic schema detection", which is the opposite of
+> how this library works and of why it was built.
 
-Schema information is cached for performance using `BaseSchemaCache`.
+Two stores, each owning what it is good at:
+
+- **PostgreSQL** -- relationships, ordering, uniqueness and transactional writes. Tables include
+  `SourceMachineRegistrations`, `Registrations`, `Persons`, `PersonsSourceMachines`, `Groups`,
+  `GroupsPersons`, `GroupsSourceMachines`, `Files`, `Words`, `WordFiles`, plus the
+  encryption-related `GroupShell`, `GroupEncryptionKeys` and the device-credential table
+  `SourceMachineKeys`.
+- **Scylla/Cassandra** -- read throughput for hydration, plus tables it owns outright such as
+  `can_be_encrypted_fields` and `group_uuid_orchestration`.
+
+Paged reads identify rows in PostgreSQL and hydrate them from Scylla; CDC sync handlers keep the
+Scylla side current from Postgres's own change stream rather than by dual writes.
+
+`BaseSchemaCache` memoises the resolved identifier sets so the registries cost nothing per call.
 
 ## Logging
 
