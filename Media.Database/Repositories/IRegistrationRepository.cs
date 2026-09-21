@@ -9,7 +9,7 @@ public interface IRegistrationRepository
     Task<SourceMachineRegistrations?> GetByUuid(Guid uuid);
 
     /// <summary>
-    /// Resolves a <c>PersonSourceMachineUuid</c> -- the multi-origin X-API-KEY model's second
+    /// Resolves a <c>PersonSourceMachineUuid</c> -- the multi-origin x-api-key model's second
     /// credential type (MEDIA-34) -- to the one device it grants access to. IsEmailVerified/
     /// IsSmsVerified on the result reflect the *person's own* verification, not the device's,
     /// since the caller is authenticating as themselves. Returns null unless the person/device
@@ -20,7 +20,7 @@ public interface IRegistrationRepository
     /// <summary>
     /// Verifies the email OTP code for the pending registration matching <paramref name="emailAddress"/>,
     /// <paramref name="sourceMachineName"/>, and <paramref name="deviceTypeId"/>. Deliberately does not
-    /// take the device's UUID/X-API-KEY -- that key is never issued to a client before verification
+    /// take the device's UUID/x-api-key -- that key is never issued to a client before verification
     /// completes, so it can't be used to identify the registration being verified.
     /// </summary>
     Task<OtpEmailResponse?> VerifyOtpEmail(string emailAddress, string sourceMachineName, DeviceTypes deviceTypeId, string otp);
@@ -28,7 +28,7 @@ public interface IRegistrationRepository
     /// <summary>
     /// Verifies the SMS OTP code for the pending registration matching <paramref name="cellPhoneNumber"/>,
     /// <paramref name="sourceMachineName"/>, and <paramref name="deviceTypeId"/>. Deliberately does not
-    /// take the device's UUID/X-API-KEY -- see <see cref="VerifyOtpEmail"/> for why.
+    /// take the device's UUID/x-api-key -- see <see cref="VerifyOtpEmail"/> for why.
     /// </summary>
     Task<OtpSmsResponse?> VerifyOtpCellPhone(string cellPhoneNumber, string sourceMachineName, DeviceTypes deviceTypeId, string otp);
 
@@ -37,7 +37,7 @@ public interface IRegistrationRepository
     /// matching <paramref name="sourceMachineName"/>, <paramref name="deviceTypeId"/>,
     /// <paramref name="emailAddress"/>, and <paramref name="cellPhoneNumber"/> -- the same identifying
     /// tuple used at initial registration (<see cref="AddBySourceInformation"/>), since a device
-    /// that has not finished verifying has no UUID/X-API-KEY to identify itself with otherwise.
+    /// that has not finished verifying has no UUID/x-api-key to identify itself with otherwise.
     /// Leaves any already-verified channel untouched. Returns null if no registration matches.
     /// </summary>
     Task<ResendOtpResult?> ResendOtp(string sourceMachineName, DeviceTypes deviceTypeId, string emailAddress, string cellPhoneNumber);

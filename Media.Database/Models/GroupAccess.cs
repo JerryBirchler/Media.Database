@@ -1,7 +1,7 @@
-namespace Media.Database.Models;
+﻿namespace Media.Database.Models;
 
 /// <summary>
-/// The result of resolving a <c>GroupPersonUuid</c> -- the multi-origin X-API-KEY model's third
+/// The result of resolving a <c>GroupPersonUuid</c> -- the multi-origin x-api-key model's third
 /// credential type (MEDIA-34). Purely an internal auth-resolution DTO, not an API response --
 /// unlike <see cref="SourceMachineRegistrations"/>, this never gets serialized to a client.
 /// IsEmailVerified/IsSmsVerified reflect the person's own verification, not any device's, since a

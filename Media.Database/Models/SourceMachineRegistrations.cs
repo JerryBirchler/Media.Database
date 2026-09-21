@@ -23,7 +23,7 @@ public record SourceMachineRegistrations
     public int SourceMachineId { get; init; }
     /// <summary>
     /// Gets the unique identifier for the source machine. This is also the device's permanent
-    /// API key (X-API-KEY) — it is never serialized to a client. See <see cref="RegistrationId"/>
+    /// API key (x-api-key) — it is never serialized to a client. See <see cref="RegistrationId"/>
     /// for why this isn't <c>required</c>.
     /// </summary>
     [JsonIgnore]
@@ -47,7 +47,7 @@ public record SourceMachineRegistrations
     /// <see cref="SourceMachineName"/> and <see cref="DeviceTypeId"/>. Together, those three
     /// values let a caller authenticated via a group-scoped key identify which of the group's
     /// devices an upload comes from, without ever needing to know that device's own
-    /// <see cref="SourceMachineUuid"/> (which is itself a valid X-API-KEY and must never be
+    /// <see cref="SourceMachineUuid"/> (which is itself a valid x-api-key and must never be
     /// exposed to anyone but the device's owner).
     /// </summary>
     [JsonPropertyName("disambiguationKey")]

@@ -224,7 +224,7 @@ public static class QueryRegistrations
 
     /// <summary>
     /// Resolves a <c>PersonSourceMachineUuid</c> (one person's association with one device) to
-    /// that device's joined source-machine/registration state -- the multi-origin X-API-KEY model's
+    /// that device's joined source-machine/registration state -- the multi-origin x-api-key model's
     /// second credential type (MEDIA-34). Same shape as <see cref="GetBySourceMachineUuidSql"/>,
     /// except IsEmailVerified/IsSmsVerified come from the *person's own* verification
     /// (Persons.IsEmailVerified/IsSmsVerified), not the device's -- a caller authenticating via

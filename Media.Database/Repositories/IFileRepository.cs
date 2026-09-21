@@ -1,4 +1,4 @@
-using Media.Database.Models;
+﻿using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -74,7 +74,7 @@ public interface IFileRepository
     /// <summary>
     /// Inserts a new file record, or returns the existing one if it already exists unchanged.
     /// </summary>
-    /// <param name="sourceMachineId">The identifier of the device that owns the file, resolved from the X-API-KEY.</param>
+    /// <param name="sourceMachineId">The identifier of the device that owns the file, resolved from the x-api-key.</param>
     /// <param name="request">The upload request describing the file.</param>
     /// <param name="isEncrypted">The device/group's resolved CanBeEncrypted policy (MEDIA-11) at the time of this write.</param>
     /// <param name="encryptionKey">The key to encrypt CanBeEncrypted metadata fields with. Required when <paramref name="isEncrypted"/> is true.</param>

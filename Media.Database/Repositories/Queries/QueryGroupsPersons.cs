@@ -1,4 +1,4 @@
-using Media.Database.Helpers;
+﻿using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Npgsql;
@@ -161,7 +161,7 @@ public static class QueryGroupsPersons
         ;";
 
     /// <summary>
-    /// Resolves a <c>GroupPersonUuid</c> -- the multi-origin X-API-KEY model's third credential
+    /// Resolves a <c>GroupPersonUuid</c> -- the multi-origin x-api-key model's third credential
     /// type (MEDIA-34) -- to the group it grants access to. IsEmailVerified/IsSmsVerified come
     /// from the person, not any device, since this credential authenticates the person across
     /// every device in the group, not a single device. Requires the group/person association, the

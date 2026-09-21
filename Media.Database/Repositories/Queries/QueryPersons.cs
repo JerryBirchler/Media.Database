@@ -1,4 +1,4 @@
-using Cassandra;
+﻿using Cassandra;
 using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -76,7 +76,7 @@ public static class QueryPersons
         ;";
 
     /// <summary>
-    /// SQL to select a person by their <c>PersonUuid</c> -- the X-API-KEY lookup used by
+    /// SQL to select a person by their <c>PersonUuid</c> -- the x-api-key lookup used by
     /// <c>PersonApiKeyAuthenticationHandler</c> to authenticate the Groups/Persons admin API.
     /// </summary>
     public static string GetByUuidSql => $@"

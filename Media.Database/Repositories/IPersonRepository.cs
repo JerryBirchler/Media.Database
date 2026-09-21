@@ -1,4 +1,4 @@
-using Media.Database.Models;
+﻿using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -13,7 +13,7 @@ public interface IPersonRepository
 
     /// <summary>
     /// Finds the person matching <paramref name="personUuid"/>, or <see langword="null"/> if none
-    /// exists. Used by <c>PersonApiKeyAuthenticationHandler</c> to resolve the X-API-KEY header
+    /// exists. Used by <c>PersonApiKeyAuthenticationHandler</c> to resolve the x-api-key header
     /// for the Groups/Persons admin API.
     /// </summary>
     Task<Person?> GetByUuidAsync(Guid personUuid);
