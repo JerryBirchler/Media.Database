@@ -50,7 +50,7 @@ public class CanBeEncryptedFieldsRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "RegisterAsync failed for TypeName {TypeName}, MemberName {MemberName}", typeName, memberName);
+            _logger.WithCaller().LogError(ex, "RegisterAsync failed for TypeName: [{TypeName}], MemberName: [{MemberName}]", typeName, memberName);
             throw;
         }
     }
@@ -71,7 +71,7 @@ public class CanBeEncryptedFieldsRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "SetReleaseRemovedAsync failed for TypeName {TypeName}, MemberName {MemberName}", typeName, memberName);
+            _logger.WithCaller().LogError(ex, "SetReleaseRemovedAsync failed for TypeName: [{TypeName}], MemberName: [{MemberName}]", typeName, memberName);
             throw;
         }
     }

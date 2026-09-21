@@ -54,7 +54,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetById failed for FileId {Id}", id);
+            _logger.LogError(ex, "GetById failed for FileId: [{Id}]", id);
             throw;
         }
     }
@@ -74,7 +74,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetCurrentBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "GetCurrentBySourceMachineId failed for SourceMachineId: [{SourceMachineId}], OriginalFilePath: [{OriginalFilePath}]",
                 sourceMachineId, originalFilePath!);
             throw;
         }
@@ -96,7 +96,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetCurrentPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "GetCurrentPagesBySourceMachineId failed for SourceMachineId: [{SourceMachineId}], OriginalFilePath: [{OriginalFilePath}]",
                 sourceMachineId, originalFilePath!);
             throw;
         }
@@ -118,7 +118,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetCurrentPageIdentifiersBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "GetCurrentPageIdentifiersBySourceMachineId failed for SourceMachineId: [{SourceMachineId}], OriginalFilePath: [{OriginalFilePath}]",
                 sourceMachineId, originalFilePath!);
             throw;
         }
@@ -163,12 +163,12 @@ public class FileRepository(
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable fetching FileId {Id}; falling back to Postgres", id);
+            log.LogError(ex, "Scylla cluster unavailable fetching FileId: [{Id}]; falling back to Postgres", id);
             await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScylla));
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Scylla lookup failed for FileId {Id}; falling back to Postgres", id);
+            log.LogError(ex, "Scylla lookup failed for FileId: [{Id}]; falling back to Postgres", id);
         }
 
         return await GetById(id, encryptionKey);
@@ -201,7 +201,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetHistoryPagesBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "GetHistoryPagesBySourceMachineId failed for SourceMachineId: [{SourceMachineId}], OriginalFilePath: [{OriginalFilePath}]",
                 sourceMachineId, originalFilePath);
             throw;
         }
@@ -262,7 +262,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Upsert transaction failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "Upsert transaction failed for SourceMachineId: [{SourceMachineId}], OriginalFilePath: [{OriginalFilePath}]",
                 sourceMachineId, request.OriginalFilePath);
 
             if (uow.CurrentTransaction != null)
@@ -309,7 +309,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Update transaction failed for FileId {Id}", id);
+            _logger.LogError(ex, "Update transaction failed for FileId: [{Id}]", id);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -329,7 +329,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Delete failed for FileId {Id}", id);
+            _logger.LogError(ex, "Delete failed for FileId: [{Id}]", id);
             throw;
         }
     }
@@ -349,7 +349,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "DeleteHistoryBySourceMachineId failed for SourceMachineId {SourceMachineId}, OriginalFilePath {OriginalFilePath}",
+            _logger.LogError(ex, "DeleteHistoryBySourceMachineId failed for SourceMachineId: [{SourceMachineId}], OriginalFilePath: [{OriginalFilePath}]",
                 sourceMachineId, originalFilePath);
             throw;
         }
@@ -369,7 +369,7 @@ public class FileRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetThumbnailGeneratedOn failed for FileId {Id}", id);
+            _logger.LogError(ex, "SetThumbnailGeneratedOn failed for FileId: [{Id}]", id);
             throw;
         }
     }

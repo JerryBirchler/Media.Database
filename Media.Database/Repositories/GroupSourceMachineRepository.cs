@@ -43,7 +43,7 @@ public class GroupSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpsertAsync failed for GroupId {GroupId}, SourceMachineId {SourceMachineId}", groupId, sourceMachineId);
+            _logger.LogError(ex, "UpsertAsync failed for GroupId: [{GroupId}], SourceMachineId: [{SourceMachineId}]", groupId, sourceMachineId);
             throw;
         }
     }
@@ -61,7 +61,7 @@ public class GroupSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveBySourceMachineIdAsync failed for SourceMachineId {SourceMachineId}", sourceMachineId);
+            _logger.LogError(ex, "GetActiveBySourceMachineIdAsync failed for SourceMachineId: [{SourceMachineId}]", sourceMachineId);
             throw;
         }
     }
@@ -84,7 +84,7 @@ public class GroupSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "DeactivateAsync failed for GroupId {GroupId}, SourceMachineId {SourceMachineId}", groupId, sourceMachineId);
+            _logger.LogError(ex, "DeactivateAsync failed for GroupId: [{GroupId}], SourceMachineId: [{SourceMachineId}]", groupId, sourceMachineId);
             throw;
         }
     }
@@ -110,7 +110,7 @@ public class GroupSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetSourceMachineIdentifiersByGroupIdAsync failed for GroupId {GroupId}", groupId);
+            _logger.LogError(ex, "GetSourceMachineIdentifiersByGroupIdAsync failed for GroupId: [{GroupId}]", groupId);
             throw;
         }
     }
@@ -132,7 +132,7 @@ public class GroupSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveSourceMachineIdByGroupAndDisambiguationAsync failed for GroupId {GroupId}, SourceMachineName {SourceMachineName}", groupId, sourceMachineName);
+            _logger.LogError(ex, "GetActiveSourceMachineIdByGroupAndDisambiguationAsync failed for GroupId: [{GroupId}], SourceMachineName: [{SourceMachineName}]", groupId, sourceMachineName);
             throw;
         }
     }

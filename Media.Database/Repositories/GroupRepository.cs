@@ -51,7 +51,7 @@ public class GroupRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "CreateAsync failed for Name {Name}", name);
+            _logger.LogError(ex, "CreateAsync failed for Name: [{Name}]", name);
             throw;
         }
     }
@@ -69,7 +69,7 @@ public class GroupRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetByUuidAsync failed for GroupUuid {GroupUuid}", groupUuid);
+            _logger.LogError(ex, "GetByUuidAsync failed for GroupUuid: [{GroupUuid}]", groupUuid);
             throw;
         }
     }
@@ -87,7 +87,7 @@ public class GroupRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetByNameAsync failed for Name {Name}", name);
+            _logger.LogError(ex, "GetByNameAsync failed for Name: [{Name}]", name);
             throw;
         }
     }
@@ -111,7 +111,7 @@ public class GroupRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpdateAsync failed for GroupId {GroupId}", groupId);
+            _logger.LogError(ex, "UpdateAsync failed for GroupId: [{GroupId}]", groupId);
             throw;
         }
     }
@@ -134,7 +134,7 @@ public class GroupRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetActiveAsync failed for GroupId {GroupId}", groupId);
+            _logger.LogError(ex, "SetActiveAsync failed for GroupId: [{GroupId}]", groupId);
             throw;
         }
     }
@@ -157,7 +157,7 @@ public class GroupRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetIsEncryptedAsync failed for GroupId {GroupId}", groupId);
+            _logger.LogError(ex, "SetIsEncryptedAsync failed for GroupId: [{GroupId}]", groupId);
             throw;
         }
     }
@@ -201,12 +201,12 @@ public class GroupRepository(
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable fetching GroupId {GroupId}; falling back to Postgres", groupId);
+            log.LogError(ex, "Scylla cluster unavailable fetching GroupId: [{GroupId}]; falling back to Postgres", groupId);
             await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScyllaAsync));
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Scylla lookup failed for GroupId {GroupId}; falling back to Postgres", groupId);
+            log.LogError(ex, "Scylla lookup failed for GroupId: [{GroupId}]; falling back to Postgres", groupId);
         }
 
         return await _sqlExecutor.QuerySingleAsync

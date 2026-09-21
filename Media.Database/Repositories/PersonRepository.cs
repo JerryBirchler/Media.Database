@@ -67,7 +67,7 @@ public class PersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "FindOrCreateAsync failed for EmailAddress {EmailAddress}", emailAddress);
+            _logger.LogError(ex, "FindOrCreateAsync failed for EmailAddress: [{EmailAddress}]", emailAddress);
             throw;
         }
     }
@@ -107,7 +107,7 @@ public class PersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetByUuidAsync failed for PersonUuid {PersonUuid}", personUuid);
+            _logger.LogError(ex, "GetByUuidAsync failed for PersonUuid: [{PersonUuid}]", personUuid);
             throw;
         }
     }
@@ -132,7 +132,7 @@ public class PersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "CreateAsync failed for EmailAddress {EmailAddress}", emailAddress);
+            _logger.LogError(ex, "CreateAsync failed for EmailAddress: [{EmailAddress}]", emailAddress);
             throw;
         }
     }
@@ -161,7 +161,7 @@ public class PersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetPersonIdentifiersByCreatorIdAsync failed for CreatedByPersonId {CreatedByPersonId}", createdByPersonId);
+            _logger.LogError(ex, "GetPersonIdentifiersByCreatorIdAsync failed for CreatedByPersonId: [{CreatedByPersonId}]", createdByPersonId);
             throw;
         }
     }
@@ -212,7 +212,7 @@ public class PersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetActiveAsync failed for PersonId {PersonId}", personId);
+            _logger.LogError(ex, "SetActiveAsync failed for PersonId: [{PersonId}]", personId);
             throw;
         }
     }
@@ -241,7 +241,7 @@ public class PersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpdateAsync failed for PersonId {PersonId}", personId);
+            _logger.LogError(ex, "UpdateAsync failed for PersonId: [{PersonId}]", personId);
             throw;
         }
     }
@@ -265,7 +265,7 @@ public class PersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetVerifiedIfTrueAsync failed for PersonId {PersonId}", personId);
+            _logger.LogError(ex, "SetVerifiedIfTrueAsync failed for PersonId: [{PersonId}]", personId);
             throw;
         }
     }
@@ -309,12 +309,12 @@ public class PersonRepository(
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable fetching PersonId {PersonId}; falling back to Postgres", personId);
+            log.LogError(ex, "Scylla cluster unavailable fetching PersonId: [{PersonId}]; falling back to Postgres", personId);
             await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScyllaAsync));
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Scylla lookup failed for PersonId {PersonId}; falling back to Postgres", personId);
+            log.LogError(ex, "Scylla lookup failed for PersonId: [{PersonId}]; falling back to Postgres", personId);
         }
 
         return await _sqlExecutor.QuerySingleAsync

@@ -73,7 +73,7 @@ namespace Media.Database.Repositories
             }
             catch (Exception healEx)
             {
-                logger.WithCaller().LogError(healEx, "Scylla session heal attempt failed in {OriginatingMethod}", methodName);
+                logger.WithCaller().LogError(healEx, "Scylla session heal attempt failed in OriginatingMethod: [{OriginatingMethod}]", methodName);
             }
         }
     }

@@ -35,7 +35,7 @@ public class GroupUuidOrchestrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "UpsertAsync failed for PersonUuid {PersonUuid}, GroupShellId {GroupShellId}", personUuid, groupShellId);
+            _logger.WithCaller().LogError(ex, "UpsertAsync failed for PersonUuid: [{PersonUuid}], GroupShellId: [{GroupShellId}]", personUuid, groupShellId);
             throw;
         }
     }
@@ -51,7 +51,7 @@ public class GroupUuidOrchestrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.WithCaller().LogError(ex, "GetAllByPersonUuidAsync failed for PersonUuid {PersonUuid}", personUuid);
+            _logger.WithCaller().LogError(ex, "GetAllByPersonUuidAsync failed for PersonUuid: [{PersonUuid}]", personUuid);
             throw;
         }
     }

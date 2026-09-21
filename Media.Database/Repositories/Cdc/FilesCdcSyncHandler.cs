@@ -66,7 +66,7 @@ public sealed class FilesCdcSyncHandler(
                 p.AddWithValue(pn.Metadata, GetNullableString(after, "Metadata")!);
             });
 
-            log.LogInformation("CDC upsert applied for FileId {Id}", after.GetProperty("Id").GetGuid());
+            log.LogInformation("CDC upsert applied for FileId: [{Id}]", after.GetProperty("Id").GetGuid());
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
@@ -89,7 +89,7 @@ public sealed class FilesCdcSyncHandler(
         {
             await _cqlExecutor.ExecuteAsync(QueryFiles.DeleteCql, p => p.AddWithValue(pn.Id, id));
 
-            log.LogInformation("CDC delete applied for FileId {Id}", id);
+            log.LogInformation("CDC delete applied for FileId: [{Id}]", id);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
@@ -99,7 +99,7 @@ public sealed class FilesCdcSyncHandler(
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Failed to apply Files CDC delete for FileId {Id}", id);
+            log.LogError(ex, "Failed to apply Files CDC delete for FileId: [{Id}]", id);
             throw;
         }
     }

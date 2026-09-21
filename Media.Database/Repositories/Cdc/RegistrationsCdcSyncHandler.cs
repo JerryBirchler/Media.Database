@@ -42,7 +42,7 @@ public sealed class RegistrationsCdcSyncHandler(
     {
         if (record.After is null)
         {
-            _logger.WithCaller().LogWarning("Registrations CDC record at offset {Offset} has no After payload; skipping", record.Offset);
+            _logger.WithCaller().LogWarning("Registrations CDC record at offset: [{Offset}] has no After payload; skipping", record.Offset);
             return;
         }
 
@@ -59,7 +59,7 @@ public sealed class RegistrationsCdcSyncHandler(
             // IsCurrent updates), so a missing join means manual data surgery rather than a real
             // delete to propagate.
             _logger.WithCaller().LogWarning(
-                "No current registration join found for SourceMachineId {SourceMachineId}; leaving Scylla untouched",
+                "No current registration join found for SourceMachineId: [{SourceMachineId}]; leaving Scylla untouched",
                 sourceMachineId);
             return;
         }
@@ -96,17 +96,17 @@ public sealed class RegistrationsCdcSyncHandler(
                 p.AddWithValue(pn.RegistrationUpdatedOn, registration.RegistrationUpdatedOn!);
             });
 
-            log.LogInformation("CDC upsert applied for SourceMachineId {SourceMachineId}", registration.SourceMachineId);
+            log.LogInformation("CDC upsert applied for SourceMachineId: [{SourceMachineId}]", registration.SourceMachineId);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable applying Registrations CDC record for SourceMachineId {SourceMachineId}", registration.SourceMachineId);
+            log.LogError(ex, "Scylla cluster unavailable applying Registrations CDC record for SourceMachineId: [{SourceMachineId}]", registration.SourceMachineId);
             await TryHealScyllaSessionAsync(_logger, nameof(UpsertAsync));
             throw;
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Failed to apply Registrations CDC record for SourceMachineId {SourceMachineId}", registration.SourceMachineId);
+            log.LogError(ex, "Failed to apply Registrations CDC record for SourceMachineId: [{SourceMachineId}]", registration.SourceMachineId);
             throw;
         }
     }

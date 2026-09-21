@@ -144,17 +144,17 @@ public sealed class WordFilesCdcSyncHandler(
                 p.AddWithValue(pn.ThumbnailGeneratedOn, wordFile.ThumbnailGeneratedOn!);
             });
 
-            log.LogInformation("CDC upsert applied for WordId {WordId}, FileId {FileId}", wordFile.WordId, wordFile.FileId);
+            log.LogInformation("CDC upsert applied for WordId: [{WordId}], FileId: [{FileId}]", wordFile.WordId, wordFile.FileId);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable applying word_files CDC upsert for WordId {WordId}, FileId {FileId}", wordFile.WordId, wordFile.FileId);
+            log.LogError(ex, "Scylla cluster unavailable applying word_files CDC upsert for WordId: [{WordId}], FileId: [{FileId}]", wordFile.WordId, wordFile.FileId);
             await TryHealScyllaSessionAsync(_logger, nameof(UpsertAsync));
             throw;
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Failed to apply word_files CDC upsert for WordId {WordId}, FileId {FileId}", wordFile.WordId, wordFile.FileId);
+            log.LogError(ex, "Failed to apply word_files CDC upsert for WordId: [{WordId}], FileId: [{FileId}]", wordFile.WordId, wordFile.FileId);
             throw;
         }
     }
@@ -171,17 +171,17 @@ public sealed class WordFilesCdcSyncHandler(
                 p.AddWithValue(pn.FileId, fileId);
             });
 
-            log.LogInformation("CDC delete applied for WordId {WordId}, FileId {FileId}", wordId, fileId);
+            log.LogInformation("CDC delete applied for WordId: [{WordId}], FileId: [{FileId}]", wordId, fileId);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable applying word_files CDC delete for WordId {WordId}, FileId {FileId}", wordId, fileId);
+            log.LogError(ex, "Scylla cluster unavailable applying word_files CDC delete for WordId: [{WordId}], FileId: [{FileId}]", wordId, fileId);
             await TryHealScyllaSessionAsync(_logger, nameof(DeleteAsync));
             throw;
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Failed to apply word_files CDC delete for WordId {WordId}, FileId {FileId}", wordId, fileId);
+            log.LogError(ex, "Failed to apply word_files CDC delete for WordId: [{WordId}], FileId: [{FileId}]", wordId, fileId);
             throw;
         }
     }

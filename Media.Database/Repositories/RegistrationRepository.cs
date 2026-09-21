@@ -136,7 +136,7 @@ public class RegistrationRepository(
                         && ex.ConstraintName == "IX_SourceMachineRegistrations_Name_DeviceType_DisambiguationKey"
                         && attempt < maxAttempts)
                     {
-                        _logger.LogWarning("DisambiguationKey collision on attempt {Attempt}/{MaxAttempts} for SourceMachineName {SourceMachineName}", attempt, maxAttempts, request.SourceMachineName);
+                        _logger.LogWarning("DisambiguationKey collision on attempt: [{Attempt}]/MaxAttempts: [{MaxAttempts}] for SourceMachineName: [{SourceMachineName}]", attempt, maxAttempts, request.SourceMachineName);
                     }
                 }
             }
@@ -194,7 +194,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AddBySourceInformation failed for SourceMachineName {SourceMachineName}", request.SourceMachineName);
+            _logger.LogError(ex, "AddBySourceInformation failed for SourceMachineName: [{SourceMachineName}]", request.SourceMachineName);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -220,7 +220,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetBySourceInformationAsync failed for {SourceMachineName}", sourceMachineName);
+            _logger.LogError(ex, "GetBySourceInformationAsync failed for SourceMachineName: [{SourceMachineName}]", sourceMachineName);
             throw;
         }
     }
@@ -238,7 +238,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetByUuid failed for SourceMachineUuid {Uuid}", uuid);
+            _logger.LogError(ex, "GetByUuid failed for SourceMachineUuid: [{Uuid}]", uuid);
             throw;
         }
     }
@@ -256,7 +256,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetByPersonSourceMachineUuid failed for PersonSourceMachineUuid {Uuid}", uuid);
+            _logger.LogError(ex, "GetByPersonSourceMachineUuid failed for PersonSourceMachineUuid: [{Uuid}]", uuid);
             throw;
         }
     }
@@ -362,7 +362,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpdateSourceInformation failed for SourceMachineId {SourceMachineId}", request.SourceMachineId);
+            _logger.LogError(ex, "UpdateSourceInformation failed for SourceMachineId: [{SourceMachineId}]", request.SourceMachineId);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -455,7 +455,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ResendOtp failed for SourceMachineName {SourceMachineName}", sourceMachineName);
+            _logger.LogError(ex, "ResendOtp failed for SourceMachineName: [{SourceMachineName}]", sourceMachineName);
 
             if (uow.CurrentTransaction != null)
                 await uow.RollbackAsync();
@@ -495,7 +495,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "VerifyOtpEmail failed for EmailAddress {EmailAddress}", emailAddress);
+            _logger.LogError(ex, "VerifyOtpEmail failed for EmailAddress: [{EmailAddress}]", emailAddress);
             throw;
         }
     }
@@ -530,7 +530,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "VerifyOtpCellPhone failed for CellPhoneNumber {CellPhoneNumber}", cellPhoneNumber);
+            _logger.LogError(ex, "VerifyOtpCellPhone failed for CellPhoneNumber: [{CellPhoneNumber}]", cellPhoneNumber);
             throw;
         }
     }
@@ -575,12 +575,12 @@ public class RegistrationRepository(
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable fetching SourceMachineId {SourceMachineId}; falling back to Postgres", sourceMachineId);
+            log.LogError(ex, "Scylla cluster unavailable fetching SourceMachineId: [{SourceMachineId}]; falling back to Postgres", sourceMachineId);
             await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScyllaAsync));
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Scylla lookup failed for SourceMachineId {SourceMachineId}; falling back to Postgres", sourceMachineId);
+            log.LogError(ex, "Scylla lookup failed for SourceMachineId: [{SourceMachineId}]; falling back to Postgres", sourceMachineId);
         }
 
         return await _sqlExecutor.QuerySingleAsync
@@ -607,7 +607,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetOwningPersonIfUnsetAsync failed for SourceMachineId {SourceMachineId}, PersonId {PersonId}", sourceMachineId, personId);
+            _logger.LogError(ex, "SetOwningPersonIfUnsetAsync failed for SourceMachineId: [{SourceMachineId}], PersonId: [{PersonId}]", sourceMachineId, personId);
             throw;
         }
     }
@@ -628,7 +628,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetKeyDeliveryMethodAsync failed for SourceMachineId {SourceMachineId}, KeyDeliveryMethod {KeyDeliveryMethod}", sourceMachineId, keyDeliveryMethod);
+            _logger.LogError(ex, "SetKeyDeliveryMethodAsync failed for SourceMachineId: [{SourceMachineId}], KeyDeliveryMethod: [{KeyDeliveryMethod}]", sourceMachineId, keyDeliveryMethod);
             throw;
         }
     }
@@ -649,7 +649,7 @@ public class RegistrationRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetGroupShellIdIfUnsetAsync failed for SourceMachineId {SourceMachineId}, GroupShellId {GroupShellId}", sourceMachineId, groupShellId);
+            _logger.LogError(ex, "SetGroupShellIdIfUnsetAsync failed for SourceMachineId: [{SourceMachineId}], GroupShellId: [{GroupShellId}]", sourceMachineId, groupShellId);
             throw;
         }
     }

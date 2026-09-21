@@ -64,7 +64,7 @@ public sealed class GroupsCdcSyncHandler(
                 p.AddWithValue(pn.UpdatedOn, GetNullableDateTimeOffset(after, "UpdatedOn")!);
             });
 
-            log.LogInformation("CDC upsert applied for GroupId {Id}", after.GetProperty("GroupId").GetInt32());
+            log.LogInformation("CDC upsert applied for GroupId: [{Id}]", after.GetProperty("GroupId").GetInt32());
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
@@ -87,7 +87,7 @@ public sealed class GroupsCdcSyncHandler(
         {
             await _cqlExecutor.ExecuteAsync(QueryGroups.DeleteCql, p => p.AddWithValue(pn.GroupId, groupId));
 
-            log.LogInformation("CDC delete applied for GroupId {Id}", groupId);
+            log.LogInformation("CDC delete applied for GroupId: [{Id}]", groupId);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
@@ -97,7 +97,7 @@ public sealed class GroupsCdcSyncHandler(
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Failed to apply Groups CDC delete for GroupId {Id}", groupId);
+            log.LogError(ex, "Failed to apply Groups CDC delete for GroupId: [{Id}]", groupId);
             throw;
         }
     }

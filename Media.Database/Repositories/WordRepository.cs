@@ -121,7 +121,7 @@ public class WordRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetFilePageIdentifiers failed for OrderBy {OrderBy}", orderBy);
+            _logger.LogError(ex, "GetFilePageIdentifiers failed for OrderBy: [{OrderBy}]", orderBy);
             throw;
         }
     }
@@ -171,12 +171,12 @@ public class WordRepository(
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
-            log.LogError(ex, "Scylla cluster unavailable fetching WordId {WordId}, FileId {FileId}; falling back to Postgres", wordId, fileId);
+            log.LogError(ex, "Scylla cluster unavailable fetching WordId: [{WordId}], FileId: [{FileId}]; falling back to Postgres", wordId, fileId);
             await TryHealScyllaSessionAsync(_logger, nameof(GetByIdPreferringScylla));
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Scylla lookup failed for WordId {WordId}, FileId {FileId}; falling back to Postgres", wordId, fileId);
+            log.LogError(ex, "Scylla lookup failed for WordId: [{WordId}], FileId: [{FileId}]; falling back to Postgres", wordId, fileId);
         }
 
         return await _sqlExecutor.QuerySingleAsync(

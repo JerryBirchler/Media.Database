@@ -38,7 +38,7 @@ public class SourceMachineKeyRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "EnrollAsync failed for SourceMachineId {SourceMachineId}, KeyPurpose {KeyPurpose}", sourceMachineId, keyPurpose);
+            _logger.LogError(ex, "EnrollAsync failed for SourceMachineId: [{SourceMachineId}], KeyPurpose: [{KeyPurpose}]", sourceMachineId, keyPurpose);
             throw;
         }
     }
@@ -54,7 +54,7 @@ public class SourceMachineKeyRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveBySourceMachineIdAsync failed for SourceMachineId {SourceMachineId}", sourceMachineId);
+            _logger.LogError(ex, "GetActiveBySourceMachineIdAsync failed for SourceMachineId: [{SourceMachineId}]", sourceMachineId);
             throw;
         }
     }
@@ -87,7 +87,7 @@ public class SourceMachineKeyRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveByUuidAsync failed for SourceMachineKeyUuid {SourceMachineKeyUuid}", sourceMachineKeyUuid);
+            _logger.LogError(ex, "GetActiveByUuidAsync failed for SourceMachineKeyUuid: [{SourceMachineKeyUuid}]", sourceMachineKeyUuid);
             throw;
         }
     }
@@ -110,7 +110,7 @@ public class SourceMachineKeyRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "RevokeIfActiveAsync failed for SourceMachineKeyUuid {SourceMachineKeyUuid}", sourceMachineKeyUuid);
+            _logger.LogError(ex, "RevokeIfActiveAsync failed for SourceMachineKeyUuid: [{SourceMachineKeyUuid}]", sourceMachineKeyUuid);
             throw;
         }
     }

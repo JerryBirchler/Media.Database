@@ -38,7 +38,7 @@ public class PersonSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveAsync failed for PersonId {PersonId}, SourceMachineId {SourceMachineId}", personId, sourceMachineId);
+            _logger.LogError(ex, "GetActiveAsync failed for PersonId: [{PersonId}], SourceMachineId: [{SourceMachineId}]", personId, sourceMachineId);
             throw;
         }
     }
@@ -56,7 +56,7 @@ public class PersonSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ListActiveByPersonAsync failed for PersonId {PersonId}", personId);
+            _logger.LogError(ex, "ListActiveByPersonAsync failed for PersonId: [{PersonId}]", personId);
             throw;
         }
     }
@@ -78,7 +78,7 @@ public class PersonSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "CreateAsync failed for PersonId {PersonId}, SourceMachineId {SourceMachineId}", personId, sourceMachineId);
+            _logger.LogError(ex, "CreateAsync failed for PersonId: [{PersonId}], SourceMachineId: [{SourceMachineId}]", personId, sourceMachineId);
             throw;
         }
     }
@@ -104,7 +104,7 @@ public class PersonSourceMachineRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpsertAsync failed for PersonId {PersonId}, SourceMachineId {SourceMachineId}", personId, sourceMachineId);
+            _logger.LogError(ex, "UpsertAsync failed for PersonId: [{PersonId}], SourceMachineId: [{SourceMachineId}]", personId, sourceMachineId);
             throw;
         }
     }

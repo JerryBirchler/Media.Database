@@ -37,7 +37,7 @@ public class GroupEncryptionKeyRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "CreateAsync failed for GroupShellId {GroupShellId}, DataCategory {DataCategory}", groupShellId, dataCategory);
+            _logger.LogError(ex, "CreateAsync failed for GroupShellId: [{GroupShellId}], DataCategory: [{DataCategory}]", groupShellId, dataCategory);
             throw;
         }
     }
@@ -56,7 +56,7 @@ public class GroupEncryptionKeyRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "DeactivateAllAsync failed for GroupShellId {GroupShellId}", groupShellId);
+            _logger.LogError(ex, "DeactivateAllAsync failed for GroupShellId: [{GroupShellId}]", groupShellId);
             throw;
         }
     }
@@ -76,7 +76,7 @@ public class GroupEncryptionKeyRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveAsync failed for GroupShellId {GroupShellId}, DataCategory {DataCategory}", groupShellId, dataCategory);
+            _logger.LogError(ex, "GetActiveAsync failed for GroupShellId: [{GroupShellId}], DataCategory: [{DataCategory}]", groupShellId, dataCategory);
             throw;
         }
     }

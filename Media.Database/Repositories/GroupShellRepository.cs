@@ -48,7 +48,7 @@ public class GroupShellRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetByIdAsync failed for GroupShellId {GroupShellId}", groupShellId);
+            _logger.LogError(ex, "GetByIdAsync failed for GroupShellId: [{GroupShellId}]", groupShellId);
             throw;
         }
     }
@@ -69,7 +69,7 @@ public class GroupShellRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "PromoteIfUnpromotedAsync failed for GroupShellId {GroupShellId}, GroupId {GroupId}", groupShellId, groupId);
+            _logger.LogError(ex, "PromoteIfUnpromotedAsync failed for GroupShellId: [{GroupShellId}], GroupId: [{GroupId}]", groupShellId, groupId);
             throw;
         }
     }

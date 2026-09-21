@@ -44,7 +44,7 @@ public class GroupPersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpsertAsync failed for GroupId {GroupId}, PersonId {PersonId}", groupId, personId);
+            _logger.LogError(ex, "UpsertAsync failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", groupId, personId);
             throw;
         }
     }
@@ -66,7 +66,7 @@ public class GroupPersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveAsync failed for GroupId {GroupId}, PersonId {PersonId}", groupId, personId);
+            _logger.LogError(ex, "GetActiveAsync failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", groupId, personId);
             throw;
         }
     }
@@ -89,7 +89,7 @@ public class GroupPersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "DeactivateAsync failed for GroupId {GroupId}, PersonId {PersonId}", groupId, personId);
+            _logger.LogError(ex, "DeactivateAsync failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", groupId, personId);
             throw;
         }
     }
@@ -109,7 +109,7 @@ public class GroupPersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "CountActiveAdminsAsync failed for GroupId {GroupId}", groupId);
+            _logger.LogError(ex, "CountActiveAdminsAsync failed for GroupId: [{GroupId}]", groupId);
             throw;
         }
     }
@@ -134,7 +134,7 @@ public class GroupPersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetGroupIdentifiersByPersonIdAsync failed for PersonId {PersonId}", personId);
+            _logger.LogError(ex, "GetGroupIdentifiersByPersonIdAsync failed for PersonId: [{PersonId}]", personId);
             throw;
         }
     }
@@ -161,7 +161,7 @@ public class GroupPersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetPersonIdentifiersByGroupIdAsync failed for GroupId {GroupId}", groupId);
+            _logger.LogError(ex, "GetPersonIdentifiersByGroupIdAsync failed for GroupId: [{GroupId}]", groupId);
             throw;
         }
     }
@@ -177,7 +177,7 @@ public class GroupPersonRepository(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetAccessByGroupPersonUuidAsync failed for GroupPersonUuid {Uuid}", uuid);
+            _logger.LogError(ex, "GetAccessByGroupPersonUuidAsync failed for GroupPersonUuid: [{Uuid}]", uuid);
             throw;
         }
     }

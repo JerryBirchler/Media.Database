@@ -69,7 +69,7 @@ public sealed class PersonsCdcSyncHandler(
                 p.AddWithValue(pn.UpdatedOn, GetNullableDateTimeOffset(after, "UpdatedOn")!);
             });
 
-            log.LogInformation("CDC upsert applied for PersonId {Id}", after.GetProperty("PersonId").GetInt32());
+            log.LogInformation("CDC upsert applied for PersonId: [{Id}]", after.GetProperty("PersonId").GetInt32());
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
@@ -92,7 +92,7 @@ public sealed class PersonsCdcSyncHandler(
         {
             await _cqlExecutor.ExecuteAsync(QueryPersons.DeleteCql, p => p.AddWithValue(pn.PersonId, personId));
 
-            log.LogInformation("CDC delete applied for PersonId {Id}", personId);
+            log.LogInformation("CDC delete applied for PersonId: [{Id}]", personId);
         }
         catch (Exception ex) when (IsScyllaConnectivityException(ex))
         {
@@ -102,7 +102,7 @@ public sealed class PersonsCdcSyncHandler(
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Failed to apply Persons CDC delete for PersonId {Id}", personId);
+            log.LogError(ex, "Failed to apply Persons CDC delete for PersonId: [{Id}]", personId);
             throw;
         }
     }
