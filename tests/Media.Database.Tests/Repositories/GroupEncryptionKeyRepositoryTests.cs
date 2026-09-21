@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using AutoFixture;
 using Media.Database.Models;
 using Media.Database.Repositories;
@@ -132,5 +132,39 @@ public class GroupEncryptionKeyRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetActiveAsync(3, EncryptionDataCategory.PiiMetadata));
+    }
+
+    [Test]
+    public async Task DeactivateAllAsync_Should_ReturnHowManyKeysWereDeactivated()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryGroupEncryptionKeys.DeactivateAllForShellSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ReturnsAsync(2);
+
+        var result = await CreateRepository().DeactivateAllAsync(_fixture.Create<int>());
+
+        result.ShouldBe(2);
+    }
+
+    [Test]
+    public async Task DeactivateAllAsync_Should_ReturnZero_When_NothingWasActive()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryGroupEncryptionKeys.DeactivateAllForShellSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ReturnsAsync(0);
+
+        var result = await CreateRepository().DeactivateAllAsync(_fixture.Create<int>());
+
+        result.ShouldBe(0);
+    }
+
+    [Test]
+    public void DeactivateAllAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(QueryGroupEncryptionKeys.DeactivateAllForShellSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DeactivateAllAsync(_fixture.Create<int>()));
     }
 }

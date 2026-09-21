@@ -1,4 +1,4 @@
-using Media.Database.Helpers;
+﻿using Media.Database.Helpers;
 using Media.Database.Models;
 using Npgsql;
 
@@ -36,6 +36,21 @@ public static class QueryGroupEncryptionKeys
         ;";
 
     /// <summary>SQL to select the single active key for a (GroupShellId, DataCategory) pair, if any.</summary>
+    /// <summary>
+    /// SQL to deactivate every active key for a shell, returning how many were deactivated.
+    /// Regeneration has to do this before creating replacements: the unique partial index on
+    /// (GroupShellId, DataCategory) WHERE IsActive allows only one active key per category. Rows
+    /// are kept rather than deleted so it stays possible to tell what was once trusted.
+    /// </summary>
+    public static string DeactivateAllForShellSql => $@"
+        UPDATE {ts.GroupEncryptionKeys} SET
+            {cgek.IsActive} = false,
+            {cgek.UpdatedOn} = {pn.UpdatedOn}
+        WHERE
+            {cgek.GroupShellId} = {pn.GroupShellId}
+            AND {cgek.IsActive} = true
+        ;";
+
     public static string GetActiveSql => $@"
         SELECT
             {cgek.GroupEncryptionKeyId}, {cgek.GroupEncryptionKeyUuid}, {cgek.GroupShellId},

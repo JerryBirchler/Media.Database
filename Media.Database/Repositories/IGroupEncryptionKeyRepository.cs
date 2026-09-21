@@ -1,4 +1,4 @@
-using Media.Database.Models;
+﻿using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -19,4 +19,10 @@ public interface IGroupEncryptionKeyRepository
     /// <paramref name="dataCategory"/>) pair, or <see langword="null"/> if none exists yet.
     /// </summary>
     Task<GroupEncryptionKey?> GetActiveAsync(int groupShellId, EncryptionDataCategory dataCategory);
+
+    /// <summary>
+    /// Deactivates every active key for a shell and reports how many were deactivated. Used by
+    /// regeneration, which must clear the way before creating replacements.
+    /// </summary>
+    Task<int> DeactivateAllAsync(int groupShellId);
 }

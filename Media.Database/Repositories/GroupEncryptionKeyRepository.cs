@@ -1,4 +1,4 @@
-using Media.Common.Helpers.Fluent;
+﻿using Media.Common.Helpers.Fluent;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Microsoft.Extensions.Logging;
@@ -38,6 +38,25 @@ public class GroupEncryptionKeyRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "CreateAsync failed for GroupShellId {GroupShellId}, DataCategory {DataCategory}", groupShellId, dataCategory);
+            throw;
+        }
+    }
+
+    public async Task<int> DeactivateAllAsync(int groupShellId)
+    {
+        try
+        {
+            return await _sqlExecutor.ExecuteAsync(
+                QueryGroupEncryptionKeys.DeactivateAllForShellSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupShellId, groupShellId);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DeactivateAllAsync failed for GroupShellId {GroupShellId}", groupShellId);
             throw;
         }
     }
