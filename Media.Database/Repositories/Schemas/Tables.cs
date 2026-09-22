@@ -15,6 +15,7 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
     public static readonly string GroupUuidOrchestration = x();
+    public static readonly string PersonVoiceProfiles = x();
     public static readonly string Persons = x();
     public static readonly string PersonsSourceMachines = x();
     public static readonly string Registrations = x();

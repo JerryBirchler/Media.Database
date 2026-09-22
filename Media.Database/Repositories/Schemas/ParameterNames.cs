@@ -10,6 +10,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string CameFromFileId = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
+    public static readonly string ConsentedOn = x();
     public static readonly string CreatedByPersonId = x();
     public static readonly string DataCategory = x();
     public static readonly string Description = x();
@@ -53,7 +54,11 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string PersonId = x();
     public static readonly string PersonSourceMachineUuid = x();
     public static readonly string PersonUuid = x();
+    public static readonly string PersonVoiceProfileId = x();
+    public static readonly string PersonVoiceProfileUuid = x();
+    public static readonly string ProfileData = x();
     public static readonly string PromotedGroupId = x();
+    public static readonly string Provider = x();
     public static readonly string PublicKey = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();

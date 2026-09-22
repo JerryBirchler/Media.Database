@@ -14,6 +14,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     public static readonly string GroupShell = x();
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
+    public static readonly string PersonVoiceProfiles = x();
     public static readonly string Persons = x();
     public static readonly string PersonsSourceMachines = x();
     public static readonly string Registrations = x();
@@ -85,6 +86,20 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string DataCategory = y();
         public static readonly string WrappedDek = y();
         public static readonly string IsActive = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class PersonVoiceProfilesColumns
+    {
+        public static readonly string PersonVoiceProfileId = y();
+        public static readonly string PersonVoiceProfileUuid = y();
+        public static readonly string PersonId = y();
+        public static readonly string Provider = y();
+        public static readonly string ProfileData = y();
+        public static readonly string ConsentedOn = y();
+        public static readonly string IsActive = y();
+        public static readonly string RevokedOn = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }
