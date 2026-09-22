@@ -25,10 +25,20 @@
        in a CI environment that shouldn't be mutating git config. Uses
        $(MSBuildThisFileDirectory).. rather than $(SolutionDir), since the latter only resolves
        when building through the .slnx — the pre-push hook runs `dotnet test` directly against a
-       single project, where $(SolutionDir) is undefined. -->
-  <Target Name="Husky" BeforeTargets="Restore;CoreCompile" Condition="'$(HUSKY)' != 0">
-    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory).." />
-    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory).." />
+       single project, where $(SolutionDir) is undefined.
+
+       Skipped while GIT_DIR is set, which it is for the whole time git runs a hook. A sibling
+       repository's pre-commit hook can build this project, and with GIT_DIR pointing at that
+       outer repository, "dotnet husky install" run here reports that .git cannot be found and
+       fails the build, blocking a commit in a repository that has nothing to do with these
+       hooks. Installing then is pointless regardless: the hooks are already there, or git would
+       not be running one.
+
+       ContinueOnError is the backstop. Failing to install a convenience hook must never be able
+       to fail a build, least of all a build someone else's commit is waiting on. -->
+  <Target Name="Husky" BeforeTargets="Restore;CoreCompile" Condition="'$(HUSKY)' != 0 AND '$(GIT_DIR)' == ''">
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory).." ContinueOnError="WarnAndContinue" />
+    <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory).." ContinueOnError="WarnAndContinue" />
   </Target>
 
 </Project>
