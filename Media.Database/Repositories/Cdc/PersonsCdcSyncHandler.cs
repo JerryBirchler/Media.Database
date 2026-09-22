@@ -59,6 +59,7 @@ public sealed class PersonsCdcSyncHandler(
                 p.AddWithValue(pn.CellPhoneNumber, after.GetProperty("CellPhoneNumber").GetString()!);
                 p.AddWithValue(pn.FirstName, after.GetProperty("FirstName").GetString()!);
                 p.AddWithValue(pn.LastName, after.GetProperty("LastName").GetString()!);
+                p.AddWithValue(pn.SpokenName, GetNullableString(after, "SpokenName")!);
                 p.AddWithValue(pn.IsActive, after.GetProperty("IsActive").GetBoolean());
                 p.AddWithValue(pn.CreatedByPersonId, GetNullableInt32(after, "CreatedByPersonId")!);
                 p.AddWithValue(pn.IsSuperAdmin, after.GetProperty("IsSuperAdmin").GetBoolean());
@@ -105,6 +106,12 @@ public sealed class PersonsCdcSyncHandler(
             log.LogError(ex, "Failed to apply Persons CDC delete for PersonId: [{Id}]", personId);
             throw;
         }
+    }
+
+    private static string? GetNullableString(JsonElement element, string propertyName)
+    {
+        var property = element.GetProperty(propertyName);
+        return property.ValueKind == JsonValueKind.Null ? null : property.GetString();
     }
 
     private static int? GetNullableInt32(JsonElement element, string propertyName)

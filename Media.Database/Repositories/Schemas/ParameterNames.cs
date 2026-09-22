@@ -70,6 +70,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string SourceUpdatedOn = x();
     public static readonly string TableName = x();
     public static readonly string ThumbnailGeneratedOn = x();
+    public static readonly string SpokenName = x();
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();
     public static readonly string Uuid = x();

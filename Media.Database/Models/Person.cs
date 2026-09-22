@@ -45,6 +45,17 @@ public record Person
     public required string LastName { get; init; } = string.Empty;
 
     /// <summary>
+    /// What this person is actually called, when it differs from <see cref="FirstName"/> -- the
+    /// name they confirmed for themselves, not the one on the record. Null means the first name
+    /// serves.
+    ///
+    /// Self-chosen deliberately: nobody else knows whether a Samuel goes by Sam, Sammy or Junior.
+    /// It also carries the load for distinguishing two people who share a name, which a legal
+    /// first name cannot do.
+    /// </summary>
+    public string? SpokenName { get; init; }
+
+    /// <summary>
     /// Gets a value indicating whether the person is active.
     /// </summary>
     public required bool IsActive { get; init; } = true;

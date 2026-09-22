@@ -19,6 +19,7 @@ public interface IMapPersonResponse
         string cellPhoneNumber,
         string firstName,
         string lastName,
+        string? spokenName,
         bool isActive,
         int? createdByPersonId,
         bool isSuperAdmin,

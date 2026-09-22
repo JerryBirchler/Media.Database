@@ -57,7 +57,7 @@ public interface IPersonRepository
     /// alongside the contact fields. Returns the updated person, or <see langword="null"/> if
     /// <paramref name="personId"/> does not exist.
     /// </summary>
-    Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified);
+    Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string? spokenName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified);
 
     /// <summary>
     /// Raises <paramref name="personId"/>'s IsEmailVerified/IsSmsVerified flags to true where the

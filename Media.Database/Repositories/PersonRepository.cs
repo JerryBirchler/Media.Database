@@ -217,7 +217,7 @@ public class PersonRepository(
         }
     }
 
-    public async Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified)
+    public async Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string? spokenName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified)
     {
         try
         {
@@ -229,6 +229,7 @@ public class PersonRepository(
                     p.AddWithValue(pn.PersonId, personId);
                     p.AddWithValue(pn.FirstName, firstName);
                     p.AddWithValue(pn.LastName, lastName);
+                    p.AddWithValue(pn.SpokenName, spokenName);
                     p.AddWithValue(pn.EmailAddress, emailAddress);
                     p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
                     p.AddWithValue(pn.IsActive, isActive);

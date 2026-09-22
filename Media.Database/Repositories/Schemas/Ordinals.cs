@@ -79,6 +79,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string SourceMachineName = x();
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
+    public static readonly string SpokenName = x();
     public static readonly string TableName = x();
     public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string Title = x();

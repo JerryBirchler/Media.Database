@@ -45,6 +45,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string CellPhoneNumber = y();
         public static readonly string FirstName = y();
         public static readonly string LastName = y();
+        public static readonly string SpokenName = y();
         public static readonly string IsActive = y();
         public static readonly string CreatedByPersonId = y();
         public static readonly string IsSuperAdmin = y();

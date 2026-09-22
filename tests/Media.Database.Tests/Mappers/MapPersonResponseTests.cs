@@ -12,14 +12,14 @@ public class MapPersonResponseTests
     [Test, AutoData]
     public void ToPerson_Should_Map_AllFields(
         int personId, Guid personUuid, string emailAddress, string cellPhoneNumber,
-        string firstName, string lastName, bool isActive, int createdByPersonId, bool isSuperAdmin,
+        string firstName, string lastName, string spokenName, bool isActive, int createdByPersonId, bool isSuperAdmin,
         bool isEmailVerified, bool isSmsVerified, int otpWindowOverrideMinutes,
         DateTimeOffset insertedOn, DateTimeOffset updatedOn)
     {
         var mapper = new MapPersonResponse();
 
         var result = mapper.ToPerson(
-            personId, personUuid, emailAddress, cellPhoneNumber, firstName, lastName, isActive,
+            personId, personUuid, emailAddress, cellPhoneNumber, firstName, lastName, spokenName, isActive,
             createdByPersonId, isSuperAdmin, isEmailVerified, isSmsVerified, otpWindowOverrideMinutes,
             insertedOn, updatedOn);
 
@@ -48,7 +48,7 @@ public class MapPersonResponseTests
         var mapper = new MapPersonResponse();
 
         var result = mapper.ToPerson(
-            personId, personUuid, emailAddress, cellPhoneNumber, firstName, lastName, isActive,
+            personId, personUuid, emailAddress, cellPhoneNumber, firstName, lastName, spokenName: null, isActive: isActive,
             createdByPersonId: null, isSuperAdmin, isEmailVerified, isSmsVerified,
             otpWindowOverrideMinutes: null, insertedOn, updatedOn: null);
 

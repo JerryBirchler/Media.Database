@@ -45,6 +45,7 @@ public class PersonsCdcSyncHandlerTests
             CellPhoneNumber = "555-1234",
             FirstName = "Jane",
             LastName = "Doe",
+            SpokenName = (string?)null,
             IsActive = true,
             CreatedByPersonId = createdByPersonId,
             IsSuperAdmin = isSuperAdmin,

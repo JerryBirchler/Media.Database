@@ -378,7 +378,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ReturnsAsync(updated);
 
-        var result = await CreateRepository().UpdateAsync(updated.PersonId, updated.FirstName, updated.LastName, updated.EmailAddress, updated.CellPhoneNumber, isActive: true, isEmailVerified: true, isSmsVerified: true);
+        var result = await CreateRepository().UpdateAsync(updated.PersonId, updated.FirstName, updated.LastName, updated.SpokenName, updated.EmailAddress, updated.CellPhoneNumber, isActive: true, isEmailVerified: true, isSmsVerified: true);
 
         result.ShouldBe(updated);
     }
@@ -393,7 +393,7 @@ public class PersonRepositoryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
             .ReturnsAsync(updated);
 
-        await CreateRepository().UpdateAsync(3, "Jane", "Doe", "jane@example.com", "555-1234", isActive: false, isEmailVerified: false, isSmsVerified: true);
+        await CreateRepository().UpdateAsync(3, "Jane", "Doe", null, "jane@example.com", "555-1234", isActive: false, isEmailVerified: false, isSmsVerified: true);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
@@ -414,7 +414,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateAsync(1, "Jane", "Doe", "jane@example.com", "555-1234", true, true, true));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateAsync(1, "Jane", "Doe", null, "jane@example.com", "555-1234", true, true, true));
     }
 
     [Test]
