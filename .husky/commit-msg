@@ -10,8 +10,9 @@
 #
 # Added after DATABASE-N numbering drifted: this repo had only pre-commit and pre-push, so nothing
 # ever checked the reference. Commits kept incrementing from the last commit rather than naming a
-# ticket that existed, and the two sequences diverged silently. Media.Api and Media.Schema both
-# enforced this and neither drifted -- the discipline held exactly where a hook enforced it.
+# ticket that existed, and the two sequences diverged silently. The claim once made here -- that
+# discipline held wherever a hook enforced it -- was false: Media.Api had this hook throughout and
+# still drifted by 43 numbers. The verification below is what actually closes that gap.
 #
 # Unlike Media.Api's copy, BUG-N carries no special meaning here: the four-node file version and its
 # bugfix counter live in Media.Api alone, so there is nothing in this repo for it to bump.
@@ -32,3 +33,63 @@ if [ -n "$missing" ]; then
   echo "Example: git commit -m \"${prefix}-123: short description (MEDIA-45)\"" >&2
   exit 1
 fi
+
+# Matching the pattern only proves the message is shaped right, not that either ticket is real.
+# Both failure modes have actually happened: a number invented ahead of the tracker, and a run of
+# commits carrying an epic tag inherited from the previous commit and never re-read. So resolve
+# both references against Plane and print what they are. Seeing the epic's name at commit time is
+# what catches a tag that resolves but does not fit; nothing mechanical can judge that for us.
+#
+# Fails OPEN when Plane cannot be reached (exit 2) or when the script cannot be found. A tracker
+# outage must not become an outage of committing. Set PLANE_VERIFY=0 to skip when working offline
+# on purpose.
+if [ "$PLANE_VERIFY" = "0" ]; then
+  exit 0
+fi
+
+repo_root="$(dirname "$0")/.."
+plane_script=""
+
+# Plane.ps1 lives in Media.Api and is not duplicated per repo -- one copy cannot drift from five.
+# Checked as a sibling checkout and as the superproject of a submodule, which covers every layout
+# these repos are cloned in.
+for candidate in \
+  "$repo_root/scripts/Plane.ps1" \
+  "$repo_root/../Media.Api/scripts/Plane.ps1" \
+  "$repo_root/../../scripts/Plane.ps1" \
+  "$repo_root/../../Media.Api/scripts/Plane.ps1"
+do
+  if [ -f "$candidate" ]; then
+    plane_script="$candidate"
+    break
+  fi
+done
+
+if [ -z "$plane_script" ]; then
+  exit 0
+fi
+
+ticket_ref=$(grep -oE "\b${prefix}-[0-9]+\b" "$commit_msg_file" | head -n1)
+epic_ref=$(grep -oE "\bMEDIA-[0-9]+\b" "$commit_msg_file" | head -n1)
+
+# husky runs its hooks under `sh -e`, so the call has to sit in an `if` condition -- a bare
+# invocation would abort the script on any non-zero status and the fail-open branch below would
+# never run.
+if powershell -NoProfile -ExecutionPolicy Bypass -File "$plane_script" \
+     verify -Ticket "$ticket_ref" -Epic "$epic_ref"; then
+  status=0
+else
+  status=$?
+fi
+
+case "$status" in
+  0) ;;
+  2) echo "Plane unreachable -- $ticket_ref and $epic_ref were not verified." >&2 ;;
+  *)
+    echo "" >&2
+    echo "$ticket_ref or $epic_ref does not exist in Plane." >&2
+    echo "Create it first:  Plane.ps1 new -Project ${prefix} -Epic MEDIA-N -Name \"...\"" >&2
+    echo "Next free number: Plane.ps1 next -Project ${prefix}" >&2
+    exit 1
+    ;;
+esac
