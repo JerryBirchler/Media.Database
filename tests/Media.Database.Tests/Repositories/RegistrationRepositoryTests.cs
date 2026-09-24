@@ -340,10 +340,17 @@ public class RegistrationRepositoryTests
         result.EmailAddress.ShouldBe(request.EmailAddress);
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
-        command.Parameters[pn.SourceMachineUuid].Value.ShouldBe(existing.SourceMachineUuid);
+        command.Parameters[pn.SourceMachineId].Value.ShouldBe(existing.SourceMachineId);
         command.Parameters[pn.EmailAddress].Value.ShouldBe(request.EmailAddress);
         command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(request.CellPhoneNumber);
         command.Parameters[pn.OperatingSystem].Value.ShouldBe(request.OperatingSystem);
+
+        // Every placeholder the statement names must be bound: an unbound one reaches Postgres as
+        // literal text and fails there, which is how DATABASE-32 went unnoticed.
+        var placeholders = System.Text.RegularExpressions.Regex.Matches(QueryRegistrations.UpdateSourceInformationSql, @"@\w+")
+            .Select(m => m.Value).Distinct();
+        foreach (var placeholder in placeholders)
+            command.Parameters.Contains(placeholder).ShouldBeTrue($"{placeholder} is not bound");
         _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryRegistrations.AddBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()), Times.Never);
     }
 

@@ -89,7 +89,9 @@ public class RegistrationRepository(
                     QueryRegistrations.UpdateSourceInformationSql,
                     p =>
                     {
-                        p.AddWithValue(pn.SourceMachineUuid, baseline.SourceMachineUuid);
+                        // Matched on SourceMachineId since DATABASE-24; binding the UUID left
+                        // @SourceMachineId unbound and every contact change failing (DATABASE-32).
+                        p.AddWithValue(pn.SourceMachineId, baseline.SourceMachineId);
                         p.AddWithValue(pn.EmailAddress, request.EmailAddress);
                         p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
                         p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
