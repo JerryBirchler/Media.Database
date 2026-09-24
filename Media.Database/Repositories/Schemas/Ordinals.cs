@@ -15,6 +15,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
     public static readonly string ConsentedOn = x();
+    public static readonly string ContentType = x();
     public static readonly string CreatedByPersonId = x();
     public static readonly string DataCategory = x();
     public static readonly string Description = x();
@@ -35,6 +36,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string GroupUuid = x();
     public static readonly string HasRegistration = x();
     public static readonly string Id = x();
+    public static readonly string Image = x();
     public static readonly string IncludeInactive = x();
     public static readonly string InsertedOn = x();
     public static readonly string IsActive = x();

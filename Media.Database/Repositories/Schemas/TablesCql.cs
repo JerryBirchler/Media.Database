@@ -14,6 +14,7 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
     public static readonly string Groups = x();
     public static readonly string GroupUuidOrchestration = x();
     public static readonly string OtpAttempts = x();
+    public static readonly string PersonAvatars = x();
     public static readonly string Persons = x();
     public static readonly string Registrations = x();
     public static readonly string WordFiles = x();
@@ -25,6 +26,14 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
         public static readonly string ReleaseIntroduced = y();
         public static readonly string ReleaseRemoved = y();
         public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class PersonAvatarsColumns
+    {
+        public static readonly string PersonId = y();
+        public static readonly string ContentType = y();
+        public static readonly string Image = y();
         public static readonly string UpdatedOn = y();
     }
 

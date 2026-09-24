@@ -9,6 +9,7 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string Attempts = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
+    public static readonly string ContentType = x();
     public static readonly string CreatedByPersonId = x();
     public static readonly string Description = x();
     public static readonly string DeviceTypeId = x();
@@ -22,6 +23,7 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string GroupShellId = x();
     public static readonly string GroupUuid = x();
     public static readonly string Id = x();
+    public static readonly string Image = x();
     public static readonly string InsertedOn = x();
     public static readonly string IsActive = x();
     public static readonly string IsCurrent = x();
