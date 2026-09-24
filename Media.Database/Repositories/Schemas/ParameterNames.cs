@@ -7,6 +7,7 @@
 public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
 {
     public static readonly string Algorithm = x();
+    public static readonly string Attempts = x();
     public static readonly string CameFromFileId = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
@@ -35,7 +36,9 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string IsEncrypted = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
+    public static readonly string IssuedOn = x();
     public static readonly string IsSuperAdmin = x();
+    public static readonly string IsUsed = x();
     public static readonly string KeyDeliveryMethod = x();
     public static readonly string KeyPurpose = x();
     public static readonly string LastFileUpdate = x();
@@ -43,6 +46,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string Limit = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
+    public static readonly string NonceId = x();
     public static readonly string OperatingSystem = x();
     public static readonly string Origin = x();
     public static readonly string OriginalFilePath = x();
@@ -73,9 +77,10 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string SourceMachineName = x();
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
+    public static readonly string SpokenName = x();
     public static readonly string TableName = x();
     public static readonly string ThumbnailGeneratedOn = x();
-    public static readonly string SpokenName = x();
+    public static readonly string TimeToLiveSeconds = x();
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();
     public static readonly string Uuid = x();

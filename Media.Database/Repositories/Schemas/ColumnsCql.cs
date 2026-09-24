@@ -1,4 +1,4 @@
-namespace Media.Database.Repositories.Schemas;
+﻿namespace Media.Database.Repositories.Schemas;
 
 /// <summary>
 /// Registry of the raw (unformatted) field names shared by the Scylla/Cassandra <c>files</c>
@@ -6,6 +6,7 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class ColumnsCql : BaseSchema<ColumnsCql, OrdinalsCql>
 {
+    public static readonly string Attempts = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
     public static readonly string CreatedByPersonId = x();
@@ -28,11 +29,14 @@ public class ColumnsCql : BaseSchema<ColumnsCql, OrdinalsCql>
     public static readonly string IsEncrypted = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
+    public static readonly string IssuedOn = x();
     public static readonly string IsSuperAdmin = x();
+    public static readonly string IsUsed = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
+    public static readonly string NonceId = x();
     public static readonly string OperatingSystem = x();
     public static readonly string Origin = x();
     public static readonly string OriginalFilePath = x();

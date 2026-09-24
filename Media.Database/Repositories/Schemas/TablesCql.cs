@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Media.Database.Repositories.Schemas;
@@ -13,6 +13,7 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
     public static readonly string Files = x();
     public static readonly string Groups = x();
     public static readonly string GroupUuidOrchestration = x();
+    public static readonly string OtpAttempts = x();
     public static readonly string Persons = x();
     public static readonly string Registrations = x();
     public static readonly string WordFiles = x();
@@ -25,6 +26,14 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
         public static readonly string ReleaseRemoved = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
+    }
+
+    public static class OtpAttemptsColumns
+    {
+        public static readonly string NonceId = y();
+        public static readonly string Attempts = y();
+        public static readonly string IsUsed = y();
+        public static readonly string IssuedOn = y();
     }
 
     public static class GroupUuidOrchestrationColumns
