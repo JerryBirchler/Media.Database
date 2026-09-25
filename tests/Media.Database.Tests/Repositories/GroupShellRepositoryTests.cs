@@ -10,6 +10,8 @@ using Npgsql;
 using NUnit.Framework;
 using Shouldly;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -164,5 +166,44 @@ public class GroupShellRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().PromoteIfUnpromotedAsync(1, 5));
+    }
+    [Test]
+    public async Task GetUnpromotedByOwnerAsync_Should_AskForThatPersonsShells_And_ReturnThem()
+    {
+        var owner = _fixture.Create<int>();
+        var shells = _fixture.CreateMany<UnpromotedShell>(2).ToList();
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupShell.GetUnpromotedByOwnerSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, UnpromotedShell>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, UnpromotedShell>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(shells);
+
+        var result = await CreateRepository().GetUnpromotedByOwnerAsync(owner);
+
+        result.ShouldBe(shells);
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.OwningPersonId].Value.ShouldBe(owner);
+    }
+
+    // Only the owner's active devices, and only shells not yet made into a group.
+    [Test]
+    public void GetUnpromotedByOwnerSql_Should_FilterByOwnerActiveAndUnpromoted()
+    {
+        var sql = QueryGroupShell.GetUnpromotedByOwnerSql;
+
+        sql.ShouldContain("\"OwningPersonId\" = @OwningPersonId");
+        sql.ShouldContain("\"IsActive\" = True");
+        sql.ShouldContain("\"PromotedGroupId\" IS NULL");
+    }
+
+    [Test]
+    public void GetUnpromotedByOwnerAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(It.IsAny<string>(), It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, UnpromotedShell>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().GetUnpromotedByOwnerAsync(1));
     }
 }

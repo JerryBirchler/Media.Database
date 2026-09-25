@@ -53,6 +53,22 @@ public class GroupShellRepository(
         }
     }
 
+    public async Task<List<UnpromotedShell>> GetUnpromotedByOwnerAsync(int owningPersonId)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryGroupShell.GetUnpromotedByOwnerSql,
+                p => p.AddWithValue(pn.OwningPersonId, owningPersonId),
+                reader => reader.ToUnpromotedShell());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetUnpromotedByOwnerAsync failed for OwningPersonId: [{OwningPersonId}]", owningPersonId);
+            throw;
+        }
+    }
+
     public async Task<GroupShell?> PromoteIfUnpromotedAsync(int groupShellId, int groupId)
     {
         try

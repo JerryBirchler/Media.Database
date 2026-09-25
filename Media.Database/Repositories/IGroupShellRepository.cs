@@ -19,4 +19,10 @@ public interface IGroupShellRepository
     /// <see langword="null"/>, if the shell is already promoted or does not exist.
     /// </summary>
     Task<GroupShell?> PromoteIfUnpromotedAsync(int groupShellId, int groupId);
+
+    /// <summary>
+    /// Lists the active devices <paramref name="owningPersonId"/> owns whose shell is not yet a
+    /// group, newest first (DATABASE-33). Empty when there are none.
+    /// </summary>
+    Task<List<UnpromotedShell>> GetUnpromotedByOwnerAsync(int owningPersonId);
 }
