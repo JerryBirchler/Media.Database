@@ -30,6 +30,21 @@ public record BaseWordRequest
     public required bool IsProperName { get; set; }
 
     /// <summary>
+    /// Gets or sets the part of speech the word was tagged as.
+    ///
+    /// Deliberately not <c>required</c>, unlike its neighbours: adding it that way would break
+    /// every existing construction site, and a producer that does not set it should mean
+    /// "unclassified" rather than fail. <see cref="IsProperName"/> is the same fact as
+    /// <see cref="Models.WordType.ProperNoun"/> and extraction sets both from one decision.
+    ///
+    /// <see cref="CreateWordRequest"/> deliberately does not carry this. That is the HTTP-facing
+    /// shape, and whether a caller declares a word's type is an API contract question that has not
+    /// been decided.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public WordType WordType { get; set; } = WordType.None;
+
+    /// <summary>
     /// Gets or sets the ID of the file this word came from.
     /// </summary>
     public required Guid CameFromFileId { get; set; }

@@ -64,6 +64,7 @@ public class WordRepository(
                     p.AddWithValue(pn.Word, request.Word);
                     p.AddWithValue(pn.Origin, (int)request.Origin);
                     p.AddWithValue(pn.IsProperName, request.IsProperName);
+                    p.AddWithValue(pn.WordType, (int)request.WordType);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow.AdjustPrecision());
                     p.AddWithValue(pn.CameFromFileId, request.CameFromFileId);
                 });

@@ -29,6 +29,7 @@ public static class QueryWords
             {csw.Word},
             {csw.Origin},
             {csw.IsProperName},
+            {csw.WordType},
             {csw.InsertedOn},
             {csw.UpdatedOn},
             {csw.CameFromFileId}";
@@ -314,6 +315,7 @@ public static class QueryWords
                 {csw.Word}, 
                 {csw.Origin}, 
                 {csw.IsProperName},
+                {csw.WordType},
                 {csw.UpdatedOn},
                 {csw.CameFromFileId}
             )
@@ -322,12 +324,14 @@ public static class QueryWords
                 {pn.Word}, 
                 {pn.Origin}, 
                 {pn.IsProperName},
+                {pn.WordType},
                 {pn.UpdatedOn},
                 {pn.CameFromFileId}
             )
             ON CONFLICT ({csw.Word})
             DO UPDATE SET 
                 {csw.IsProperName} = {pn.IsProperName},
+                {csw.WordType} = {pn.WordType},
                 {csw.UpdatedOn} = {pn.UpdatedOn}
             RETURNING *
         )
@@ -500,6 +504,7 @@ public static class QueryWords
             Word = reader.GetString(os.Word),
             Origin = (WordOrigin)reader.GetInt32(os.Origin),
             IsProperName = reader.GetFieldValue<bool>(os.IsProperName),
+            WordType = (WordType)reader.GetInt32(os.WordType),
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn),
             CameFromFileId = reader.GetFieldValue<Guid>(os.CameFromFileId),
