@@ -537,6 +537,22 @@ public class RegistrationRepository(
         }
     }
 
+    public async Task<int?> GetOwningPersonIdAsync(int sourceMachineId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleValueAsync(
+                QueryRegistrations.GetOwningPersonIdSql,
+                p => p.AddWithValue(pn.SourceMachineId, sourceMachineId),
+                reader => reader.GetFieldValue<int?>(os.OwningPersonId) ?? 0) is { } owner and > 0 ? owner : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetOwningPersonIdAsync failed for SourceMachineId: [{SourceMachineId}]", sourceMachineId);
+            throw;
+        }
+    }
+
     public async Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(string emailAddress)
     {
         try

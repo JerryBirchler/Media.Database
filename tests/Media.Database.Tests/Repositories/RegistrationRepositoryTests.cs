@@ -1079,4 +1079,35 @@ public class RegistrationRepositoryTests
         sql.ShouldContain("ORDER BY");
         sql.ShouldContain("LIMIT 1");
     }
+    [TestCase(82, 82)]
+    [TestCase(0, null)]
+    public async Task GetOwningPersonIdAsync_Should_ReturnTheOwner_OrNullForNone(int fromDatabase, int? expected)
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryRegistrations.GetOwningPersonIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, int>>()))
+            .ReturnsAsync(fromDatabase);
+
+        (await CreateRepository().GetOwningPersonIdAsync(48)).ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task GetOwningPersonIdAsync_Should_ReturnNull_When_TheDeviceIsUnknownOrInactive()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryRegistrations.GetOwningPersonIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, int>>()))
+            .ReturnsAsync((int?)null);
+
+        (await CreateRepository().GetOwningPersonIdAsync(48)).ShouldBeNull();
+    }
+
+    // The owner lives only in Postgres; Scylla's registrations table has no such column.
+    [Test]
+    public void GetOwningPersonIdSql_Should_ReadTheOwnerOfAnActiveDeviceFromPostgres()
+    {
+        var sql = QueryRegistrations.GetOwningPersonIdSql;
+
+        sql.ShouldContain("\"OwningPersonId\"");
+        sql.ShouldContain("\"IsActive\" = True");
+        sql.ShouldContain("public.\"SourceMachineRegistrations\"");
+    }
 }

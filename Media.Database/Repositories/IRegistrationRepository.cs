@@ -67,6 +67,13 @@ public interface IRegistrationRepository
     Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(string emailAddress);
 
     /// <summary>
+    /// The person who owns an active device, from Postgres (DATABASE-35): <see langword="null"/>
+    /// when the device is unknown, inactive, or has no owner recorded. Read from Postgres because
+    /// the Scylla registrations table has no owner, so <see cref="GetByIdsAsync"/> cannot say.
+    /// </summary>
+    Task<int?> GetOwningPersonIdAsync(int sourceMachineId);
+
+    /// <summary>
     /// Permanently sets <c>SourceMachineRegistrations.OwningPersonId</c> to <paramref name="personId"/>
     /// for <paramref name="sourceMachineId"/> -- a no-op if already set (MEDIA-10: device ownership
     /// is singular and permanent, never reassigned or cleared by any endpoint, through any path).

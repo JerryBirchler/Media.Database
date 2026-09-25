@@ -25,6 +25,21 @@ public static class QueryRegistrations
     #region SQL Queries
 
     /// <summary>
+    /// SQL for an active device's owner, from Postgres (DATABASE-35). Scylla's registrations table
+    /// carries no owner, so this must not be answered from there.
+    /// </summary>
+    public static string GetOwningPersonIdSql => $@"
+        SELECT
+            {cssmr.OwningPersonId}
+        FROM
+            {ts.SourceMachineRegistrations}
+        WHERE
+            {cssmr.SourceMachineId} = {pn.SourceMachineId}
+            AND {cssmr.IsActive} = True
+        LIMIT 1
+        ;";
+
+    /// <summary>
     /// Test support only (DATABASE-34): the newest active device owned by the person with this
     /// email, with its key and where its keys were delivered.
     /// </summary>
