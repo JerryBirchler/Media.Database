@@ -537,6 +537,22 @@ public class RegistrationRepository(
         }
     }
 
+    public async Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(string emailAddress)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryRegistrations.GetNewestOwnedByEmailSql,
+                p => p.AddWithValue(pn.EmailAddress, emailAddress.Trim()),
+                reader => reader.ToOwnedDeviceKey());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetNewestOwnedByEmailAsync failed");
+            throw;
+        }
+    }
+
     public async Task<List<SourceMachineRegistrations>> GetByIdsAsync(IEnumerable<int> sourceMachineIds, int maxDegreeOfParallelism)
     {
         var results = new ConcurrentBag<SourceMachineRegistrations>();

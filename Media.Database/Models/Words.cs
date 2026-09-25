@@ -35,9 +35,20 @@ public class Words
 
     /// <summary>
     /// Gets or sets a value indicating whether the word is a proper name.
+    ///
+    /// The same fact as <see cref="WordType"/> being <see cref="Models.WordType.ProperNoun"/>, kept
+    /// as its own column because callers filter on it directly. Extraction sets both from one
+    /// decision so they cannot disagree; it used to be re-derived by asking whether the first
+    /// character was uppercase, which made every number a proper name.
     /// </summary>
     [JsonPropertyName("isProperName")]
     public bool IsProperName { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the part of speech the word was tagged as when it was extracted.
+    /// </summary>
+    [JsonPropertyName("wordType")]
+    public WordType WordType { get; set; } = WordType.None;
 
     /// <summary>
     /// Gets or sets the timestamp when the word was inserted.

@@ -23,6 +23,30 @@ namespace Media.Database.Repositories.Queries;
 public static class QueryRegistrations
 {
     #region SQL Queries
+
+    /// <summary>
+    /// Test support only (DATABASE-34): the newest active device owned by the person with this
+    /// email, with its key and where its keys were delivered.
+    /// </summary>
+    public static string GetNewestOwnedByEmailSql => $@"
+        SELECT
+            smr.{cssmr.SourceMachineUuid},
+            smr.{cssmr.SourceMachineName},
+            smr.{cssmr.EmailAddress},
+            smr.{cssmr.CellPhoneNumber}
+        FROM
+            {ts.SourceMachineRegistrations} AS smr
+        JOIN
+            {ts.Persons} AS p
+        ON
+            p.{cp.PersonId} = smr.{cssmr.OwningPersonId}
+        WHERE
+            LOWER(p.{cp.EmailAddress}) = LOWER({pn.EmailAddress})
+            AND smr.{cssmr.IsActive} = True
+        ORDER BY
+            smr.{cssmr.InsertedOn} DESC
+        LIMIT 1
+        ;";
     /// <summary>
     /// SQL to insert a new SourceMachine registration, returning the inserted row.
     /// </summary>
@@ -435,6 +459,18 @@ public static class QueryRegistrations
 
 
     #endregion
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to an <see cref="OwnedDeviceKey"/>.</summary>
+    public static OwnedDeviceKey ToOwnedDeviceKey(this NpgsqlDataReader reader)
+    {
+        return new OwnedDeviceKey
+        {
+            SourceMachineUuid = reader.GetGuid(os.SourceMachineUuid),
+            SourceMachineName = reader.GetString(os.SourceMachineName),
+            EmailAddress = reader.GetString(os.EmailAddress),
+            CellPhoneNumber = reader.GetString(os.CellPhoneNumber)
+        };
+    }
 
     #region CQL Queries
     /// <summary>

@@ -61,6 +61,12 @@ public interface IRegistrationRepository
     Task<List<SourceMachineRegistrations>> GetByIdsAsync(IEnumerable<int> sourceMachineIds, int maxDegreeOfParallelism);
 
     /// <summary>
+    /// Test support only (DATABASE-34): the newest active device owned by the person with
+    /// <paramref name="emailAddress"/>, or <see langword="null"/>.
+    /// </summary>
+    Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(string emailAddress);
+
+    /// <summary>
     /// Permanently sets <c>SourceMachineRegistrations.OwningPersonId</c> to <paramref name="personId"/>
     /// for <paramref name="sourceMachineId"/> -- a no-op if already set (MEDIA-10: device ownership
     /// is singular and permanent, never reassigned or cleared by any endpoint, through any path).

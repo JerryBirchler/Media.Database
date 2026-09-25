@@ -77,6 +77,7 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string UpdatedOn = x();
     public static readonly string Uuid = x();
     public static readonly string Word = x();
+    public static readonly string WordType = x();
     public static readonly string WordId = x();
     public static readonly string WordUuid = x();
     public static readonly string WrappedDek = x();

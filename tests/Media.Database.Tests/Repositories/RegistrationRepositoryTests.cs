@@ -1051,4 +1051,32 @@ public class RegistrationRepositoryTests
 
         Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetGroupShellIdIfUnsetAsync(1, 2));
     }
+    [Test]
+    public async Task GetNewestOwnedByEmailAsync_Should_AskByTheTrimmedEmail_And_ReturnTheDevice()
+    {
+        var device = _fixture.Create<OwnedDeviceKey>();
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetNewestOwnedByEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OwnedDeviceKey>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, OwnedDeviceKey>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(device);
+
+        var result = await CreateRepository().GetNewestOwnedByEmailAsync(" pat@example.test ");
+
+        result.ShouldBe(device);
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.EmailAddress].Value.ShouldBe("pat@example.test");
+    }
+
+    [Test]
+    public void GetNewestOwnedByEmailSql_Should_TakeTheNewestActiveDeviceOfThatOwner()
+    {
+        var sql = QueryRegistrations.GetNewestOwnedByEmailSql;
+
+        sql.ShouldContain("= smr.\"OwningPersonId\"");
+        sql.ShouldContain("\"IsActive\" = True");
+        sql.ShouldContain("ORDER BY");
+        sql.ShouldContain("LIMIT 1");
+    }
 }

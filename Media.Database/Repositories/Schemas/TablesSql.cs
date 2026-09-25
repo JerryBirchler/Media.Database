@@ -196,6 +196,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string Word = y();
         public static readonly string Origin = y();
         public static readonly string IsProperName = y();
+        public static readonly string WordType = y();
         public static readonly string CameFromFileId = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
