@@ -1,5 +1,6 @@
 using Media.Database.Helpers;
 using Media.Database.Models;
+using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981
@@ -92,7 +93,7 @@ public static class QueryGroupShell
             SourceMachineId = reader.GetInt32(os.SourceMachineId),
             SourceMachineName = reader.GetString(os.SourceMachineName),
             DeviceTypeId = (DeviceTypes)reader.GetInt32(os.DeviceTypeId),
-            OperatingSystem = reader.GetFieldValue<string?>(os.OperatingSystem),
+            OperatingSystem = reader.GetStringOrDefault(os.OperatingSystem),
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn)
         };
     }

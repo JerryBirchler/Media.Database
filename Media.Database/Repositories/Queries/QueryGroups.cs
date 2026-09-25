@@ -2,6 +2,7 @@ using Cassandra;
 using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
+using Media.Database.Repositories.Queries.Helpers;
 using Npgsql;
 
 #pragma warning disable CS8981
@@ -228,7 +229,7 @@ public static class QueryGroups
             reader.GetGuid(os.GroupUuid),
             reader.GetString(os.Name),
             reader.GetString(os.Title),
-            reader.GetFieldValue<string?>(os.Description),
+            reader.GetStringOrDefault(os.Description),
             reader.GetFieldValue<bool>(os.IsActive),
             reader.GetFieldValue<bool>(os.IsEncrypted),
             reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
