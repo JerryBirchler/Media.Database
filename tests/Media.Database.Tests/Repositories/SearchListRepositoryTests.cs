@@ -1,3 +1,4 @@
+#nullable enable
 using AutoFixture;
 using System;
 using System.Collections.Generic;
