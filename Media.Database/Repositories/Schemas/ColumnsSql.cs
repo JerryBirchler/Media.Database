@@ -15,6 +15,8 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string CreatedByPersonId = x();
     public static readonly string DataCategory = x();
     public static readonly string Description = x();
+    public static readonly string DeviceSearchListId = x();
+    public static readonly string DeviceSearchListUuid = x();
     public static readonly string DeviceTypeId = x();
     public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();

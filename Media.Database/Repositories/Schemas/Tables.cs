@@ -8,6 +8,7 @@
 public class Tables : BaseSchema<Tables, NoSubFields>
 {
     public static readonly string CanBeEncryptedFields = x();
+    public static readonly string DeviceSearchLists = x();
     public static readonly string Files = x();
     public static readonly string GroupEncryptionKeys = x();
     public static readonly string Groups = x();

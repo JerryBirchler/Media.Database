@@ -30,6 +30,10 @@ public class SearchListRepositoryTests
     private const int GroupId = 7;
     private const int ListId = 99;
 
+    private static readonly SearchListScopeSchema PersonSchema = SearchListScopeSchema.For(OwnerScope.Person);
+    private static readonly SearchListScopeSchema GroupSchema = SearchListScopeSchema.For(OwnerScope.Group);
+    private static readonly SearchListScopeSchema DeviceSchema = SearchListScopeSchema.For(OwnerScope.Device);
+
     [SetUp]
     public void Setup()
     {
@@ -93,7 +97,7 @@ public class SearchListRepositoryTests
     public async Task AddAsync_Should_WriteTheContentUnderTheIdentityPostgresIssued()
     {
         var skeleton = ASkeleton(OwnerScope.Person, PersonId);
-        SqlReturns(QuerySearchLists.AddPersonSql, skeleton);
+        SqlReturns(QuerySearchLists.Add(PersonSchema), skeleton);
 
         var result = await CreateRepository()
             .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", APayload());
@@ -102,14 +106,14 @@ public class SearchListRepositoryTests
         result.Uuid.ShouldBe(skeleton.Uuid);
 
         _cqlExecutorMock.Verify(e => e.ExecuteAsync(
-            QuerySearchListsCql.UpsertPersonSql,
+            QuerySearchListsCql.Upsert(PersonSchema),
             It.IsAny<Action<Dictionary<string, object>>>()), Times.Once);
     }
 
     [Test]
     public async Task AddAsync_Should_EncryptBothTheNameAndTheLines()
     {
-        SqlReturns(QuerySearchLists.AddPersonSql, ASkeleton(OwnerScope.Person, PersonId));
+        SqlReturns(QuerySearchLists.Add(PersonSchema), ASkeleton(OwnerScope.Person, PersonId));
         var parameters = CaptureCqlParameters();
 
         await CreateRepository()
@@ -127,7 +131,7 @@ public class SearchListRepositoryTests
     [Test]
     public async Task AddAsync_Should_SerializeTheLinesWithoutTheirDefaults()
     {
-        SqlReturns(QuerySearchLists.AddPersonSql, ASkeleton(OwnerScope.Person, PersonId));
+        SqlReturns(QuerySearchLists.Add(PersonSchema), ASkeleton(OwnerScope.Person, PersonId));
         CaptureCqlParameters();
 
         string? payload = null;
@@ -149,7 +153,7 @@ public class SearchListRepositoryTests
     [Test]
     public async Task AddAsync_Should_ReturnNullAndWriteNothing_When_PostgresCreatedNoRow()
     {
-        SqlReturns(QuerySearchLists.AddPersonSql, null);
+        SqlReturns(QuerySearchLists.Add(PersonSchema), null);
 
         var result = await CreateRepository()
             .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", APayload());
@@ -162,20 +166,51 @@ public class SearchListRepositoryTests
     [Test]
     public async Task AddAsync_Should_UseTheGroupStatements_When_ScopeIsGroup()
     {
-        SqlReturns(QuerySearchLists.AddGroupSql, ASkeleton(OwnerScope.Group, GroupId));
+        SqlReturns(QuerySearchLists.Add(GroupSchema), ASkeleton(OwnerScope.Group, GroupId));
 
         await CreateRepository()
             .AddAsync(OwnerScope.Group, GroupId, SearchListType.Or, "the girls", APayload());
 
         _cqlExecutorMock.Verify(e => e.ExecuteAsync(
-            QuerySearchListsCql.UpsertGroupSql,
+            QuerySearchListsCql.Upsert(GroupSchema),
             It.IsAny<Action<Dictionary<string, object>>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task AddAsync_Should_UseTheDeviceStatements_When_ScopeIsDevice()
+    {
+        var skeleton = ASkeleton(OwnerScope.Device, 17);
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QuerySearchLists.Add(DeviceSchema),
+                It.IsAny<Action<NpgsqlParameterCollection>>(),
+                It.IsAny<Func<NpgsqlDataReader, SearchList>>()))
+            .ReturnsAsync(skeleton);
+        CaptureCqlParameters();
+
+        // The base scope: a device registered before anyone enrolled can still save a list.
+        var result = await CreateRepository()
+            .AddAsync(OwnerScope.Device, 17, SearchListType.Or, "on this laptop", APayload());
+
+        result.ShouldNotBeNull();
+        _cqlExecutorMock.Verify(e => e.ExecuteAsync(
+            QuerySearchListsCql.Upsert(DeviceSchema),
+            It.IsAny<Action<Dictionary<string, object>>>()), Times.Once);
+    }
+
+    [Test]
+    public void SearchListScopeSchema_Should_ResolveEveryOwnerScopeToItsOwnTablePair()
+    {
+        var tables = Enum.GetValues<OwnerScope>().Select(s => SearchListScopeSchema.For(s).Table).ToList();
+
+        // Three scopes, three table pairs -- never one table with mutually exclusive nullable
+        // owners, which pushes a rule that belongs in the schema out into every query.
+        tables.Distinct().Count().ShouldBe(tables.Count);
     }
 
     [Test]
     public async Task GetAsync_Should_ReturnNullWithoutTouchingScylla_When_TheListIsNotTheCallers()
     {
-        SqlReturns(QuerySearchLists.GetPersonByUuidSql, null);
+        SqlReturns(QuerySearchLists.GetByUuid(PersonSchema), null);
 
         var result = await CreateRepository().GetAsync(OwnerScope.Person, PersonId, Guid.NewGuid());
 
@@ -191,12 +226,12 @@ public class SearchListRepositoryTests
     [Test]
     public async Task GetAsync_Should_DecryptTheNameAndTheLines()
     {
-        SqlReturns(QuerySearchLists.GetPersonByUuidSql, ASkeleton(OwnerScope.Person, PersonId));
+        SqlReturns(QuerySearchLists.GetByUuid(PersonSchema), ASkeleton(OwnerScope.Person, PersonId));
 
         var payload = JsonSerializer.Serialize(new SearchListPayload { Lines = Lines() });
 
         _cqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QuerySearchListsCql.GetPersonSql,
+            .Setup(e => e.QuerySingleAsync(QuerySearchListsCql.Get(PersonSchema),
                 It.IsAny<Action<Dictionary<string, object>>>(),
                 It.IsAny<Func<Row, SearchListContent>>()))
             .ReturnsAsync(new SearchListContent
@@ -223,7 +258,7 @@ public class SearchListRepositoryTests
     [Test]
     public async Task GetAsync_Should_ReturnTheListNameless_When_TheContentRowIsMissing()
     {
-        SqlReturns(QuerySearchLists.GetPersonByUuidSql, ASkeleton(OwnerScope.Person, PersonId));
+        SqlReturns(QuerySearchLists.GetByUuid(PersonSchema), ASkeleton(OwnerScope.Person, PersonId));
 
         _cqlExecutorMock
             .Setup(e => e.QuerySingleAsync(It.IsAny<string>(),
@@ -248,7 +283,7 @@ public class SearchListRepositoryTests
         second.Id = ListId + 1;
 
         _sqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QuerySearchLists.GetPersonListsSql,
+            .Setup(e => e.QueryManyAsync(QuerySearchLists.GetAll(PersonSchema),
                 It.IsAny<Action<NpgsqlParameterCollection>>(),
                 It.IsAny<Func<NpgsqlDataReader, SearchList>>()))
             .ReturnsAsync([first, second]);
@@ -256,7 +291,7 @@ public class SearchListRepositoryTests
         var payload = $"enc:{JsonSerializer.Serialize(new SearchListPayload { Lines = Lines() })}";
 
         _cqlExecutorMock
-            .Setup(e => e.QueryManyAsync(QuerySearchListsCql.GetAllForPersonSql,
+            .Setup(e => e.QueryManyAsync(QuerySearchListsCql.GetAll(PersonSchema),
                 It.IsAny<Action<Dictionary<string, object>>>(),
                 It.IsAny<Func<Row, SearchListContent>>()))
             .ReturnsAsync(
@@ -296,7 +331,7 @@ public class SearchListRepositoryTests
     [Test]
     public async Task UpdateAsync_Should_LeaveScyllaUntouched_When_TheListIsNotTheCallers()
     {
-        SqlReturns(QuerySearchLists.UpdatePersonSql, null);
+        SqlReturns(QuerySearchLists.Update(PersonSchema), null);
 
         var result = await CreateRepository().UpdateAsync(
             OwnerScope.Person, PersonId, Guid.NewGuid(), SearchListType.Or, "the girls", APayload());
@@ -311,7 +346,7 @@ public class SearchListRepositoryTests
     [Test]
     public async Task UpdateAsync_Should_RewriteTheContent_When_TheListIsTheCallers()
     {
-        SqlReturns(QuerySearchLists.UpdatePersonSql, ASkeleton(OwnerScope.Person, PersonId));
+        SqlReturns(QuerySearchLists.Update(PersonSchema), ASkeleton(OwnerScope.Person, PersonId));
 
         var result = await CreateRepository().UpdateAsync(
             OwnerScope.Person, PersonId, Guid.NewGuid(), SearchListType.Or, "the girls", APayload());
@@ -320,7 +355,7 @@ public class SearchListRepositoryTests
         result.Name.ShouldBe("the girls");
 
         _cqlExecutorMock.Verify(e => e.ExecuteAsync(
-            QuerySearchListsCql.UpsertPersonSql,
+            QuerySearchListsCql.Upsert(PersonSchema),
             It.IsAny<Action<Dictionary<string, object>>>()), Times.Once);
     }
 
@@ -328,7 +363,7 @@ public class SearchListRepositoryTests
     public async Task DeleteAsync_Should_RemoveFromBothStores_When_TheListIsTheCallers()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleValueAsync(QuerySearchLists.DeletePersonSql,
+            .Setup(e => e.QuerySingleValueAsync(QuerySearchLists.Delete(PersonSchema),
                 It.IsAny<Action<NpgsqlParameterCollection>>(),
                 It.IsAny<Func<NpgsqlDataReader, int>>()))
             .ReturnsAsync(ListId);
@@ -336,7 +371,7 @@ public class SearchListRepositoryTests
         (await CreateRepository().DeleteAsync(OwnerScope.Person, PersonId, Guid.NewGuid())).ShouldBeTrue();
 
         _cqlExecutorMock.Verify(e => e.ExecuteAsync(
-            QuerySearchListsCql.DeletePersonSql,
+            QuerySearchListsCql.Delete(PersonSchema),
             It.IsAny<Action<Dictionary<string, object>>>()), Times.Once);
     }
 

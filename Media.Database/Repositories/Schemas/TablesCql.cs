@@ -10,6 +10,7 @@ namespace Media.Database.Repositories.Schemas;
 public class TablesCql : BaseSchema<TablesCql, Tables>
 {
     public static readonly string CanBeEncryptedFields = x();
+    public static readonly string DeviceSearchLists = x();
     public static readonly string Files = x();
     public static readonly string Groups = x();
     public static readonly string GroupSearchLists = x();
@@ -141,6 +142,15 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
     {
         public static readonly string PersonId = y();
         public static readonly string PersonSearchListId = y();
+        public static readonly string Name = y();
+        public static readonly string Payload = y();
+        public static readonly string PayloadVersion = y();
+    }
+
+    public static class DeviceSearchListsColumns
+    {
+        public static readonly string SourceMachineId = y();
+        public static readonly string DeviceSearchListId = y();
         public static readonly string Name = y();
         public static readonly string Payload = y();
         public static readonly string PayloadVersion = y();

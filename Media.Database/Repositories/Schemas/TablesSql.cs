@@ -8,6 +8,7 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class TablesSql : BaseSchema<TablesSql, Tables>
 {
+    public static readonly string DeviceSearchLists = x();
     public static readonly string Files = x();
     public static readonly string GroupEncryptionKeys = x();
     public static readonly string Groups = x();
@@ -238,6 +239,16 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string PersonSearchListId = y();
         public static readonly string PersonSearchListUuid = y();
         public static readonly string PersonId = y();
+        public static readonly string ListType = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class DeviceSearchListsColumns
+    {
+        public static readonly string DeviceSearchListId = y();
+        public static readonly string DeviceSearchListUuid = y();
+        public static readonly string SourceMachineId = y();
         public static readonly string ListType = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();

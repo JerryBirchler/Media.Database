@@ -3,7 +3,12 @@ using System.Text.Json.Serialization;
 namespace Media.Database.Models;
 
 /// <summary>
-/// Whether a resource is owned by one person or shared by a group.
+/// Who owns a resource: the device it was made on, the person who owns that device, or the group
+/// they belong to.
+///
+/// In the order things come into existence. A device exists from registration; a person once
+/// enrolled; a group once joined. Later scopes are elaborations, and no base feature may require
+/// one -- see the invariant in Media.Api/CLAUDE.md.
 ///
 /// Deliberately general rather than named for saved search lists, which are merely the first
 /// thing to need it: the person-or-group distinction recurs, and so does the authorization
@@ -19,6 +24,13 @@ namespace Media.Database.Models;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OwnerScope
 {
+    /// <summary>
+    /// The device itself. The base scope: a device exists from registration, before anyone has
+    /// enrolled and before any group, and nothing in the base path may require what does not
+    /// exist yet. Its resources go with it, so the foreign key cascades.
+    /// </summary>
+    Device,
+
     /// <summary>Private to one person. Their lists go with them, so the foreign key cascades.</summary>
     Person,
 

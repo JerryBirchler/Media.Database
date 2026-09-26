@@ -28,16 +28,18 @@ public class SearchListRepository(
     public async Task<SearchList?> AddAsync(
         OwnerScope scope, int ownerId, SearchListType listType, string name, SearchListPayload payload)
     {
+        var schema = SearchListScopeSchema.For(scope);
+
         try
         {
             var skeleton = await _sqlExecutor.QuerySingleAsync(
-                scope == OwnerScope.Person ? QuerySearchLists.AddPersonSql : QuerySearchLists.AddGroupSql,
+                QuerySearchLists.Add(schema),
                 p =>
                 {
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
+                    p.AddWithValue(schema.OwnerParameter, ownerId);
                     p.AddWithValue(pn.ListType, (int)listType);
                 },
-                reader => scope == OwnerScope.Person ? reader.ToPersonSearchList() : reader.ToGroupSearchList());
+                schema.Map);
 
             if (skeleton is null)
                 return null;
@@ -59,6 +61,8 @@ public class SearchListRepository(
 
     public async Task<SearchList?> GetAsync(OwnerScope scope, int ownerId, Guid uuid)
     {
+        var schema = SearchListScopeSchema.For(scope);
+
         try
         {
             var skeleton = await GetSkeletonAsync(scope, ownerId, uuid);
@@ -67,15 +71,13 @@ public class SearchListRepository(
                 return null;
 
             var content = await _cqlExecutor.QuerySingleAsync(
-                scope == OwnerScope.Person ? QuerySearchListsCql.GetPersonSql : QuerySearchListsCql.GetGroupSql,
+                QuerySearchListsCql.Get(schema),
                 p =>
                 {
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonSearchListId : pn.GroupSearchListId, skeleton.Id);
+                    p.AddWithValue(schema.OwnerParameter, ownerId);
+                    p.AddWithValue(schema.IdParameter, skeleton.Id);
                 },
-                row => scope == OwnerScope.Person
-                    ? row.ToPersonSearchListContent()
-                    : row.ToGroupSearchListContent());
+                schema.MapContent);
 
             Hydrate(skeleton, content);
             return skeleton;
@@ -92,29 +94,27 @@ public class SearchListRepository(
     public async Task<IReadOnlyList<SearchList>> GetAllAsync(
         OwnerScope scope, int ownerId, SearchListType? listType = null)
     {
+        var schema = SearchListScopeSchema.For(scope);
+
         try
         {
             var skeletons = await _sqlExecutor.QueryManyAsync(
-                scope == OwnerScope.Person ? QuerySearchLists.GetPersonListsSql : QuerySearchLists.GetGroupListsSql,
+                QuerySearchLists.GetAll(schema),
                 p =>
                 {
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
+                    p.AddWithValue(schema.OwnerParameter, ownerId);
                     p.AddWithValue(pn.ListType, listType is null ? DBNull.Value : (int)listType);
                 },
-                reader => scope == OwnerScope.Person ? reader.ToPersonSearchList() : reader.ToGroupSearchList());
+                schema.Map);
 
             if (skeletons.Count == 0)
                 return [];
 
             // One partition read for every name the picker needs, rather than a point read each.
             var contents = await _cqlExecutor.QueryManyAsync(
-                scope == OwnerScope.Person
-                    ? QuerySearchListsCql.GetAllForPersonSql
-                    : QuerySearchListsCql.GetAllForGroupSql,
-                p => p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId),
-                row => scope == OwnerScope.Person
-                    ? row.ToPersonSearchListContent()
-                    : row.ToGroupSearchListContent());
+                QuerySearchListsCql.GetAll(schema),
+                p => p.AddWithValue(schema.OwnerParameter, ownerId),
+                schema.MapContent);
 
             var byId = contents.ToDictionary(content => content.Id);
 
@@ -134,19 +134,21 @@ public class SearchListRepository(
     public async Task<SearchList?> UpdateAsync(
         OwnerScope scope, int ownerId, Guid uuid, SearchListType listType, string name, SearchListPayload payload)
     {
+        var schema = SearchListScopeSchema.For(scope);
+
         try
         {
             // The Postgres update is the authorization check as well as the timestamp touch: it
             // returns nothing when the list is not the owner's, and the blobs are never rewritten.
             var skeleton = await _sqlExecutor.QuerySingleAsync(
-                scope == OwnerScope.Person ? QuerySearchLists.UpdatePersonSql : QuerySearchLists.UpdateGroupSql,
+                QuerySearchLists.Update(schema),
                 p =>
                 {
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonSearchListUuid : pn.GroupSearchListUuid, uuid);
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
+                    p.AddWithValue(schema.UuidParameter, uuid);
+                    p.AddWithValue(schema.OwnerParameter, ownerId);
                     p.AddWithValue(pn.ListType, (int)listType);
                 },
-                reader => scope == OwnerScope.Person ? reader.ToPersonSearchList() : reader.ToGroupSearchList());
+                schema.Map);
 
             if (skeleton is null)
                 return null;
@@ -169,14 +171,16 @@ public class SearchListRepository(
 
     public async Task<bool> DeleteAsync(OwnerScope scope, int ownerId, Guid uuid)
     {
+        var schema = SearchListScopeSchema.For(scope);
+
         try
         {
             var id = await _sqlExecutor.QuerySingleValueAsync(
-                scope == OwnerScope.Person ? QuerySearchLists.DeletePersonSql : QuerySearchLists.DeleteGroupSql,
+                QuerySearchLists.Delete(schema),
                 p =>
                 {
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonSearchListUuid : pn.GroupSearchListUuid, uuid);
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
+                    p.AddWithValue(schema.UuidParameter, uuid);
+                    p.AddWithValue(schema.OwnerParameter, ownerId);
                 },
                 reader => reader.GetInt32(0));
 
@@ -184,13 +188,11 @@ public class SearchListRepository(
                 return false;
 
             await _cqlExecutor.ExecuteAsync(
-                scope == OwnerScope.Person
-                    ? QuerySearchListsCql.DeletePersonSql
-                    : QuerySearchListsCql.DeleteGroupSql,
+                QuerySearchListsCql.Delete(schema),
                 p =>
                 {
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
-                    p.AddWithValue(scope == OwnerScope.Person ? pn.PersonSearchListId : pn.GroupSearchListId, id.Value);
+                    p.AddWithValue(schema.OwnerParameter, ownerId);
+                    p.AddWithValue(schema.IdParameter, id.Value);
                 });
 
             return true;
@@ -265,15 +267,19 @@ public class SearchListRepository(
         }
     }
 
-    private Task<SearchList?> GetSkeletonAsync(OwnerScope scope, int ownerId, Guid uuid) =>
-        _sqlExecutor.QuerySingleAsync(
-            scope == OwnerScope.Person ? QuerySearchLists.GetPersonByUuidSql : QuerySearchLists.GetGroupByUuidSql,
+    private Task<SearchList?> GetSkeletonAsync(OwnerScope scope, int ownerId, Guid uuid)
+    {
+        var schema = SearchListScopeSchema.For(scope);
+
+        return _sqlExecutor.QuerySingleAsync(
+            QuerySearchLists.GetByUuid(schema),
             p =>
             {
-                p.AddWithValue(scope == OwnerScope.Person ? pn.PersonSearchListUuid : pn.GroupSearchListUuid, uuid);
-                p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
+                p.AddWithValue(schema.UuidParameter, uuid);
+                p.AddWithValue(schema.OwnerParameter, ownerId);
             },
-            reader => scope == OwnerScope.Person ? reader.ToPersonSearchList() : reader.ToGroupSearchList());
+            schema.Map);
+    }
 
     /// <summary>
     /// Encrypts and writes the content half. Plaintext goes in and ciphertext goes out, here and
@@ -282,16 +288,15 @@ public class SearchListRepository(
     private Task WriteContentAsync(
         OwnerScope scope, int ownerId, int id, string name, SearchListPayload payload)
     {
+        var schema = SearchListScopeSchema.For(scope);
         var serialized = JsonSerializer.Serialize(payload);
 
         return _cqlExecutor.ExecuteAsync(
-            scope == OwnerScope.Person
-                ? QuerySearchListsCql.UpsertPersonSql
-                : QuerySearchListsCql.UpsertGroupSql,
+            QuerySearchListsCql.Upsert(schema),
             p =>
             {
-                p.AddWithValue(scope == OwnerScope.Person ? pn.PersonId : pn.GroupId, ownerId);
-                p.AddWithValue(scope == OwnerScope.Person ? pn.PersonSearchListId : pn.GroupSearchListId, id);
+                p.AddWithValue(schema.OwnerParameter, ownerId);
+                p.AddWithValue(schema.IdParameter, id);
                 p.AddWithValue(pn.Name, _cipher.Encrypt(name));
                 p.AddWithValue(pn.Payload, _cipher.Encrypt(serialized));
                 p.AddWithValue(pn.PayloadVersion, SearchList.CurrentPayloadVersion);
