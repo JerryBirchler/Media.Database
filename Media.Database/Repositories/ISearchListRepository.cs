@@ -17,7 +17,7 @@ public interface ISearchListRepository
     /// Creates a list. Postgres issues the identity and the uuid, then the name and lines are
     /// encrypted and written to Scylla under the borrowed id.
     /// </summary>
-    Task<SearchList?> AddAsync(OwnerScope scope, int ownerId, SearchListType listType, string name, IReadOnlyList<SearchListLine> lines);
+    Task<SearchList?> AddAsync(OwnerScope scope, int ownerId, SearchListType listType, string name, SearchListPayload payload);
 
     /// <summary>
     /// Reads one list, fully assembled and decrypted, or null when it does not exist or does not
@@ -35,11 +35,30 @@ public interface ISearchListRepository
     /// Replaces a list's name and lines. Returns null when the list is not the owner's, in which
     /// case nothing is written to either store.
     /// </summary>
-    Task<SearchList?> UpdateAsync(OwnerScope scope, int ownerId, Guid uuid, SearchListType listType, string name, IReadOnlyList<SearchListLine> lines);
+    Task<SearchList?> UpdateAsync(OwnerScope scope, int ownerId, Guid uuid, SearchListType listType, string name, SearchListPayload payload);
 
     /// <summary>
     /// Removes a list from both stores. False when it was not the owner's, in which case nothing
     /// was removed.
     /// </summary>
     Task<bool> DeleteAsync(OwnerScope scope, int ownerId, Guid uuid);
+
+    /// <summary>
+    /// Runs a combined search: the named lists AND together, each list's lines OR within it, and
+    /// the file criteria narrow the whole result.
+    ///
+    /// Every list named is resolved under <paramref name="ownerId"/> at execution, not trusted
+    /// from when it was saved. A list that is not the caller's is skipped rather than run --
+    /// running somebody else's list would leak its encrypted contents through the result set,
+    /// which is a decryption oracle even though nothing is decrypted.
+    ///
+    /// An AND list expands to the lists it references, each resolved the same way.
+    /// </summary>
+    Task<IReadOnlyList<FileSearchResult>> SearchFilesAsync(
+        OwnerScope scope,
+        int ownerId,
+        IReadOnlyList<Guid> listUuids,
+        bool? isCurrent,
+        IReadOnlyList<int> sourceMachineIds,
+        int limit);
 }

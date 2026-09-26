@@ -100,6 +100,9 @@ public static class QuerySearchLists
     /// SQL to list a person's lists, optionally narrowed to one kind. A null list type means all
     /// of them, following the optional-filter pattern already used across the word queries.
     ///
+    /// The cast is not decoration: a null passed as DBNull gives Npgsql no type to infer, and
+    /// Postgres rejects the statement rather than treating it as "any".
+    ///
     /// Covered by IX_PersonSearchLists_PersonId_ListType, so the picker reaches Scylla for the
     /// names without ever touching the heap here.
     /// </summary>
@@ -113,7 +116,7 @@ public static class QuerySearchLists
             {pv.UpdatedOn}
         FROM {ts.PersonSearchLists}
         WHERE {pv.PersonId} = {pn.PersonId}
-          AND ({pn.ListType} IS NULL OR {pv.ListType} = {pn.ListType})
+          AND ({pn.ListType}::int IS NULL OR {pv.ListType} = {pn.ListType}::int)
         ORDER BY {pv.PersonSearchListId}
         ;";
 
@@ -128,7 +131,7 @@ public static class QuerySearchLists
             {gv.UpdatedOn}
         FROM {ts.GroupSearchLists}
         WHERE {gv.GroupId} = {pn.GroupId}
-          AND ({pn.ListType} IS NULL OR {gv.ListType} = {pn.ListType})
+          AND ({pn.ListType}::int IS NULL OR {gv.ListType} = {pn.ListType}::int)
         ORDER BY {gv.GroupSearchListId}
         ;";
 

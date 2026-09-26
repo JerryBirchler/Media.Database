@@ -11,7 +11,20 @@ namespace Media.Database.Models;
 /// </summary>
 public record SearchListPayload
 {
-    /// <summary>The lines of an OR list, in the order the user arranged them.</summary>
+    /// <summary>
+    /// The lines of an OR list, in the order the user arranged them. Empty for an AND list.
+    /// </summary>
     [JsonPropertyName("lines")]
-    public required IReadOnlyList<SearchListLine> Lines { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public IReadOnlyList<SearchListLine> Lines { get; init; } = [];
+
+    /// <summary>
+    /// The lists an AND list combines, by uuid. Empty for an OR list.
+    ///
+    /// By uuid and not by name: renaming an OR list would otherwise break every AND list
+    /// pointing at it. The name is carried alongside for display only, refreshed on read.
+    /// </summary>
+    [JsonPropertyName("references")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public IReadOnlyList<Guid> References { get; init; } = [];
 }

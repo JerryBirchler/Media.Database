@@ -10,9 +10,8 @@ namespace Media.Database.Models;
 /// the relational side keeps a real foreign key with a real delete rule, and no user content ever
 /// lands in it.
 ///
-/// Only the OR shape is modeled. An AND list references other lists by uuid, and that shape is
-/// deliberately unsettled -- <c>PayloadVersion</c> alongside <see cref="SearchListType"/> is
-/// exactly the mechanism that lets it be decided when somebody builds it.
+/// Both shapes share the row and the payload column; <see cref="SearchListType"/> says which is
+/// populated. An OR list carries lines, an AND list carries the uuids of the lists it combines.
 /// </summary>
 public class SearchList
 {
@@ -53,6 +52,14 @@ public class SearchList
 
     /// <summary>The lines, in the order the user arranged them. OR within a list.</summary>
     public IReadOnlyList<SearchListLine> Lines { get; set; } = [];
+
+    /// <summary>
+    /// For an AND list, the OR lists it combines, by uuid. Resolved under the caller's own scope
+    /// every time it is used rather than trusted from when it was saved -- ownership can change
+    /// underneath a reference, and a search that runs somebody else's list is a decryption
+    /// oracle.
+    /// </summary>
+    public IReadOnlyList<Guid> References { get; set; } = [];
 
     /// <summary>When the list was created.</summary>
     public DateTimeOffset InsertedOn { get; set; }

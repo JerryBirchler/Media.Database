@@ -81,6 +81,8 @@ public class SearchListRepositoryTests
         return captured;
     }
 
+    private static SearchListPayload APayload() => new() { Lines = Lines() };
+
     private static IReadOnlyList<SearchListLine> Lines() =>
     [
         new SearchListLine { LookingFor = "Belle" },
@@ -94,7 +96,7 @@ public class SearchListRepositoryTests
         SqlReturns(QuerySearchLists.AddPersonSql, skeleton);
 
         var result = await CreateRepository()
-            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", Lines());
+            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", APayload());
 
         result.ShouldNotBeNull();
         result.Uuid.ShouldBe(skeleton.Uuid);
@@ -111,7 +113,7 @@ public class SearchListRepositoryTests
         var parameters = CaptureCqlParameters();
 
         await CreateRepository()
-            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", Lines());
+            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", APayload());
 
         // Two calls, not one: the name is encrypted as well as the payload. Exempting it would be
         // the situational reasoning the design rejects.
@@ -133,7 +135,7 @@ public class SearchListRepositoryTests
             .Returns<string>(v => { payload = v; return $"enc:{v}"; });
 
         await CreateRepository()
-            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", Lines());
+            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", APayload());
 
         payload.ShouldNotBeNull();
 
@@ -150,7 +152,7 @@ public class SearchListRepositoryTests
         SqlReturns(QuerySearchLists.AddPersonSql, null);
 
         var result = await CreateRepository()
-            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", Lines());
+            .AddAsync(OwnerScope.Person, PersonId, SearchListType.Or, "the girls", APayload());
 
         result.ShouldBeNull();
         _cqlExecutorMock.Verify(e => e.ExecuteAsync(
@@ -163,7 +165,7 @@ public class SearchListRepositoryTests
         SqlReturns(QuerySearchLists.AddGroupSql, ASkeleton(OwnerScope.Group, GroupId));
 
         await CreateRepository()
-            .AddAsync(OwnerScope.Group, GroupId, SearchListType.Or, "the girls", Lines());
+            .AddAsync(OwnerScope.Group, GroupId, SearchListType.Or, "the girls", APayload());
 
         _cqlExecutorMock.Verify(e => e.ExecuteAsync(
             QuerySearchListsCql.UpsertGroupSql,
@@ -297,7 +299,7 @@ public class SearchListRepositoryTests
         SqlReturns(QuerySearchLists.UpdatePersonSql, null);
 
         var result = await CreateRepository().UpdateAsync(
-            OwnerScope.Person, PersonId, Guid.NewGuid(), SearchListType.Or, "the girls", Lines());
+            OwnerScope.Person, PersonId, Guid.NewGuid(), SearchListType.Or, "the girls", APayload());
 
         // The Postgres update is the authorization check, so a rejected update must not rewrite
         // somebody else's blobs.
@@ -312,7 +314,7 @@ public class SearchListRepositoryTests
         SqlReturns(QuerySearchLists.UpdatePersonSql, ASkeleton(OwnerScope.Person, PersonId));
 
         var result = await CreateRepository().UpdateAsync(
-            OwnerScope.Person, PersonId, Guid.NewGuid(), SearchListType.Or, "the girls", Lines());
+            OwnerScope.Person, PersonId, Guid.NewGuid(), SearchListType.Or, "the girls", APayload());
 
         result.ShouldNotBeNull();
         result.Name.ShouldBe("the girls");
