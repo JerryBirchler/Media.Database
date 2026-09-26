@@ -12,10 +12,12 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
     public static readonly string CanBeEncryptedFields = x();
     public static readonly string Files = x();
     public static readonly string Groups = x();
+    public static readonly string GroupSearchLists = x();
     public static readonly string GroupUuidOrchestration = x();
     public static readonly string OtpAttempts = x();
     public static readonly string PersonAvatars = x();
     public static readonly string Persons = x();
+    public static readonly string PersonSearchLists = x();
     public static readonly string Registrations = x();
     public static readonly string WordFiles = x();
 
@@ -135,6 +137,24 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
         public static readonly string RegistrationInsertedOn = y();
         public static readonly string RegistrationUpdatedOn = y();
     }
+    public static class PersonSearchListsColumns
+    {
+        public static readonly string PersonId = y();
+        public static readonly string PersonSearchListId = y();
+        public static readonly string Name = y();
+        public static readonly string Payload = y();
+        public static readonly string PayloadVersion = y();
+    }
+
+    public static class GroupSearchListsColumns
+    {
+        public static readonly string GroupId = y();
+        public static readonly string GroupSearchListId = y();
+        public static readonly string Name = y();
+        public static readonly string Payload = y();
+        public static readonly string PayloadVersion = y();
+    }
+
 
     /// <summary>
     /// Formats a raw table name as its snake_case CQL table name.

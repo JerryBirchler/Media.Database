@@ -11,19 +11,22 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     public static readonly string Files = x();
     public static readonly string GroupEncryptionKeys = x();
     public static readonly string Groups = x();
+    public static readonly string GroupSearchLists = x();
     public static readonly string GroupShell = x();
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
-    public static readonly string PersonVoiceProfiles = x();
     public static readonly string Persons = x();
+    public static readonly string PersonSearchLists = x();
     public static readonly string PersonsSourceMachines = x();
+    public static readonly string PersonVoiceProfiles = x();
     public static readonly string Registrations = x();
+    public static readonly string SearchListTypes = x();
     public static readonly string SourceMachineKeys = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();
     public static readonly string View_WordFiles = x();
-    public static readonly string Words = x();
     public static readonly string WordFiles = x();
+    public static readonly string Words = x();
 
     public static class FilesColumns
     {
@@ -222,6 +225,32 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string SourceMachineId = y();
         public static readonly string ThumbnailGeneratedOn = y();
     }
+    public static class SearchListTypesColumns
+    {
+        public static readonly string Id = y();
+        public static readonly string Description = y();
+    }
+
+    public static class PersonSearchListsColumns
+    {
+        public static readonly string PersonSearchListId = y();
+        public static readonly string PersonSearchListUuid = y();
+        public static readonly string PersonId = y();
+        public static readonly string ListType = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupSearchListsColumns
+    {
+        public static readonly string GroupSearchListId = y();
+        public static readonly string GroupSearchListUuid = y();
+        public static readonly string GroupId = y();
+        public static readonly string ListType = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
 
     /// <summary>
     /// Formats a raw table name as a schema-qualified, quoted PostgreSQL identifier.

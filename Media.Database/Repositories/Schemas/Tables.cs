@@ -11,6 +11,7 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string Files = x();
     public static readonly string GroupEncryptionKeys = x();
     public static readonly string Groups = x();
+    public static readonly string GroupSearchLists = x();
     public static readonly string GroupShell = x();
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
@@ -18,9 +19,11 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string OtpAttempts = x();
     public static readonly string PersonAvatars = x();
     public static readonly string Persons = x();
+    public static readonly string PersonSearchLists = x();
     public static readonly string PersonsSourceMachines = x();
     public static readonly string PersonVoiceProfiles = x();
     public static readonly string Registrations = x();
+    public static readonly string SearchListTypes = x();
     public static readonly string SourceMachineKeys = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();

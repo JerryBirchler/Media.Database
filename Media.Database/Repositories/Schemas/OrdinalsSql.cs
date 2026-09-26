@@ -24,6 +24,8 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string GroupId = x();
     public static readonly string GroupPersonId = x();
     public static readonly string GroupPersonUuid = x();
+    public static readonly string GroupSearchListId = x();
+    public static readonly string GroupSearchListUuid = x();
     public static readonly string GroupShellId = x();
     public static readonly string GroupSourceMachineId = x();
     public static readonly string GroupSourceMachineUuid = x();
@@ -41,8 +43,9 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string IsSuperAdmin = x();
     public static readonly string KeyDeliveryMethod = x();
     public static readonly string KeyPurpose = x();
-    public static readonly string LastName = x();
     public static readonly string LastFileUpdate = x();
+    public static readonly string LastName = x();
+    public static readonly string ListType = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
     public static readonly string OperatingSystem = x();
@@ -52,7 +55,11 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string OtpEmail = x();
     public static readonly string OtpWindowOverrideMinutes = x();
     public static readonly string OwningPersonId = x();
+    public static readonly string Payload = x();
+    public static readonly string PayloadVersion = x();
     public static readonly string PersonId = x();
+    public static readonly string PersonSearchListId = x();
+    public static readonly string PersonSearchListUuid = x();
     public static readonly string PersonSourceMachineId = x();
     public static readonly string PersonSourceMachineUuid = x();
     public static readonly string PersonUuid = x();
@@ -77,8 +84,8 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string UpdatedOn = x();
     public static readonly string Uuid = x();
     public static readonly string Word = x();
-    public static readonly string WordType = x();
     public static readonly string WordId = x();
+    public static readonly string WordType = x();
     public static readonly string WordUuid = x();
     public static readonly string WrappedDek = x();
 }

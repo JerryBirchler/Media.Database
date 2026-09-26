@@ -20,6 +20,8 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string FirstName = x();
     public static readonly string GroupEncryptionKeyUuid = x();
     public static readonly string GroupId = x();
+    public static readonly string GroupSearchListId = x();
+    public static readonly string GroupSearchListUuid = x();
     public static readonly string GroupShellId = x();
     public static readonly string GroupUuid = x();
     public static readonly string Id = x();
@@ -36,6 +38,7 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string IsUsed = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
+    public static readonly string ListType = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
     public static readonly string NonceId = x();
@@ -45,7 +48,11 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string OtpCellPhone = x();
     public static readonly string OtpEmail = x();
     public static readonly string OtpWindowOverrideMinutes = x();
+    public static readonly string Payload = x();
+    public static readonly string PayloadVersion = x();
     public static readonly string PersonId = x();
+    public static readonly string PersonSearchListId = x();
+    public static readonly string PersonSearchListUuid = x();
     public static readonly string PersonUuid = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
@@ -63,7 +70,7 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();
     public static readonly string Word = x();
-    public static readonly string WordType = x();
     public static readonly string WordId = x();
+    public static readonly string WordType = x();
     public static readonly string WordUuid = x();
 }
