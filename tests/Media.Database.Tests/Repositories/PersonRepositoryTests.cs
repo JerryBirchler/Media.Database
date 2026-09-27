@@ -155,6 +155,20 @@ public class PersonRepositoryTests
         result.ShouldBe(expected);
     }
 
+    [TestCase(true, true)]
+    [TestCase(false, false)]
+    [TestCase(null, false)]
+    public async Task IsEnrolledByEmailAsync_Should_ReturnWhatTheQueryAnswers(bool? answered, bool expected)
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryPersons.IsEnrolledByEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, bool>>()))
+            .ReturnsAsync(answered);
+
+        var result = await CreateRepository().IsEnrolledByEmailAsync("someone@example.com");
+
+        result.ShouldBe(expected);
+    }
+
     [Test]
     public async Task GetByUuidAsync_Should_ReturnNull_When_NotFound()
     {

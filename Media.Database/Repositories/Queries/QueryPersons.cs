@@ -104,6 +104,21 @@ public static class QueryPersons
         ;";
 
     /// <summary>
+    /// SQL to ask whether anyone with this email has completed enrollment: an active person with
+    /// both email and phone verified. Answers yes or no and returns nothing about the person.
+    /// </summary>
+    public static string IsEnrolledByEmailSql => $@"
+        SELECT EXISTS (
+            SELECT 1
+            FROM {ts.Persons}
+            WHERE LOWER({cp.EmailAddress}) = LOWER({pn.EmailAddress})
+                AND {cp.IsActive} = True
+                AND {cp.IsEmailVerified} = True
+                AND {cp.IsSmsVerified} = True
+        )
+        ;";
+
+    /// <summary>
     /// SQL to insert a new person, returning the inserted row.
     /// </summary>
     public static string AddPersonSql => $@"

@@ -19,6 +19,12 @@ public interface IPersonRepository
     Task<Person?> GetByUuidAsync(Guid personUuid);
 
     /// <summary>
+    /// Whether anyone with <paramref name="emailAddress"/> has completed enrollment -- active, with
+    /// email and phone both verified. Yes or no only: nothing about the person is returned.
+    /// </summary>
+    Task<bool> IsEnrolledByEmailAsync(string emailAddress);
+
+    /// <summary>
     /// Retrieves a person by the contact information used to create them. A pure read -- unlike
     /// <see cref="FindOrCreateAsync"/>, it never creates.
     /// </summary>

@@ -112,6 +112,24 @@ public class PersonRepository(
         }
     }
 
+    public async Task<bool> IsEnrolledByEmailAsync(string emailAddress)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleValueAsync
+            (
+                QueryPersons.IsEnrolledByEmailSql,
+                p => p.AddWithValue(pn.EmailAddress, emailAddress.Trim()),
+                reader => reader.GetFieldValue<bool>(0)
+            ) ?? false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "IsEnrolledByEmailAsync failed");
+            throw;
+        }
+    }
+
     public async Task<Person?> CreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber, int createdByPersonId)
     {
         try
