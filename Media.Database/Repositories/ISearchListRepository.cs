@@ -54,10 +54,16 @@ public interface ISearchListRepository
     ///
     /// An AND list expands to the lists it references, each resolved the same way.
     /// </summary>
+    /// <param name="adHocLines">
+    /// An unsaved one-off list, ANDed with the named ones. What somebody typed into a search box
+    /// is a list that was never worth saving, so it goes through the same machinery rather than a
+    /// parallel one that has to be kept in agreement.
+    /// </param>
     Task<IReadOnlyList<FileSearchResult>> SearchFilesAsync(
         OwnerScope scope,
         int ownerId,
         IReadOnlyList<Guid> listUuids,
+        IReadOnlyList<SearchListLine> adHocLines,
         bool? isCurrent,
         IReadOnlyList<int> sourceMachineIds,
         int limit);

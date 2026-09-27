@@ -210,6 +210,7 @@ public class SearchListRepository(
         OwnerScope scope,
         int ownerId,
         IReadOnlyList<Guid> listUuids,
+        IReadOnlyList<SearchListLine> adHocLines,
         bool? isCurrent,
         IReadOnlyList<int> sourceMachineIds,
         int limit)
@@ -245,6 +246,10 @@ public class SearchListRepository(
                     expanded.Add(list.Lines);
                 }
             }
+
+            // The typed-in line is one more list to satisfy, not a special case.
+            if (adHocLines.Count > 0)
+                expanded.Add(adHocLines);
 
             var (sql, parameters) = QueryFileSearch.Build(expanded, isCurrent, sourceMachineIds, limit);
 
