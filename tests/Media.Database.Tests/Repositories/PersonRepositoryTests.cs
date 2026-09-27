@@ -400,6 +400,7 @@ public class PersonRepositoryTests
         command.Parameters[pn.PersonId].Value.ShouldBe(3);
         command.Parameters[pn.FirstName].Value.ShouldBe("Jane");
         command.Parameters[pn.LastName].Value.ShouldBe("Doe");
+        command.Parameters[pn.SpokenName].Value.ShouldBe(DBNull.Value);
         command.Parameters[pn.EmailAddress].Value.ShouldBe("jane@example.com");
         command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("555-1234");
         command.Parameters[pn.IsActive].Value.ShouldBe(false);

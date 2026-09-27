@@ -229,7 +229,7 @@ public class PersonRepository(
                     p.AddWithValue(pn.PersonId, personId);
                     p.AddWithValue(pn.FirstName, firstName);
                     p.AddWithValue(pn.LastName, lastName);
-                    p.AddWithValue(pn.SpokenName, spokenName);
+                    p.AddWithValue(pn.SpokenName, spokenName.ToNullableValueForSql());
                     p.AddWithValue(pn.EmailAddress, emailAddress);
                     p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
                     p.AddWithValue(pn.IsActive, isActive);
