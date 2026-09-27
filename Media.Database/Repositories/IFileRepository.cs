@@ -122,4 +122,13 @@ public interface IFileRepository
     /// actually changed (see Media.Worker's FilesViewRefreshService/IFilesViewDirtyTracker).
     /// </summary>
     Task RefreshView();
+
+    /// <summary>
+    /// Refreshes the group-files materialized view (files visible across every device in a
+    /// caller's group, via GroupsSourceMachines). Same interval/dirty-flag pattern as
+    /// <see cref="RefreshView"/>, but triggered by GroupsSourceMachines changes (a device joining
+    /// or leaving a group) in addition to Files changes -- see Media.Worker's
+    /// GroupFilesViewRefreshService/IGroupFilesViewDirtyTracker.
+    /// </summary>
+    Task RefreshGroupFilesView();
 }

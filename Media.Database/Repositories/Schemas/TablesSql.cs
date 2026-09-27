@@ -25,6 +25,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     public static readonly string SourceMachineKeys = x();
     public static readonly string SourceMachineRegistrations = x();
     public static readonly string View_Current_Files = x();
+    public static readonly string View_Group_Files = x();
     public static readonly string View_WordFiles = x();
     public static readonly string WordFiles = x();
     public static readonly string Words = x();

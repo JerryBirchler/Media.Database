@@ -253,6 +253,10 @@ public static class QueryFiles
     /// <summary>SQL to refresh the current-files materialized view.</summary>
     public static string RefreshViewSql => $@"
         REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Current_Files};";
+
+    /// <summary>SQL to refresh the group-files materialized view.</summary>
+    public static string RefreshGroupFilesViewSql => $@"
+        REFRESH MATERIALIZED VIEW CONCURRENTLY {ts.View_Group_Files};";
     #endregion
 
     #region CQL Queries

@@ -386,4 +386,17 @@ public class FileRepository(
             throw;
         }
     }
+
+    public async Task RefreshGroupFilesView()
+    {
+        try
+        {
+            await _sqlExecutor.ExecuteAsync(QueryFiles.RefreshGroupFilesViewSql, static _ => { });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "RefreshGroupFilesView failed for View_Group_Files");
+            throw;
+        }
+    }
 }
