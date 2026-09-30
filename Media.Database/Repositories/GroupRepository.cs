@@ -1,6 +1,7 @@
 using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
 using Media.Database.Mappers;
+using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Media.Database.Repositories.Queries.Helpers;
@@ -24,13 +25,89 @@ public class GroupRepository(
     ICqlQueryExecutor cqlExecutor,
     IScyllaSessionProvider scyllaProvider,
     IMapGroupResponse groupResponseMapper,
+    Func<IUnitOfWork> unitOfWorkFactory,
     ILogger<GroupRepository> logger)
     : BaseRepository(scyllaProvider), IGroupRepository
 {
+    private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
     private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly IMapGroupResponse _groupResponseMapper = groupResponseMapper;
     private readonly FluentLogger<GroupRepository> _logger = logger.Initializer();
+
+    public async Task<Group?> CreateOwnedAsync(
+        string name,
+        string title,
+        string? description,
+        bool isActive,
+        int ownerPersonId,
+        IReadOnlyList<int> sourceMachineIds)
+    {
+        await using var uow = _unitOfWorkFactory();
+
+        try
+        {
+            await uow.BeginTransactionAsync();
+
+            var group = await _sqlExecutor.QuerySingleAsync
+            (
+                uow,
+                QueryGroups.AddGroupSql,
+                p =>
+                {
+                    p.AddWithValue(pn.Name, name);
+                    p.AddWithValue(pn.Title, title);
+                    p.AddWithValue(pn.Description, description.ToNullableValueForSql());
+                    p.AddWithValue(pn.IsActive, isActive);
+                },
+                reader => reader.ToGroup(_groupResponseMapper)
+            );
+
+            if (group is null)
+            {
+                await uow.RollbackAsync();
+                return null;
+            }
+
+            await _sqlExecutor.ExecuteAsync
+            (
+                uow,
+                QueryGroupsPersons.UpsertSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, group.GroupId);
+                    p.AddWithValue(pn.PersonId, ownerPersonId);
+                    p.AddWithValue(pn.IsAdmin, true);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                }
+            );
+
+            foreach (var sourceMachineId in sourceMachineIds)
+            {
+                await _sqlExecutor.ExecuteAsync
+                (
+                    uow,
+                    QueryGroupsSourceMachines.UpsertSql,
+                    p =>
+                    {
+                        p.AddWithValue(pn.GroupId, group.GroupId);
+                        p.AddWithValue(pn.SourceMachineId, sourceMachineId);
+                        p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                    }
+                );
+            }
+
+            await uow.CommitAsync();
+
+            return group;
+        }
+        catch (Exception ex)
+        {
+            await uow.RollbackAsync();
+            _logger.LogError(ex, "CreateOwnedAsync failed for Name: [{Name}] OwnerPersonId: [{OwnerPersonId}]", name, ownerPersonId);
+            throw;
+        }
+    }
 
     public async Task<Group?> CreateAsync(string name, string title, string? description, bool isActive)
     {

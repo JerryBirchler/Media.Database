@@ -58,6 +58,13 @@ public interface ISqlQueryExecutor
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing the result.</returns>
+    /// <summary>
+    /// Executes a statement inside <paramref name="unitOfWork"/>'s transaction, returning the
+    /// number of rows affected. The counterpart to the connectionless overload, for a write whose
+    /// returned row is of no interest to the caller but whose atomicity is.
+    /// </summary>
+    Task<int> ExecuteAsync(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters);
+
     Task<T?> QuerySingleAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class;
 
     /// <summary>

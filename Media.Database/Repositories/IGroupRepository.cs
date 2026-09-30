@@ -10,6 +10,24 @@ public interface IGroupRepository
     Task<Group?> CreateAsync(string name, string title, string? description, bool isActive);
 
     /// <summary>
+    /// Creates a group and, in the same transaction, makes <paramref name="ownerPersonId"/> its
+    /// admin and attaches <paramref name="sourceMachineIds"/>.
+    /// </summary>
+    /// <remarks>
+    /// One transaction because the three writes are one fact. Doing them separately produced a
+    /// group with no members on 2026-09-25: the insert committed, the next call threw, and the
+    /// row survived with nobody able to see or administer it -- every group read is scoped
+    /// through GroupsPersons, so there is no route back to it from any UI.
+    /// </remarks>
+    Task<Group?> CreateOwnedAsync(
+        string name,
+        string title,
+        string? description,
+        bool isActive,
+        int ownerPersonId,
+        IReadOnlyList<int> sourceMachineIds);
+
+    /// <summary>
     /// Finds the group matching <paramref name="groupUuid"/>, or <see langword="null"/> if none exists.
     /// </summary>
     Task<Group?> GetByUuidAsync(Guid groupUuid);

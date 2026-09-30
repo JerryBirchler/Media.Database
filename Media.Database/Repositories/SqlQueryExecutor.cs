@@ -77,6 +77,13 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing the result.</returns>
+    public async Task<int> ExecuteAsync(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters)
+    {
+        await using var command = new NpgsqlCommand(sql, unitOfWork.Connection, unitOfWork.CurrentTransaction);
+        configureParameters(command.Parameters);
+        return await command.ExecuteNonQueryAsync();
+    }
+
     public async Task<T?> QuerySingleAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class
     {
         var (found, value) = await TryReadSingleAsync(unitOfWork.Connection, sql, configureParameters, map);

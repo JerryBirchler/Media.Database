@@ -2,6 +2,8 @@
 using AutoFixture;
 using Media.Common.Providers;
 using Media.Database.Mappers;
+using System.Threading;
+using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories;
 using Media.Database.Repositories.Queries;
@@ -33,6 +35,7 @@ public class GroupRepositoryTests
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
     private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
     private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
+    private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
 
     [SetUp]
@@ -42,6 +45,7 @@ public class GroupRepositoryTests
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
         _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
         _scyllaProviderMock = new Mock<IScyllaSessionProvider>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
     private GroupRepository CreateRepository() => new(
@@ -49,6 +53,7 @@ public class GroupRepositoryTests
         _cqlExecutorMock.Object,
         _scyllaProviderMock.Object,
         new MapGroupResponse(),
+        () => _unitOfWorkMock.Object,
         Mock.Of<ILogger<GroupRepository>>());
 
     private Group CreateGroup(string? name = null, string? title = null, string? description = null)
@@ -297,5 +302,52 @@ public class GroupRepositoryTests
         var result = await CreateRepository().GetByIdsAsync(groupIds, maxDegreeOfParallelism: 2);
 
         result.Select(g => g.GroupId).ShouldBe(groupIds, ignoreOrder: true);
+    }
+
+    /// <summary>
+    /// The failure of 2026-09-25. Creating "BIRCHLER-1" inserted the Groups row and then threw,
+    /// leaving a group with no members and no admin -- invisible and unadministrable forever,
+    /// because every group read is scoped through GroupsPersons. There is no route back to it
+    /// from any UI, so the row must not outlive the work that makes it usable.
+    /// </summary>
+    [Test]
+    public async Task CreateOwnedAsync_Should_RollBack_When_MakingTheOwnerAdminFails()
+    {
+        var group = CreateGroup();
+
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroups.AddGroupSql,
+                It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()))
+            .ReturnsAsync(group);
+        _sqlExecutorMock
+            .Setup(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql,
+                It.IsAny<Action<NpgsqlParameterCollection>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => CreateRepository().CreateOwnedAsync(group.Name, group.Title, null, true, 12, [17]));
+
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task CreateOwnedAsync_Should_CommitTheGroupItsAdminAndItsDevices_Together()
+    {
+        var group = CreateGroup();
+
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroups.AddGroupSql,
+                It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()))
+            .ReturnsAsync(group);
+
+        var result = await CreateRepository().CreateOwnedAsync(group.Name, group.Title, null, true, 12, [17, 23]);
+
+        result.ShouldBe(group);
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql,
+            It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.UpsertSql,
+            It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Exactly(2));
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }
