@@ -553,6 +553,22 @@ public class RegistrationRepository(
         }
     }
 
+    public async Task<DeviceKeyAnchor?> GetKeyAnchorAsync(int sourceMachineId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryRegistrations.GetKeyAnchorSql,
+                p => p.AddWithValue(pn.SourceMachineId, sourceMachineId),
+                reader => reader.ToDeviceKeyAnchor());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetKeyAnchorAsync failed for SourceMachineId: [{SourceMachineId}]", sourceMachineId);
+            throw;
+        }
+    }
+
     public async Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(string emailAddress)
     {
         try
@@ -663,27 +679,6 @@ public class RegistrationRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "SetKeyDeliveryMethodAsync failed for SourceMachineId: [{SourceMachineId}], KeyDeliveryMethod: [{KeyDeliveryMethod}]", sourceMachineId, keyDeliveryMethod);
-            throw;
-        }
-    }
-
-    public async Task SetGroupShellIdIfUnsetAsync(int sourceMachineId, int groupShellId)
-    {
-        try
-        {
-            await _sqlExecutor.ExecuteAsync
-            (
-                QueryRegistrations.SetGroupShellIdIfUnsetSql,
-                p =>
-                {
-                    p.AddWithValue(pn.SourceMachineId, sourceMachineId);
-                    p.AddWithValue(pn.GroupShellId, groupShellId);
-                }
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "SetGroupShellIdIfUnsetAsync failed for SourceMachineId: [{SourceMachineId}], GroupShellId: [{GroupShellId}]", sourceMachineId, groupShellId);
             throw;
         }
     }

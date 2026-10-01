@@ -74,18 +74,19 @@ public interface IRegistrationRepository
     Task<int?> GetOwningPersonIdAsync(int sourceMachineId);
 
     /// <summary>
+    /// Where an active device's encryption key is anchored and how it is delivered, from Postgres:
+    /// <see langword="null"/> when the device is unknown or inactive. Read from Postgres because the
+    /// Scylla registrations table has neither column, so <see cref="GetByIdsAsync"/> always reports
+    /// them unset -- which made key regeneration a permanent 404 and encrypted writes throw.
+    /// </summary>
+    Task<DeviceKeyAnchor?> GetKeyAnchorAsync(int sourceMachineId);
+
+    /// <summary>
     /// Permanently sets <c>SourceMachineRegistrations.OwningPersonId</c> to <paramref name="personId"/>
     /// for <paramref name="sourceMachineId"/> -- a no-op if already set (MEDIA-10: device ownership
     /// is singular and permanent, never reassigned or cleared by any endpoint, through any path).
     /// </summary>
     Task SetOwningPersonIfUnsetAsync(int sourceMachineId, int personId);
-
-    /// <summary>
-    /// Permanently sets <c>SourceMachineRegistrations.GroupShellId</c> to <paramref name="groupShellId"/>
-    /// for <paramref name="sourceMachineId"/> -- a no-op if already set (MEDIA-37: a device's shell
-    /// assignment is a one-time thing this can make, never a reassignment).
-    /// </summary>
-    Task SetGroupShellIdIfUnsetAsync(int sourceMachineId, int groupShellId);
 
     /// <summary>
     /// Records the channel this customer chose to receive their generated group encryption key on.

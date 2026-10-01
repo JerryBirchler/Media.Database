@@ -40,6 +40,62 @@ public static class QueryRegistrations
         ;";
 
     /// <summary>
+    /// SQL for an active device's key anchor -- its group shell and key delivery method -- from
+    /// Postgres. Scylla's registrations table carries neither, so this must not be answered from there.
+    /// </summary>
+    public static string GetKeyAnchorSql => $@"
+        SELECT
+            {cssmr.GroupShellId},
+            {cssmr.KeyDeliveryMethod}
+        FROM
+            {ts.SourceMachineRegistrations}
+        WHERE
+            {cssmr.SourceMachineId} = {pn.SourceMachineId}
+            AND {cssmr.IsActive} = True
+        LIMIT 1
+        ;";
+
+    // Active, verified on both channels by its current registration, and still without a shell:
+    // the state in which a device's encryption key is owed (WORKER-16). The join to the current
+    // registration matches GetBySourceMachineIdSql's, so "verified" means the same thing here.
+    private static string ProvisioningCandidatesFrom => $@"
+        SELECT
+            smr.{cssmr.SourceMachineId},
+            smr.{cssmr.EmailAddress},
+            smr.{cssmr.CellPhoneNumber},
+            smr.{cssmr.KeyDeliveryMethod}
+        FROM
+            {ts.SourceMachineRegistrations} AS smr
+        JOIN
+            {ts.Registrations} AS r
+        ON
+            r.{csr.SourceMachineId} = smr.{cssmr.SourceMachineId}
+            AND r.{csr.IsCurrent} = True
+            AND smr.{cssmr.EmailAddress} = r.{csr.EmailAddress}
+            AND smr.{cssmr.CellPhoneNumber} = r.{csr.CellPhoneNumber}
+        WHERE
+            smr.{cssmr.IsActive} = True
+            AND smr.{cssmr.GroupShellId} IS NULL
+            AND r.{csr.IsEmailVerified} = True
+            AND r.{csr.IsSmsVerified} = True";
+
+    /// <summary>SQL for one device, if it is a provisioning candidate (WORKER-16).</summary>
+    public static string GetProvisioningCandidateSql => $@"{ProvisioningCandidatesFrom}
+            AND smr.{cssmr.SourceMachineId} = {pn.SourceMachineId}
+        LIMIT 1
+        ;";
+
+    /// <summary>
+    /// SQL for up to <c>Limit</c> provisioning candidates, oldest first (WORKER-16) -- the sweep that
+    /// is both the retry for a failed delivery and the backfill for devices stranded before it existed.
+    /// </summary>
+    public static string GetProvisioningCandidatesSql => $@"{ProvisioningCandidatesFrom}
+        ORDER BY
+            smr.{cssmr.InsertedOn}
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>
     /// Test support only (DATABASE-34): the newest active device owned by the person with this
     /// email, with its key and where its keys were delivered.
     /// </summary>
@@ -484,6 +540,28 @@ public static class QueryRegistrations
             SourceMachineName = reader.GetString(os.SourceMachineName),
             EmailAddress = reader.GetString(os.EmailAddress),
             CellPhoneNumber = reader.GetString(os.CellPhoneNumber)
+        };
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="ProvisioningCandidate"/>.</summary>
+    public static ProvisioningCandidate ToProvisioningCandidate(this NpgsqlDataReader reader)
+    {
+        return new ProvisioningCandidate
+        {
+            SourceMachineId = reader.GetInt32(os.SourceMachineId),
+            EmailAddress = reader.GetString(os.EmailAddress),
+            CellPhoneNumber = reader.GetString(os.CellPhoneNumber),
+            KeyDeliveryMethod = reader.GetFieldValue<int?>(os.KeyDeliveryMethod) is { } method ? (KeyDeliveryMethods)method : null
+        };
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="DeviceKeyAnchor"/>.</summary>
+    public static DeviceKeyAnchor ToDeviceKeyAnchor(this NpgsqlDataReader reader)
+    {
+        return new DeviceKeyAnchor
+        {
+            GroupShellId = reader.GetFieldValue<int?>(os.GroupShellId),
+            KeyDeliveryMethod = reader.GetFieldValue<int?>(os.KeyDeliveryMethod) is { } method ? (KeyDeliveryMethods)method : null
         };
     }
 

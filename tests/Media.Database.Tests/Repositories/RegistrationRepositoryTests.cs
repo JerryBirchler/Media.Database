@@ -1026,31 +1026,36 @@ public class RegistrationRepositoryTests
     }
 
     [Test]
-    public async Task SetGroupShellIdIfUnsetAsync_Should_ConfigureParameters()
+    public void SetGroupShellIdIfUnsetSql_Should_OnlyBindAnUnboundDevice()
     {
-        Action<NpgsqlParameterCollection>? captured = null;
-        _sqlExecutorMock
-            .Setup(e => e.ExecuteAsync(QueryRegistrations.SetGroupShellIdIfUnsetSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>>((_, configure) => captured = configure)
-            .ReturnsAsync(1);
+        QueryRegistrations.SetGroupShellIdIfUnsetSql.ShouldContain("\"GroupShellId\" IS NULL");
+    }
 
-        await CreateRepository().SetGroupShellIdIfUnsetAsync(sourceMachineId: 11, groupShellId: 22);
+    // A key is owed exactly when the device is active, verified on both channels, and unbound.
+    [Test]
+    public void GetProvisioningCandidateSql_Should_SelectActiveFullyVerifiedDevicesWithoutAShell()
+    {
+        var sql = QueryRegistrations.GetProvisioningCandidateSql;
 
-        using var command = new NpgsqlCommand();
-        captured!(command.Parameters);
-        command.Parameters[pn.SourceMachineId].Value.ShouldBe(11);
-        command.Parameters[pn.GroupShellId].Value.ShouldBe(22);
+        sql.ShouldContain("smr.\"IsActive\" = True");
+        sql.ShouldContain("smr.\"GroupShellId\" IS NULL");
+        sql.ShouldContain("r.\"IsEmailVerified\" = True");
+        sql.ShouldContain("r.\"IsSmsVerified\" = True");
+        sql.ShouldContain("r.\"IsCurrent\" = True");
+        sql.ShouldContain("\"KeyDeliveryMethod\"");
+        sql.ShouldContain("LIMIT 1");
     }
 
     [Test]
-    public void SetGroupShellIdIfUnsetAsync_Should_Rethrow_When_ExecutorThrows()
+    public void GetProvisioningCandidatesSql_Should_TakeTheOldestFirst_UpToALimit()
     {
-        _sqlExecutorMock
-            .Setup(e => e.ExecuteAsync(QueryRegistrations.SetGroupShellIdIfUnsetSql, It.IsAny<Action<NpgsqlParameterCollection>>()))
-            .ThrowsAsync(new InvalidOperationException("boom"));
+        var sql = QueryRegistrations.GetProvisioningCandidatesSql;
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SetGroupShellIdIfUnsetAsync(1, 2));
+        sql.ShouldContain("smr.\"GroupShellId\" IS NULL");
+        sql.ShouldContain("ORDER BY");
+        sql.ShouldContain("LIMIT @");
     }
+
     [Test]
     public async Task GetNewestOwnedByEmailAsync_Should_AskByTheTrimmedEmail_And_ReturnTheDevice()
     {
@@ -1109,5 +1114,45 @@ public class RegistrationRepositoryTests
         sql.ShouldContain("\"OwningPersonId\"");
         sql.ShouldContain("\"IsActive\" = True");
         sql.ShouldContain("public.\"SourceMachineRegistrations\"");
+    }
+
+    // Neither column exists in Scylla's registrations table, so the anchor must come from Postgres.
+    [Test]
+    public void GetKeyAnchorSql_Should_ReadTheShellAndDeliveryMethodOfAnActiveDeviceFromPostgres()
+    {
+        var sql = QueryRegistrations.GetKeyAnchorSql;
+
+        sql.ShouldContain("\"GroupShellId\"");
+        sql.ShouldContain("\"KeyDeliveryMethod\"");
+        sql.ShouldContain("\"IsActive\" = True");
+        sql.ShouldContain("public.\"SourceMachineRegistrations\"");
+    }
+
+    [Test]
+    public async Task GetKeyAnchorAsync_Should_AskByTheDevice_And_ReturnItsAnchor()
+    {
+        var anchor = new DeviceKeyAnchor { GroupShellId = 9, KeyDeliveryMethod = KeyDeliveryMethods.Email };
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetKeyAnchorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, DeviceKeyAnchor>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, DeviceKeyAnchor>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(anchor);
+
+        var result = await CreateRepository().GetKeyAnchorAsync(48);
+
+        result.ShouldBe(anchor);
+        var parameters = new NpgsqlCommand().Parameters;
+        captured!(parameters);
+        parameters[0].Value.ShouldBe(48);
+    }
+
+    [Test]
+    public async Task GetKeyAnchorAsync_Should_ReturnNull_When_TheDeviceIsUnknownOrInactive()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryRegistrations.GetKeyAnchorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, DeviceKeyAnchor>>()))
+            .ReturnsAsync((DeviceKeyAnchor?)null);
+
+        (await CreateRepository().GetKeyAnchorAsync(48)).ShouldBeNull();
     }
 }
