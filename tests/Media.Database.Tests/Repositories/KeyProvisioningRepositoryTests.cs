@@ -1,3 +1,4 @@
+#nullable enable
 using AutoFixture;
 using Media.Database.Models;
 using Media.Database.Repositories;
