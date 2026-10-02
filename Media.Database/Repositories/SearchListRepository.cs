@@ -211,6 +211,7 @@ public class SearchListRepository(
         int ownerId,
         IReadOnlyList<Guid> listUuids,
         IReadOnlyList<SearchListLine> adHocLines,
+        FileVisibility visibility,
         bool? isCurrent,
         IReadOnlyList<int> sourceMachineIds,
         int limit)
@@ -251,7 +252,7 @@ public class SearchListRepository(
             if (adHocLines.Count > 0)
                 expanded.Add(adHocLines);
 
-            var (sql, parameters) = QueryFileSearch.Build(expanded, isCurrent, sourceMachineIds, limit);
+            var (sql, parameters) = QueryFileSearch.Build(expanded, visibility, isCurrent, sourceMachineIds, limit);
 
             return await _sqlExecutor.QueryManyAsync(
                 sql,

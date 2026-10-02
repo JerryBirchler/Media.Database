@@ -3,6 +3,7 @@ using Media.Database.Models;
 using Npgsql;
 using System.Text;
 #pragma warning disable CS8981
+using cgsm = Media.Database.Repositories.Schemas.TablesSql.GroupsSourceMachinesColumns;
 using cw = Media.Database.Repositories.Schemas.TablesSql.View_WordFilesColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using ts = Media.Database.Repositories.Schemas.TablesSql;
@@ -42,15 +43,24 @@ public static class QueryFileSearch
     /// The OR lists to AND together. An empty list is vacuously true and is dropped rather than
     /// matching nothing -- clearing a filter must not silently return zero rows.
     /// </param>
+    /// <param name="visibility">
+    /// Whose files the caller may see. Required: every other filter only narrows within it.
+    /// </param>
     /// <param name="isCurrent">Restrict to current files, deleted files, or null for both.</param>
-    /// <param name="sourceMachineIds">Restrict to files from these devices, or empty for any.</param>
+    /// <param name="sourceMachineIds">
+    /// Narrow to files from these devices, or empty for every device <paramref name="visibility"/>
+    /// allows. Never widens it.
+    /// </param>
     /// <param name="limit">A cap, so a broad search cannot return the entire corpus.</param>
     public static (string Sql, IReadOnlyDictionary<string, object> Parameters) Build(
         IReadOnlyList<IReadOnlyList<SearchListLine>> lists,
+        FileVisibility visibility,
         bool? isCurrent,
         IReadOnlyList<int> sourceMachineIds,
         int limit)
     {
+        ArgumentNullException.ThrowIfNull(visibility);
+
         var parameters = new Dictionary<string, object>();
         var words = new List<string>();
         var listPredicates = new List<string>();
@@ -104,6 +114,18 @@ public static class QueryFileSearch
         // The same optional-filter pattern the word queries already use: null means any.
         parameters["@isCurrent"] = isCurrent is null ? DBNull.Value : isCurrent.Value;
         sql.AppendLine($"  AND (@isCurrent::boolean IS NULL OR {cw.IsCurrent} = @isCurrent::boolean)");
+
+        // Whose files these are (API-148). Exactly one of the two is bound, and the other is null,
+        // in the same optional-filter shape -- but FileVisibility guarantees one is always set, so
+        // together they never mean "any". The group's devices are a subquery rather than a join so
+        // the view's columns stay unqualified everywhere else in the statement.
+        parameters["@visibleSourceMachineId"] = visibility.SourceMachineId is { } device ? device : DBNull.Value;
+        sql.AppendLine($"  AND (@visibleSourceMachineId::int IS NULL OR {cw.SourceMachineId} = @visibleSourceMachineId::int)");
+
+        parameters["@visibleGroupId"] = visibility.GroupId is { } group ? group : DBNull.Value;
+        sql.AppendLine($"  AND (@visibleGroupId::int IS NULL OR {cw.SourceMachineId} IN (");
+        sql.AppendLine($"      SELECT gsm.{cgsm.SourceMachineId} FROM {ts.GroupsSourceMachines} AS gsm");
+        sql.AppendLine($"      WHERE gsm.{cgsm.GroupId} = @visibleGroupId::int AND gsm.{cgsm.IsActive} = true))");
 
         parameters["@sourceMachineIds"] = sourceMachineIds.Count > 0 ? sourceMachineIds.ToArray() : DBNull.Value;
         sql.AppendLine($"  AND (@sourceMachineIds::int[] IS NULL OR {cw.SourceMachineId} = ANY(@sourceMachineIds::int[]))");

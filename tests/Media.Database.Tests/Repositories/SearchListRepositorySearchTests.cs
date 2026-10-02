@@ -26,6 +26,7 @@ namespace Media.Database.Tests.Repositories;
 public class SearchListRepositorySearchTests
 {
     private const int PersonId = 42;
+    private const int DeviceId = 17;
 
     private static readonly SearchListScopeSchema PersonSchema = SearchListScopeSchema.For(OwnerScope.Person);
 
@@ -118,7 +119,7 @@ public class SearchListRepositorySearchTests
 
     private Task<IReadOnlyList<FileSearchResult>> Search(
         IReadOnlyList<Guid> lists, IReadOnlyList<SearchListLine>? adHoc = null) =>
-        CreateRepository().SearchFilesAsync(OwnerScope.Person, PersonId, lists, adHoc ?? [], true, [], 100);
+        CreateRepository().SearchFilesAsync(OwnerScope.Person, PersonId, lists, adHoc ?? [], FileVisibility.ForDevice(DeviceId), true, [], 100);
 
     [Test]
     public async Task SearchFilesAsync_Should_RunOnlyTheListsTheCallerOwns()
@@ -233,5 +234,31 @@ public class SearchListRepositorySearchTests
         var results = await Search([Guid.NewGuid()]);
 
         results.ShouldBeEmpty();
+    }
+
+    // API-148: the lists are the owner's, but the files must be the caller's too. The visibility
+    // reaches the statement as a bound parameter, whatever lists were asked for.
+    [Test]
+    public async Task SearchFilesAsync_Should_BindTheCallersVisibility_IntoTheStatement()
+    {
+        OwnedLists();
+        NpgsqlParameterCollection? bound = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(It.Is<string>(sql => sql.Contains("GROUP BY")),
+                It.IsAny<Action<NpgsqlParameterCollection>>(),
+                It.IsAny<Func<NpgsqlDataReader, FileSearchResult>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, FileSearchResult>>((_, bind, _) =>
+            {
+                bound = new NpgsqlCommand().Parameters;
+                bind(bound);
+            })
+            .ReturnsAsync(new List<FileSearchResult>());
+
+        await CreateRepository().SearchFilesAsync(OwnerScope.Person, PersonId, [], [new SearchListLine { LookingFor = "beach" }],
+            FileVisibility.ForGroup(5), true, [], 100);
+
+        bound.ShouldNotBeNull();
+        bound!["@visibleGroupId"].Value.ShouldBe(5);
+        bound["@visibleSourceMachineId"].Value.ShouldBe(DBNull.Value);
     }
 }

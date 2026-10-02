@@ -59,11 +59,16 @@ public interface ISearchListRepository
     /// is a list that was never worth saving, so it goes through the same machinery rather than a
     /// parallel one that has to be kept in agreement.
     /// </param>
+    /// <param name="visibility">
+    /// Whose files may be returned -- required, and separate from <paramref name="scope"/>, which
+    /// says only whose <em>lists</em> these are (API-148).
+    /// </param>
     Task<IReadOnlyList<FileSearchResult>> SearchFilesAsync(
         OwnerScope scope,
         int ownerId,
         IReadOnlyList<Guid> listUuids,
         IReadOnlyList<SearchListLine> adHocLines,
+        FileVisibility visibility,
         bool? isCurrent,
         IReadOnlyList<int> sourceMachineIds,
         int limit);

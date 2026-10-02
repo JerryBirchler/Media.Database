@@ -25,8 +25,9 @@ public class QueryFileSearchTests
         IReadOnlyList<IReadOnlyList<SearchListLine>> lists,
         bool? isCurrent = true,
         IReadOnlyList<int>? devices = null,
-        int limit = 100) =>
-        QueryFileSearch.Build(lists, isCurrent, devices ?? [], limit);
+        int limit = 100,
+        FileVisibility? visibility = null) =>
+        QueryFileSearch.Build(lists, visibility ?? FileVisibility.ForDevice(7), isCurrent, devices ?? [], limit);
 
     [Test]
     public void Build_Should_SeekTheWordIndex_RatherThanScanTheView()
@@ -194,5 +195,45 @@ public class QueryFileSearchTests
         // part of the text.
         sql.ShouldNotContain("drop table");
         parameters["@w0_0"].ShouldBe("'; drop table \"Words\"; --");
+    }
+
+    // API-148: search once returned every tenant's files. Whose files these are is required, and
+    // nothing else -- not an empty device list -- may widen it.
+    [Test]
+    public void Build_Should_Refuse_When_NoVisibilityIsGiven()
+    {
+        Should.Throw<ArgumentNullException>(() => QueryFileSearch.Build([Line("beach")], null!, true, [], 100));
+    }
+
+    [Test]
+    public void Build_Should_RestrictToTheCallingDevice_When_TheCallerIsADevice()
+    {
+        var (sql, parameters) = Build([Line("beach")], visibility: FileVisibility.ForDevice(17));
+
+        parameters["@visibleSourceMachineId"].ShouldBe(17);
+        parameters["@visibleGroupId"].ShouldBe(DBNull.Value);
+        sql.ShouldContain("@visibleSourceMachineId::int");
+    }
+
+    [Test]
+    public void Build_Should_RestrictToTheGroupsActiveDevices_When_TheCallerIsAGroupMember()
+    {
+        var (sql, parameters) = Build([Line("beach")], visibility: FileVisibility.ForGroup(5));
+
+        parameters["@visibleGroupId"].ShouldBe(5);
+        parameters["@visibleSourceMachineId"].ShouldBe(DBNull.Value);
+        sql.ShouldContain("\"GroupsSourceMachines\"");
+        sql.ShouldContain("@visibleGroupId::int");
+        sql.ShouldContain("\"IsActive\" = true");
+    }
+
+    [Test]
+    public void Build_Should_StillRestrictByVisibility_When_AnyDeviceWillDo()
+    {
+        var (_, parameters) = Build([Line("beach")], devices: [], visibility: FileVisibility.ForDevice(17));
+
+        // The empty device list is "every device the caller may see", not "every device".
+        parameters["@sourceMachineIds"].ShouldBe(DBNull.Value);
+        parameters["@visibleSourceMachineId"].ShouldBe(17);
     }
 }
