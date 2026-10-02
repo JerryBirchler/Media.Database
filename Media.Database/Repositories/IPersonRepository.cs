@@ -1,4 +1,5 @@
-﻿using Media.Database.Models;
+﻿using Media.Common.Archetypes;
+using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -8,8 +9,11 @@ public interface IPersonRepository
     /// Finds the person matching <paramref name="firstName"/>, <paramref name="lastName"/>,
     /// <paramref name="emailAddress"/>, and <paramref name="cellPhoneNumber"/> (the same tuple
     /// <c>IX_Persons_ContactInformation</c> enforces uniqueness on), or creates one if none exists.
+    /// Typed on the archetypes (API-142): the values arrive canonical, so one person typed two ways
+    /// -- "+1 214-555-1234" once, "12145551234" the next -- is found, not created twice. A missing
+    /// phone is stored as it always was, as an empty string.
     /// </summary>
-    Task<Person?> FindOrCreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber);
+    Task<Person?> FindOrCreateAsync(PersonName firstName, PersonName lastName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber);
 
     /// <summary>
     /// Finds the person matching <paramref name="personUuid"/>, or <see langword="null"/> if none
@@ -22,18 +26,18 @@ public interface IPersonRepository
     /// Whether anyone with <paramref name="emailAddress"/> has completed enrollment -- active, with
     /// email and phone both verified. Yes or no only: nothing about the person is returned.
     /// </summary>
-    Task<bool> IsEnrolledByEmailAsync(string emailAddress);
+    Task<bool> IsEnrolledByEmailAsync(EmailAddress emailAddress);
 
     /// <summary>
     /// Retrieves a person by the contact information used to create them. A pure read -- unlike
     /// <see cref="FindOrCreateAsync"/>, it never creates.
     /// </summary>
-    Task<Person?> GetByContactInformationAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber);
+    Task<Person?> GetByContactInformationAsync(PersonName firstName, PersonName lastName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber);
 
     /// <summary>
     /// Creates a new person with an explicit creator -- the <c>POST /api/persons</c> path.
     /// </summary>
-    Task<Person?> CreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber, int createdByPersonId);
+    Task<Person?> CreateAsync(PersonName firstName, PersonName lastName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber, int createdByPersonId);
 
     /// <summary>
     /// Gets a keyset-paginated page of PersonId/PersonUuid/LastName/FirstName identifiers for
@@ -63,7 +67,7 @@ public interface IPersonRepository
     /// alongside the contact fields. Returns the updated person, or <see langword="null"/> if
     /// <paramref name="personId"/> does not exist.
     /// </summary>
-    Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string? spokenName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified);
+    Task<Person?> UpdateAsync(int personId, PersonName firstName, PersonName lastName, string? spokenName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified);
 
     /// <summary>
     /// Raises <paramref name="personId"/>'s IsEmailVerified/IsSmsVerified flags to true where the

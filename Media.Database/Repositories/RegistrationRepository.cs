@@ -1,4 +1,5 @@
-﻿using Media.Database.Helpers;
+﻿using Media.Common.Archetypes;
+using Media.Database.Helpers;
 using Media.Common.Helpers;
 using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
@@ -49,6 +50,9 @@ public class RegistrationRepository(
 
     private readonly LoggingLevelSwitch _levelswitch = levelSwitch;
 
+    /// <summary>A missing phone is stored as it always was: an empty string, never NULL.</summary>
+    private static string Stored(PhoneNumber? cellPhoneNumber) => cellPhoneNumber?.ToString() ?? string.Empty;
+
     public async Task<SourceMachineRegistrations?> AddBySourceInformation(AddSourceInformationRequest request)
     {
         await using var uow = _unitOfWorkFactory();
@@ -65,8 +69,8 @@ public class RegistrationRepository(
                 {
                     p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
                     p.AddWithValue(pn.DeviceTypeId, (int)request.DeviceTypeId);
-                    p.AddWithValue(pn.FirstName, request.FirstName);
-                    p.AddWithValue(pn.LastName, request.LastName);
+                    p.AddWithValue(pn.FirstName, request.FirstName.ToString());
+                    p.AddWithValue(pn.LastName, request.LastName.ToString());
                 },
                 reader => reader.ToSourceMachineRegistration()
             );
@@ -78,8 +82,8 @@ public class RegistrationRepository(
             // already resets IsEmailVerified/IsSmsVerified to false regardless, so a changed,
             // previously-verified channel is naturally re-verified with no extra logic needed here.
             if (addSourceResponse is not null &&
-                (addSourceResponse.EmailAddress != request.EmailAddress ||
-                 addSourceResponse.CellPhoneNumber != request.CellPhoneNumber ||
+                (addSourceResponse.EmailAddress != request.EmailAddress.ToString() ||
+                 addSourceResponse.CellPhoneNumber != Stored(request.CellPhoneNumber) ||
                  addSourceResponse.OperatingSystem != request.OperatingSystem))
             {
                 var baseline = addSourceResponse;
@@ -92,8 +96,8 @@ public class RegistrationRepository(
                         // Matched on SourceMachineId since DATABASE-24; binding the UUID left
                         // @SourceMachineId unbound and every contact change failing (DATABASE-32).
                         p.AddWithValue(pn.SourceMachineId, baseline.SourceMachineId);
-                        p.AddWithValue(pn.EmailAddress, request.EmailAddress);
-                        p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
+                        p.AddWithValue(pn.EmailAddress, request.EmailAddress.ToString());
+                        p.AddWithValue(pn.CellPhoneNumber, Stored(request.CellPhoneNumber));
                         p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
                     },
                     reader => reader.ToSourceMachineRegistration(baseline)
@@ -123,10 +127,10 @@ public class RegistrationRepository(
                                 p.AddWithValue(pn.SourceMachineName, request.SourceMachineName);
                                 p.AddWithValue(pn.DeviceTypeId, (int)request.DeviceTypeId);
                                 p.AddWithValue(pn.DisambiguationKey, DisambiguationKey.Generate());
-                                p.AddWithValue(pn.EmailAddress, request.EmailAddress);
-                                p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
-                                p.AddWithValue(pn.FirstName, request.FirstName);
-                                p.AddWithValue(pn.LastName, request.LastName);
+                                p.AddWithValue(pn.EmailAddress, request.EmailAddress.ToString());
+                                p.AddWithValue(pn.CellPhoneNumber, Stored(request.CellPhoneNumber));
+                                p.AddWithValue(pn.FirstName, request.FirstName.ToString());
+                                p.AddWithValue(pn.LastName, request.LastName.ToString());
                                 p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
                             },
                             reader => reader.ToNewSourceMachineRegistration()
@@ -205,7 +209,7 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task<SourceMachineRegistrations?> GetBySourceInformationAsync(string sourceMachineName, DeviceTypes deviceTypeId, string firstName, string lastName)
+    public async Task<SourceMachineRegistrations?> GetBySourceInformationAsync(string sourceMachineName, DeviceTypes deviceTypeId, PersonName firstName, PersonName lastName)
     {
         try
         {
@@ -215,8 +219,8 @@ public class RegistrationRepository(
                 {
                     p.AddWithValue(pn.SourceMachineName, sourceMachineName);
                     p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
-                    p.AddWithValue(pn.FirstName, firstName);
-                    p.AddWithValue(pn.LastName, lastName);
+                    p.AddWithValue(pn.FirstName, firstName.ToString());
+                    p.AddWithValue(pn.LastName, lastName.ToString());
                 },
                 reader => reader.ToSourceMachineRegistration());
         }
@@ -298,8 +302,8 @@ public class RegistrationRepository(
                 p =>
                 {
                     p.AddWithValue(pn.SourceMachineId, request.SourceMachineId);
-                    p.AddWithValue(pn.EmailAddress, request.EmailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, request.CellPhoneNumber);
+                    p.AddWithValue(pn.EmailAddress, request.EmailAddress.ToString());
+                    p.AddWithValue(pn.CellPhoneNumber, Stored(request.CellPhoneNumber));
                     p.AddWithValue(pn.OperatingSystem, request.OperatingSystem);
                 },
                 reader => reader.ToSourceMachineRegistration(existingRegistration)
@@ -311,8 +315,8 @@ public class RegistrationRepository(
                 return null;
             }
 
-            if (existingRegistration.EmailAddress == request.EmailAddress
-                && existingRegistration.CellPhoneNumber == request.CellPhoneNumber)
+            if (existingRegistration.EmailAddress == request.EmailAddress.ToString()
+                && existingRegistration.CellPhoneNumber == Stored(request.CellPhoneNumber))
             {
                 await uow.CommitAsync();
                 return updateResponse;
@@ -373,7 +377,7 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task<ResendOtpResult?> ResendOtp(string sourceMachineName, DeviceTypes deviceTypeId, string emailAddress, string cellPhoneNumber)
+    public async Task<ResendOtpResult?> ResendOtp(string sourceMachineName, DeviceTypes deviceTypeId, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber)
     {
         await using var uow = _unitOfWorkFactory();
 
@@ -389,8 +393,8 @@ public class RegistrationRepository(
                 {
                     p.AddWithValue(pn.SourceMachineName, sourceMachineName);
                     p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
-                    p.AddWithValue(pn.EmailAddress, emailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
+                    p.AddWithValue(pn.CellPhoneNumber, Stored(cellPhoneNumber));
                 },
                 reader => reader.ToSourceMachineRegistration()
             );
@@ -466,7 +470,7 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task<OtpEmailResponse?> VerifyOtpEmail(string emailAddress, string sourceMachineName, DeviceTypes deviceTypeId, string otp)
+    public async Task<OtpEmailResponse?> VerifyOtpEmail(EmailAddress emailAddress, string sourceMachineName, DeviceTypes deviceTypeId, string otp)
     {
         try
         {
@@ -475,7 +479,7 @@ public class RegistrationRepository(
                 QueryRegistrations.VerifyOtpEmailSql,
                 p =>
                 {
-                    p.AddWithValue(pn.EmailAddress, emailAddress);
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
                     p.AddWithValue(pn.SourceMachineName, sourceMachineName);
                     p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
                     p.AddWithValue(pn.OtpEmail, otp);
@@ -502,7 +506,7 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task<OtpSmsResponse?> VerifyOtpCellPhone(string cellPhoneNumber, string sourceMachineName, DeviceTypes deviceTypeId, string otp)
+    public async Task<OtpSmsResponse?> VerifyOtpCellPhone(PhoneNumber cellPhoneNumber, string sourceMachineName, DeviceTypes deviceTypeId, string otp)
     {
         try
         {
@@ -511,7 +515,7 @@ public class RegistrationRepository(
                 QueryRegistrations.VerifyOtpCellPhoneSql,
                 p =>
                 {
-                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber.ToString());
                     p.AddWithValue(pn.SourceMachineName, sourceMachineName);
                     p.AddWithValue(pn.DeviceTypeId, (int)deviceTypeId);
                     p.AddWithValue(pn.OtpCellPhone, otp);
@@ -569,13 +573,13 @@ public class RegistrationRepository(
         }
     }
 
-    public async Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(string emailAddress)
+    public async Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(EmailAddress emailAddress)
     {
         try
         {
             return await _sqlExecutor.QuerySingleAsync(
                 QueryRegistrations.GetNewestOwnedByEmailSql,
-                p => p.AddWithValue(pn.EmailAddress, emailAddress.Trim()),
+                p => p.AddWithValue(pn.EmailAddress, emailAddress.ToString()),
                 reader => reader.ToOwnedDeviceKey());
         }
         catch (Exception ex)

@@ -1,4 +1,5 @@
-﻿using Media.Common.Helpers.Fluent;
+﻿using Media.Common.Archetypes;
+using Media.Common.Helpers.Fluent;
 using Media.Common.Providers;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -32,7 +33,10 @@ public class PersonRepository(
     private readonly IMapPersonResponse _personResponseMapper = personResponseMapper;
     private readonly FluentLogger<PersonRepository> _logger = logger.Initializer();
 
-    public async Task<Person?> FindOrCreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber)
+    /// <summary>A missing phone is stored as it always was: an empty string, never NULL.</summary>
+    private static string Stored(PhoneNumber? cellPhoneNumber) => cellPhoneNumber?.ToString() ?? string.Empty;
+
+    public async Task<Person?> FindOrCreateAsync(PersonName firstName, PersonName lastName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber)
     {
         try
         {
@@ -41,10 +45,10 @@ public class PersonRepository(
                 QueryPersons.GetByContactInformationSql,
                 p =>
                 {
-                    p.AddWithValue(pn.FirstName, firstName);
-                    p.AddWithValue(pn.LastName, lastName);
-                    p.AddWithValue(pn.EmailAddress, emailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                    p.AddWithValue(pn.FirstName, firstName.ToString());
+                    p.AddWithValue(pn.LastName, lastName.ToString());
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
+                    p.AddWithValue(pn.CellPhoneNumber, Stored(cellPhoneNumber));
                 },
                 reader => reader.ToPerson(_personResponseMapper)
             );
@@ -57,10 +61,10 @@ public class PersonRepository(
                 QueryPersons.AddPersonSql,
                 p =>
                 {
-                    p.AddWithValue(pn.EmailAddress, emailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
-                    p.AddWithValue(pn.FirstName, firstName);
-                    p.AddWithValue(pn.LastName, lastName);
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
+                    p.AddWithValue(pn.CellPhoneNumber, Stored(cellPhoneNumber));
+                    p.AddWithValue(pn.FirstName, firstName.ToString());
+                    p.AddWithValue(pn.LastName, lastName.ToString());
                 },
                 reader => reader.ToPerson(_personResponseMapper)
             );
@@ -72,7 +76,7 @@ public class PersonRepository(
         }
     }
 
-    public async Task<Person?> GetByContactInformationAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber)
+    public async Task<Person?> GetByContactInformationAsync(PersonName firstName, PersonName lastName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber)
     {
         try
         {
@@ -80,10 +84,10 @@ public class PersonRepository(
                 QueryPersons.GetByContactInformationSql,
                 p =>
                 {
-                    p.AddWithValue(pn.FirstName, firstName);
-                    p.AddWithValue(pn.LastName, lastName);
-                    p.AddWithValue(pn.EmailAddress, emailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                    p.AddWithValue(pn.FirstName, firstName.ToString());
+                    p.AddWithValue(pn.LastName, lastName.ToString());
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
+                    p.AddWithValue(pn.CellPhoneNumber, Stored(cellPhoneNumber));
                 },
                 reader => reader.ToPerson(_personResponseMapper));
         }
@@ -112,14 +116,14 @@ public class PersonRepository(
         }
     }
 
-    public async Task<bool> IsEnrolledByEmailAsync(string emailAddress)
+    public async Task<bool> IsEnrolledByEmailAsync(EmailAddress emailAddress)
     {
         try
         {
             return await _sqlExecutor.QuerySingleValueAsync
             (
                 QueryPersons.IsEnrolledByEmailSql,
-                p => p.AddWithValue(pn.EmailAddress, emailAddress.Trim()),
+                p => p.AddWithValue(pn.EmailAddress, emailAddress.ToString()),
                 reader => reader.GetFieldValue<bool>(0)
             ) ?? false;
         }
@@ -130,7 +134,7 @@ public class PersonRepository(
         }
     }
 
-    public async Task<Person?> CreateAsync(string firstName, string lastName, string emailAddress, string cellPhoneNumber, int createdByPersonId)
+    public async Task<Person?> CreateAsync(PersonName firstName, PersonName lastName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber, int createdByPersonId)
     {
         try
         {
@@ -139,10 +143,10 @@ public class PersonRepository(
                 QueryPersons.AddPersonWithCreatorSql,
                 p =>
                 {
-                    p.AddWithValue(pn.EmailAddress, emailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
-                    p.AddWithValue(pn.FirstName, firstName);
-                    p.AddWithValue(pn.LastName, lastName);
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
+                    p.AddWithValue(pn.CellPhoneNumber, Stored(cellPhoneNumber));
+                    p.AddWithValue(pn.FirstName, firstName.ToString());
+                    p.AddWithValue(pn.LastName, lastName.ToString());
                     p.AddWithValue(pn.CreatedByPersonId, createdByPersonId);
                 },
                 reader => reader.ToPerson(_personResponseMapper)
@@ -235,7 +239,7 @@ public class PersonRepository(
         }
     }
 
-    public async Task<Person?> UpdateAsync(int personId, string firstName, string lastName, string? spokenName, string emailAddress, string cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified)
+    public async Task<Person?> UpdateAsync(int personId, PersonName firstName, PersonName lastName, string? spokenName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber, bool isActive, bool isEmailVerified, bool isSmsVerified)
     {
         try
         {
@@ -245,11 +249,11 @@ public class PersonRepository(
                 p =>
                 {
                     p.AddWithValue(pn.PersonId, personId);
-                    p.AddWithValue(pn.FirstName, firstName);
-                    p.AddWithValue(pn.LastName, lastName);
+                    p.AddWithValue(pn.FirstName, firstName.ToString());
+                    p.AddWithValue(pn.LastName, lastName.ToString());
                     p.AddWithValue(pn.SpokenName, spokenName.ToNullableValueForSql());
-                    p.AddWithValue(pn.EmailAddress, emailAddress);
-                    p.AddWithValue(pn.CellPhoneNumber, cellPhoneNumber);
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
+                    p.AddWithValue(pn.CellPhoneNumber, Stored(cellPhoneNumber));
                     p.AddWithValue(pn.IsActive, isActive);
                     p.AddWithValue(pn.IsEmailVerified, isEmailVerified);
                     p.AddWithValue(pn.IsSmsVerified, isSmsVerified);

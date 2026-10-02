@@ -5,5 +5,5 @@ namespace Media.Database.Tests.TestHelpers;
 
 internal static class AutoMoqFixture
 {
-    public static IFixture Create() => new Fixture().Customize(new AutoMoqCustomization());
+    public static IFixture Create() => new Fixture().Customize(new AutoMoqCustomization()).Customize(new ArchetypeCustomization());
 }

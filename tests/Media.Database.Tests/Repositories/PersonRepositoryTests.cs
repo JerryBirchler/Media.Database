@@ -87,7 +87,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.GetByContactInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ReturnsAsync(expected);
 
-        var result = await CreateRepository().FindOrCreateAsync(expected.FirstName, expected.LastName, expected.EmailAddress, expected.CellPhoneNumber);
+        var result = await CreateRepository().FindOrCreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), "214-555-1234".Phone());
 
         result.ShouldBe(expected);
         _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryPersons.AddPersonSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()), Times.Never);
@@ -104,7 +104,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.AddPersonSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ReturnsAsync(created);
 
-        var result = await CreateRepository().FindOrCreateAsync(created.FirstName, created.LastName, created.EmailAddress, created.CellPhoneNumber);
+        var result = await CreateRepository().FindOrCreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), "214-555-1234".Phone());
 
         result.ShouldBe(created);
     }
@@ -122,14 +122,32 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.AddPersonSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ReturnsAsync(created);
 
-        await CreateRepository().FindOrCreateAsync("Jane", "Doe", "jane@example.com", "555-1234");
+        await CreateRepository().FindOrCreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), "214-555-1234".Phone());
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.FirstName].Value.ShouldBe("Jane");
         command.Parameters[pn.LastName].Value.ShouldBe("Doe");
         command.Parameters[pn.EmailAddress].Value.ShouldBe("jane@example.com");
-        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("555-1234");
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("+12145551234");
+    }
+
+    // API-142: one number typed two ways must bind the same canonical value, or one person becomes two.
+    [TestCase("(214) 555-1234")]
+    [TestCase("1 214 555 1234")]
+    public async Task FindOrCreateAsync_Should_BindTheCanonicalPhone_When_ItIsTypedAnyWay(string typed)
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryPersons.GetByContactInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(CreatePerson());
+
+        await CreateRepository().FindOrCreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), typed.Phone());
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("+12145551234");
     }
 
     [Test]
@@ -139,7 +157,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.GetByContactInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().FindOrCreateAsync("Jane", "Doe", "jane@example.com", "555-1234"));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().FindOrCreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), "214-555-1234".Phone()));
     }
 
     [Test]
@@ -164,7 +182,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleValueAsync(QueryPersons.IsEnrolledByEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, bool>>()))
             .ReturnsAsync(answered);
 
-        var result = await CreateRepository().IsEnrolledByEmailAsync("someone@example.com");
+        var result = await CreateRepository().IsEnrolledByEmailAsync("someone@example.com".Email());
 
         result.ShouldBe(expected);
     }
@@ -216,7 +234,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.AddPersonWithCreatorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ReturnsAsync(created);
 
-        var result = await CreateRepository().CreateAsync(created.FirstName, created.LastName, created.EmailAddress, created.CellPhoneNumber, createdByPersonId: 1);
+        var result = await CreateRepository().CreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), "214-555-1234".Phone(), createdByPersonId: 1);
 
         result.ShouldBe(created);
     }
@@ -231,14 +249,14 @@ public class PersonRepositoryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
             .ReturnsAsync(created);
 
-        await CreateRepository().CreateAsync("Jane", "Doe", "jane@example.com", "555-1234", createdByPersonId: 7);
+        await CreateRepository().CreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), "214-555-1234".Phone(), createdByPersonId: 7);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.FirstName].Value.ShouldBe("Jane");
         command.Parameters[pn.LastName].Value.ShouldBe("Doe");
         command.Parameters[pn.EmailAddress].Value.ShouldBe("jane@example.com");
-        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("555-1234");
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("+12145551234");
         command.Parameters[pn.CreatedByPersonId].Value.ShouldBe(7);
     }
 
@@ -249,7 +267,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.AddPersonWithCreatorSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().CreateAsync("Jane", "Doe", "jane@example.com", "555-1234", 1));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().CreateAsync("Jane".Name(), "Doe".Name(), "jane@example.com".Email(), "214-555-1234".Phone(), 1));
     }
 
     [Test]
@@ -392,7 +410,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ReturnsAsync(updated);
 
-        var result = await CreateRepository().UpdateAsync(updated.PersonId, updated.FirstName, updated.LastName, updated.SpokenName, updated.EmailAddress, updated.CellPhoneNumber, isActive: true, isEmailVerified: true, isSmsVerified: true);
+        var result = await CreateRepository().UpdateAsync(updated.PersonId, "Jane".Name(), "Doe".Name(), updated.SpokenName, "jane@example.com".Email(), "214-555-1234".Phone(), isActive: true, isEmailVerified: true, isSmsVerified: true);
 
         result.ShouldBe(updated);
     }
@@ -407,7 +425,7 @@ public class PersonRepositoryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Person>>((_, configure, _) => captured = configure)
             .ReturnsAsync(updated);
 
-        await CreateRepository().UpdateAsync(3, "Jane", "Doe", null, "jane@example.com", "555-1234", isActive: false, isEmailVerified: false, isSmsVerified: true);
+        await CreateRepository().UpdateAsync(3, "Jane".Name(), "Doe".Name(), null, "jane@example.com".Email(), "214-555-1234".Phone(), isActive: false, isEmailVerified: false, isSmsVerified: true);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
@@ -416,7 +434,7 @@ public class PersonRepositoryTests
         command.Parameters[pn.LastName].Value.ShouldBe("Doe");
         command.Parameters[pn.SpokenName].Value.ShouldBe(DBNull.Value);
         command.Parameters[pn.EmailAddress].Value.ShouldBe("jane@example.com");
-        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("555-1234");
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe("+12145551234");
         command.Parameters[pn.IsActive].Value.ShouldBe(false);
         command.Parameters[pn.IsEmailVerified].Value.ShouldBe(false);
         command.Parameters[pn.IsSmsVerified].Value.ShouldBe(true);
@@ -429,7 +447,7 @@ public class PersonRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryPersons.UpdateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Person>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateAsync(1, "Jane", "Doe", null, "jane@example.com", "555-1234", true, true, true));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpdateAsync(1, "Jane".Name(), "Doe".Name(), null, "jane@example.com".Email(), "214-555-1234".Phone(), true, true, true));
     }
 
     [Test]

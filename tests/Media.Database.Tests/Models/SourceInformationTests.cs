@@ -1,5 +1,6 @@
 using AutoFixture.NUnit3;
 using Media.Database.Models;
+using Media.Database.Tests.TestHelpers;
 using NUnit.Framework;
 using Shouldly;
 using System;
@@ -9,60 +10,44 @@ namespace Media.Database.Tests.Models;
 [TestFixture]
 public class AddSourceInformationRequestTests
 {
+    // API-142: the request carries canonical values, so whatever reaches the repository is already
+    // the one form of each name, address and number.
     [Test]
-    public void AddSourceInformationRequest_Should_Have_DefaultValues()
+    public void AddSourceInformationRequest_Should_HoldCanonicalIdentityValues()
     {
-        // Act
         var request = new AddSourceInformationRequest
         {
-            SourceMachineName = string.Empty,
-            DeviceTypeId = default,
-            EmailAddress = string.Empty,
-            CellPhoneNumber = string.Empty,
-            FirstName = string.Empty,
-            LastName = string.Empty,
-            OperatingSystem = string.Empty
+            SourceMachineName = "Laptop",
+            DeviceTypeId = DeviceTypes.PC,
+            EmailAddress = " Jerry@Example.com ".Email(),
+            CellPhoneNumber = "(214) 555-1234".Phone(),
+            FirstName = "  Jerry ".Name(),
+            LastName = "Birchler".Name(),
+            OperatingSystem = "Windows"
         };
 
-        // Assert
-        request.SourceMachineName.ShouldBe(string.Empty);
-        request.EmailAddress.ShouldBe(string.Empty);
-        request.CellPhoneNumber.ShouldBe(string.Empty);
-        request.FirstName.ShouldBe(string.Empty);
-        request.LastName.ShouldBe(string.Empty);
-        request.OperatingSystem.ShouldBe(string.Empty);
+        request.EmailAddress.ToString().ShouldBe("jerry@example.com");
+        request.CellPhoneNumber.ToString().ShouldBe("+12145551234");
+        request.FirstName.ToString().ShouldBe("Jerry");
+        request.LastName.ToString().ShouldBe("Birchler");
     }
 
-    [Test, AutoData]
-    public void AddSourceInformationRequest_Should_Allow_Property_Assignment(
-        string sourceMachineName,
-        DeviceTypes deviceTypeId,
-        string emailAddress,
-        string cellPhoneNumber,
-        string firstName,
-        string lastName,
-        string operatingSystem)
+    // A phone is optional at registration; until one is added it is simply absent.
+    [Test]
+    public void AddSourceInformationRequest_Should_AllowNoPhone()
     {
-        // Act
         var request = new AddSourceInformationRequest
         {
-            SourceMachineName = sourceMachineName,
-            DeviceTypeId = deviceTypeId,
-            EmailAddress = emailAddress,
-            CellPhoneNumber = cellPhoneNumber,
-            FirstName = firstName,
-            LastName = lastName,
-            OperatingSystem = operatingSystem
+            SourceMachineName = "Laptop",
+            DeviceTypeId = DeviceTypes.PC,
+            EmailAddress = "jerry@example.com".Email(),
+            CellPhoneNumber = null,
+            FirstName = "Jerry".Name(),
+            LastName = "Birchler".Name(),
+            OperatingSystem = "Windows"
         };
 
-        // Assert
-        request.SourceMachineName.ShouldBe(sourceMachineName);
-        request.DeviceTypeId.ShouldBe(deviceTypeId);
-        request.EmailAddress.ShouldBe(emailAddress);
-        request.CellPhoneNumber.ShouldBe(cellPhoneNumber);
-        request.FirstName.ShouldBe(firstName);
-        request.LastName.ShouldBe(lastName);
-        request.OperatingSystem.ShouldBe(operatingSystem);
+        request.CellPhoneNumber.ShouldBeNull();
     }
 }
 
@@ -70,45 +55,19 @@ public class AddSourceInformationRequestTests
 public class UpdateSourceInformationRequestTests
 {
     [Test]
-    public void UpdateSourceInformationRequest_Should_Have_DefaultValues()
+    public void UpdateSourceInformationRequest_Should_HoldCanonicalContactValues()
     {
-        // Act
         var request = new UpdateSourceInformationRequest
         {
-            SourceMachineId = 0,
-            EmailAddress = string.Empty,
-            CellPhoneNumber = string.Empty,
-            OperatingSystem = string.Empty
+            SourceMachineId = 7,
+            EmailAddress = "JERRY@example.com".Email(),
+            CellPhoneNumber = "1 214 555 1234".Phone(),
+            OperatingSystem = "Windows"
         };
 
-        // Assert
-        request.SourceMachineId.ShouldBe(0);
-        request.EmailAddress.ShouldBe(string.Empty);
-        request.CellPhoneNumber.ShouldBe(string.Empty);
-        request.OperatingSystem.ShouldBe(string.Empty);
-    }
-
-    [Test, AutoData]
-    public void UpdateSourceInformationRequest_Should_Allow_Property_Assignment(
-        int sourceMachineId,
-        string emailAddress,
-        string cellPhoneNumber,
-        string operatingSystem)
-    {
-        // Act
-        var request = new UpdateSourceInformationRequest
-        {
-            SourceMachineId = sourceMachineId,
-            EmailAddress = emailAddress,
-            CellPhoneNumber = cellPhoneNumber,
-            OperatingSystem = operatingSystem
-        };
-
-        // Assert
-        request.SourceMachineId.ShouldBe(sourceMachineId);
-        request.EmailAddress.ShouldBe(emailAddress);
-        request.CellPhoneNumber.ShouldBe(cellPhoneNumber);
-        request.OperatingSystem.ShouldBe(operatingSystem);
+        request.SourceMachineId.ShouldBe(7);
+        request.EmailAddress.ToString().ShouldBe("jerry@example.com");
+        request.CellPhoneNumber.ToString().ShouldBe("+12145551234");
     }
 }
 

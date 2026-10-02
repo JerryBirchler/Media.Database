@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using Media.Common.Archetypes;
+using System.Text.Json.Serialization;
 
 namespace Media.Database.Models
 {
@@ -24,7 +25,7 @@ namespace Media.Database.Models
         /// password code that is sent to the email address.
         /// </summary>
         [property: JsonPropertyName("emailAddress")]
-        public required string EmailAddress { get; set; } = string.Empty;
+        public required EmailAddress EmailAddress { get; set; }
 
         /// <summary>
         /// The cell phone number of the user associated with the source machine.
@@ -32,7 +33,7 @@ namespace Media.Database.Models
         /// password code that is sent to the cell phone.
         /// </summary>
         [property: JsonPropertyName("cellPhoneNumber")]
-        public required string CellPhoneNumber { get; set; } = string.Empty;
+        public required PhoneNumber? CellPhoneNumber { get; set; }
 
         /// <summary>
         /// The operating system of the source machine.

@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Archetypes;
 using Media.Common.Providers;
 using Media.Common.Settings;
 using Media.Common.Transactions;
@@ -79,8 +80,8 @@ public class RegistrationRepositoryTests
             OperatingSystem = _fixture.Create<string>(),
             FirstName = _fixture.Create<string>(),
             LastName = _fixture.Create<string>(),
-            EmailAddress = emailAddress ?? _fixture.Create<string>(),
-            CellPhoneNumber = cellPhoneNumber ?? _fixture.Create<string>(),
+            EmailAddress = emailAddress ?? _fixture.Create<EmailAddress>().ToString(),
+            CellPhoneNumber = cellPhoneNumber ?? _fixture.Create<PhoneNumber>().ToString(),
             HasRegistration = true,
             IsEmailVerified = false,
             IsSmsVerified = false,
@@ -270,7 +271,7 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_ReturnAddedRegistration_When_SourceMachineFound()
     {
         var request = _fixture.Create<AddSourceInformationRequest>();
-        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
+        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress.ToString(), cellPhoneNumber: request.CellPhoneNumber.ToString()) with { OperatingSystem = request.OperatingSystem };
         var added = _fixture.Create<AddRegistrationResponse>();
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -309,8 +310,8 @@ public class RegistrationRepositoryTests
         captured!(command.Parameters);
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(request.SourceMachineName);
         command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)request.DeviceTypeId);
-        command.Parameters[pn.FirstName].Value.ShouldBe(request.FirstName);
-        command.Parameters[pn.LastName].Value.ShouldBe(request.LastName);
+        command.Parameters[pn.FirstName].Value.ShouldBe(request.FirstName.ToString());
+        command.Parameters[pn.LastName].Value.ShouldBe(request.LastName.ToString());
         command.Parameters.Contains(pn.EmailAddress).ShouldBeFalse();
         command.Parameters.Contains(pn.CellPhoneNumber).ShouldBeFalse();
     }
@@ -319,8 +320,8 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_UpdateContactInfo_When_ExistingSourceMachineHasDifferentEmail()
     {
         var request = _fixture.Create<AddSourceInformationRequest>();
-        var existing = CreateRegistration() with { OperatingSystem = request.OperatingSystem, CellPhoneNumber = request.CellPhoneNumber };
-        var updated = existing with { EmailAddress = request.EmailAddress };
+        var existing = CreateRegistration() with { OperatingSystem = request.OperatingSystem, CellPhoneNumber = request.CellPhoneNumber.ToString() };
+        var updated = existing with { EmailAddress = request.EmailAddress.ToString() };
         var added = _fixture.Create<AddRegistrationResponse>();
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -337,12 +338,12 @@ public class RegistrationRepositoryTests
         var result = await CreateRepository().AddBySourceInformation(request);
 
         result.ShouldNotBeNull();
-        result.EmailAddress.ShouldBe(request.EmailAddress);
+        result.EmailAddress.ShouldBe(request.EmailAddress.ToString());
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
         command.Parameters[pn.SourceMachineId].Value.ShouldBe(existing.SourceMachineId);
-        command.Parameters[pn.EmailAddress].Value.ShouldBe(request.EmailAddress);
-        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(request.CellPhoneNumber);
+        command.Parameters[pn.EmailAddress].Value.ShouldBe(request.EmailAddress.ToString());
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(request.CellPhoneNumber.ToString());
         command.Parameters[pn.OperatingSystem].Value.ShouldBe(request.OperatingSystem);
 
         // Every placeholder the statement names must be bound: an unbound one reaches Postgres as
@@ -358,7 +359,7 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_NotCallUpdateSourceInformationSql_When_ContactInfoUnchanged()
     {
         var request = _fixture.Create<AddSourceInformationRequest>();
-        var existing = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
+        var existing = CreateRegistration(emailAddress: request.EmailAddress.ToString(), cellPhoneNumber: request.CellPhoneNumber.ToString()) with { OperatingSystem = request.OperatingSystem };
         var added = _fixture.Create<AddRegistrationResponse>();
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -376,7 +377,7 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_ConfigureSourceMachineUuidOnSecondQuery()
     {
         var request = _fixture.Create<AddSourceInformationRequest>();
-        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
+        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress.ToString(), cellPhoneNumber: request.CellPhoneNumber.ToString()) with { OperatingSystem = request.OperatingSystem };
         Action<NpgsqlParameterCollection>? captured = null;
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
@@ -397,7 +398,7 @@ public class RegistrationRepositoryTests
     public async Task AddBySourceInformation_Should_ReturnNull_When_AddRegistrationReturnsNoRow()
     {
         var request = _fixture.Create<AddSourceInformationRequest>();
-        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress, cellPhoneNumber: request.CellPhoneNumber) with { OperatingSystem = request.OperatingSystem };
+        var sourceMachine = CreateRegistration(emailAddress: request.EmailAddress.ToString(), cellPhoneNumber: request.CellPhoneNumber.ToString()) with { OperatingSystem = request.OperatingSystem };
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(sourceMachine);
@@ -451,8 +452,8 @@ public class RegistrationRepositoryTests
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineId = existing.SourceMachineId,
-            EmailAddress = existing.EmailAddress,
-            CellPhoneNumber = existing.CellPhoneNumber,
+            EmailAddress = existing.EmailAddress.Email(),
+            CellPhoneNumber = existing.CellPhoneNumber.Phone(),
             OperatingSystem = existing.OperatingSystem
         };
 
@@ -476,8 +477,8 @@ public class RegistrationRepositoryTests
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineId = existing.SourceMachineId,
-            EmailAddress = existing.EmailAddress,
-            CellPhoneNumber = existing.CellPhoneNumber,
+            EmailAddress = existing.EmailAddress.Email(),
+            CellPhoneNumber = existing.CellPhoneNumber.Phone(),
             OperatingSystem = "updated-os"
         };
 
@@ -518,8 +519,8 @@ public class RegistrationRepositoryTests
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineId = existing.SourceMachineId,
-            EmailAddress = "new@example.com",
-            CellPhoneNumber = "555-0199",
+            EmailAddress = "new@example.com".Email(),
+            CellPhoneNumber = "214-555-0199".Phone(),
             OperatingSystem = existing.OperatingSystem
         };
 
@@ -577,8 +578,8 @@ public class RegistrationRepositoryTests
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineId = existing.SourceMachineId,
-            EmailAddress = "new2@example.com",
-            CellPhoneNumber = "555-0200",
+            EmailAddress = "new2@example.com".Email(),
+            CellPhoneNumber = "214-555-0200".Phone(),
             OperatingSystem = existing.OperatingSystem
         };
 
@@ -600,7 +601,7 @@ public class RegistrationRepositoryTests
     public async Task UpdateSourceInformation_Should_ReturnNull_When_AddRegistrationReturnsNoRow()
     {
         var existing = CreateRegistration();
-        var updated = existing with { EmailAddress = "new3@example.com", CellPhoneNumber = "555-0201" };
+        var updated = existing with { EmailAddress = "new3@example.com", CellPhoneNumber = "+12145550201" };
         _sqlExecutorMock
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceMachineIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
@@ -616,8 +617,8 @@ public class RegistrationRepositoryTests
         var request = new UpdateSourceInformationRequest
         {
             SourceMachineId = existing.SourceMachineId,
-            EmailAddress = "new3@example.com",
-            CellPhoneNumber = "555-0201",
+            EmailAddress = "new3@example.com".Email(),
+            CellPhoneNumber = "214-555-0201".Phone(),
             OperatingSystem = existing.OperatingSystem
         };
 
@@ -634,7 +635,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync((SourceMachineRegistrations?)null);
 
-        var result = await CreateRepository().ResendOtp(_fixture.Create<string>(), DeviceTypes.PC, _fixture.Create<string>(), _fixture.Create<string>());
+        var result = await CreateRepository().ResendOtp(_fixture.Create<string>(), DeviceTypes.PC, _fixture.Create<EmailAddress>(), _fixture.Create<PhoneNumber>());
 
         result.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -649,7 +650,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ReturnsAsync(existing);
 
-        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress.Email(), existing.CellPhoneNumber.Phone());
 
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeFalse();
@@ -685,7 +686,7 @@ public class RegistrationRepositoryTests
             .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, AddRegistrationResponse>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(addResponse);
 
-        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress.Email(), existing.CellPhoneNumber.Phone());
 
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeFalse();
@@ -722,7 +723,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync(addResponse);
 
-        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress.Email(), existing.CellPhoneNumber.Phone());
 
         result.ShouldNotBeNull();
         result!.EmailOtpSent.ShouldBeTrue();
@@ -744,7 +745,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.AddRegistrationBySourceMachineUuidSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, AddRegistrationResponse>>()))
             .ReturnsAsync((AddRegistrationResponse?)null);
 
-        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress, existing.CellPhoneNumber);
+        var result = await CreateRepository().ResendOtp(existing.SourceMachineName, existing.DeviceTypeId, existing.EmailAddress.Email(), existing.CellPhoneNumber.Phone());
 
         result.ShouldBeNull();
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -758,7 +759,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryRegistrations.GetBySourceInformationSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, SourceMachineRegistrations>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ResendOtp(_fixture.Create<string>(), DeviceTypes.PC, _fixture.Create<string>(), _fixture.Create<string>()));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ResendOtp(_fixture.Create<string>(), DeviceTypes.PC, _fixture.Create<EmailAddress>(), _fixture.Create<PhoneNumber>()));
     }
 
     [Test]
@@ -779,7 +780,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
             .ReturnsAsync(expected);
 
-        var result = await CreateRepository().VerifyOtpEmail(expected.EmailAddress, expected.SourceMachineName, expected.DeviceTypeId, "123456");
+        var result = await CreateRepository().VerifyOtpEmail("pat@example.test".Email(), expected.SourceMachineName, expected.DeviceTypeId, "123456");
 
         result.ShouldBe(expected);
     }
@@ -791,7 +792,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
             .ReturnsAsync((OtpEmailResponse?)null);
 
-        var result = await CreateRepository().VerifyOtpEmail(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456");
+        var result = await CreateRepository().VerifyOtpEmail(_fixture.Create<EmailAddress>(), _fixture.Create<string>(), DeviceTypes.PC, "123456");
 
         result.ShouldBeNull();
     }
@@ -804,7 +805,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, OtpEmailResponse>>((_, configure, _) => captured = configure)
             .ReturnsAsync((OtpEmailResponse?)null);
-        var emailAddress = _fixture.Create<string>();
+        var emailAddress = _fixture.Create<EmailAddress>();
         var sourceMachineName = _fixture.Create<string>();
         var otp = "654321";
 
@@ -812,7 +813,7 @@ public class RegistrationRepositoryTests
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
-        command.Parameters[pn.EmailAddress].Value.ShouldBe(emailAddress);
+        command.Parameters[pn.EmailAddress].Value.ShouldBe(emailAddress.ToString());
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(sourceMachineName);
         command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)DeviceTypes.PC);
         command.Parameters[pn.OtpEmail].Value.ShouldBe(otp);
@@ -825,7 +826,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpEmailResponse>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().VerifyOtpEmail(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456"));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().VerifyOtpEmail(_fixture.Create<EmailAddress>(), _fixture.Create<string>(), DeviceTypes.PC, "123456"));
     }
 
     [Test]
@@ -845,7 +846,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
             .ReturnsAsync(expected);
 
-        var result = await CreateRepository().VerifyOtpCellPhone(expected.CellPhoneNumber, expected.SourceMachineName, expected.DeviceTypeId, "123456");
+        var result = await CreateRepository().VerifyOtpCellPhone("214-555-1234".Phone(), expected.SourceMachineName, expected.DeviceTypeId, "123456");
 
         result.ShouldBe(expected);
     }
@@ -857,7 +858,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
             .ReturnsAsync((OtpSmsResponse?)null);
 
-        var result = await CreateRepository().VerifyOtpCellPhone(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456");
+        var result = await CreateRepository().VerifyOtpCellPhone(_fixture.Create<PhoneNumber>(), _fixture.Create<string>(), DeviceTypes.PC, "123456");
 
         result.ShouldBeNull();
     }
@@ -870,7 +871,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, OtpSmsResponse>>((_, configure, _) => captured = configure)
             .ReturnsAsync((OtpSmsResponse?)null);
-        var cellPhoneNumber = _fixture.Create<string>();
+        var cellPhoneNumber = _fixture.Create<PhoneNumber>();
         var sourceMachineName = _fixture.Create<string>();
         var otp = "654321";
 
@@ -878,7 +879,7 @@ public class RegistrationRepositoryTests
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
-        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(cellPhoneNumber);
+        command.Parameters[pn.CellPhoneNumber].Value.ShouldBe(cellPhoneNumber.ToString());
         command.Parameters[pn.SourceMachineName].Value.ShouldBe(sourceMachineName);
         command.Parameters[pn.DeviceTypeId].Value.ShouldBe((int)DeviceTypes.PC);
         command.Parameters[pn.OtpCellPhone].Value.ShouldBe(otp);
@@ -891,7 +892,7 @@ public class RegistrationRepositoryTests
             .Setup(e => e.QuerySingleAsync(QueryRegistrations.VerifyOtpCellPhoneSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, OtpSmsResponse>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().VerifyOtpCellPhone(_fixture.Create<string>(), _fixture.Create<string>(), DeviceTypes.PC, "123456"));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().VerifyOtpCellPhone(_fixture.Create<PhoneNumber>(), _fixture.Create<string>(), DeviceTypes.PC, "123456"));
     }
 
     [Test]
@@ -1066,7 +1067,7 @@ public class RegistrationRepositoryTests
             .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, OwnedDeviceKey>>((_, configure, _) => captured = configure)
             .ReturnsAsync(device);
 
-        var result = await CreateRepository().GetNewestOwnedByEmailAsync(" pat@example.test ");
+        var result = await CreateRepository().GetNewestOwnedByEmailAsync(" pat@example.test ".Email());
 
         result.ShouldBe(device);
         using var command = new NpgsqlCommand();

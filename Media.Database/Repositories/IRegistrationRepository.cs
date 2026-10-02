@@ -1,4 +1,5 @@
-﻿using Media.Database.Models;
+﻿using Media.Common.Archetypes;
+using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -12,7 +13,7 @@ public interface IRegistrationRepository
     /// Retrieves a registration by the source information a caller knows before it holds any
     /// credential -- the same keys the registration flow itself matches on.
     /// </summary>
-    Task<SourceMachineRegistrations?> GetBySourceInformationAsync(string sourceMachineName, DeviceTypes deviceTypeId, string firstName, string lastName);
+    Task<SourceMachineRegistrations?> GetBySourceInformationAsync(string sourceMachineName, DeviceTypes deviceTypeId, PersonName firstName, PersonName lastName);
 
     /// <summary>
     /// Resolves a <c>PersonSourceMachineUuid</c> -- the multi-origin x-api-key model's second
@@ -29,14 +30,14 @@ public interface IRegistrationRepository
     /// take the device's UUID/x-api-key -- that key is never issued to a client before verification
     /// completes, so it can't be used to identify the registration being verified.
     /// </summary>
-    Task<OtpEmailResponse?> VerifyOtpEmail(string emailAddress, string sourceMachineName, DeviceTypes deviceTypeId, string otp);
+    Task<OtpEmailResponse?> VerifyOtpEmail(EmailAddress emailAddress, string sourceMachineName, DeviceTypes deviceTypeId, string otp);
 
     /// <summary>
     /// Verifies the SMS OTP code for the pending registration matching <paramref name="cellPhoneNumber"/>,
     /// <paramref name="sourceMachineName"/>, and <paramref name="deviceTypeId"/>. Deliberately does not
     /// take the device's UUID/x-api-key -- see <see cref="VerifyOtpEmail"/> for why.
     /// </summary>
-    Task<OtpSmsResponse?> VerifyOtpCellPhone(string cellPhoneNumber, string sourceMachineName, DeviceTypes deviceTypeId, string otp);
+    Task<OtpSmsResponse?> VerifyOtpCellPhone(PhoneNumber cellPhoneNumber, string sourceMachineName, DeviceTypes deviceTypeId, string otp);
 
     /// <summary>
     /// Regenerates OTP codes for whichever of email/SMS remain unverified for the registration
@@ -46,7 +47,7 @@ public interface IRegistrationRepository
     /// that has not finished verifying has no UUID/x-api-key to identify itself with otherwise.
     /// Leaves any already-verified channel untouched. Returns null if no registration matches.
     /// </summary>
-    Task<ResendOtpResult?> ResendOtp(string sourceMachineName, DeviceTypes deviceTypeId, string emailAddress, string cellPhoneNumber);
+    Task<ResendOtpResult?> ResendOtp(string sourceMachineName, DeviceTypes deviceTypeId, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber);
 
     /// <summary>
     /// Hydrates full <see cref="SourceMachineRegistrations"/> rows for a set of source machine
@@ -64,7 +65,7 @@ public interface IRegistrationRepository
     /// Test support only (DATABASE-34): the newest active device owned by the person with
     /// <paramref name="emailAddress"/>, or <see langword="null"/>.
     /// </summary>
-    Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(string emailAddress);
+    Task<OwnedDeviceKey?> GetNewestOwnedByEmailAsync(EmailAddress emailAddress);
 
     /// <summary>
     /// The person who owns an active device, from Postgres (DATABASE-35): <see langword="null"/>
