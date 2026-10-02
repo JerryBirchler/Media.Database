@@ -134,6 +134,33 @@ public class GroupRepositoryTests
         result.ShouldBe(expected);
     }
 
+    // DATABASE-53: one group per founder.
+    [Test]
+    public async Task GetFoundedGroupNameAsync_Should_AskForThatPersonsFoundedGroup_And_ReturnItsName()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroups.GetFoundedGroupNameSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, string>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, string>>((_, configure, _) => captured = configure)
+            .ReturnsAsync("BIRCHLER-1");
+
+        (await CreateRepository().GetFoundedGroupNameAsync(12)).ShouldBe("BIRCHLER-1");
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.PersonId].Value.ShouldBe(12);
+    }
+
+    [Test]
+    public void GetFoundedGroupNameSql_Should_TakeTheFirstMemberOfAnActiveGroup()
+    {
+        var sql = QueryGroups.GetFoundedGroupNameSql;
+
+        sql.ShouldContain("\"IsActive\" = True");
+        sql.ShouldContain("ORDER BY gp.\"InsertedOn\", gp.\"GroupPersonId\"");
+        sql.ShouldContain("= @PersonId");
+    }
+
     [Test]
     public async Task UpdateAsync_Should_ReturnUpdatedGroup_When_Found()
     {

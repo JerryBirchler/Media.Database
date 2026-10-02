@@ -38,6 +38,12 @@ public interface IGroupRepository
     Task<Group?> GetByNameAsync(string name);
 
     /// <summary>
+    /// The name of the active group <paramref name="personId"/> founded -- was its first member --
+    /// or <see langword="null"/> when they have founded none (DATABASE-53).
+    /// </summary>
+    Task<string?> GetFoundedGroupNameAsync(int personId);
+
+    /// <summary>
     /// Partially updates a group's <paramref name="title"/>/<paramref name="description"/> -- a
     /// <see langword="null"/> argument leaves that field unchanged. Returns the updated group, or
     /// <see langword="null"/> if <paramref name="groupId"/> does not exist.

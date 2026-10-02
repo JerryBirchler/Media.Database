@@ -169,6 +169,22 @@ public class GroupRepository(
         }
     }
 
+    public async Task<string?> GetFoundedGroupNameAsync(int personId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync(
+                QueryGroups.GetFoundedGroupNameSql,
+                p => p.AddWithValue(pn.PersonId, personId),
+                reader => reader.GetString(0));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetFoundedGroupNameAsync failed for PersonId: [{PersonId}]", personId);
+            throw;
+        }
+    }
+
     public async Task<Group?> UpdateAsync(int groupId, string? title, string? description)
     {
         try

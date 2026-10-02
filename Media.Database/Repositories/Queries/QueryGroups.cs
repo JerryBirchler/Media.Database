@@ -7,6 +7,7 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using cg = Media.Database.Repositories.Schemas.TablesSql.GroupsColumns;
+using cgp = Media.Database.Repositories.Schemas.TablesSql.GroupsPersonsColumns;
 using ccg = Media.Database.Repositories.Schemas.TablesCql.GroupsColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -97,6 +98,27 @@ public static class QueryGroups
             {cg.UpdatedOn}
         FROM {ts.Groups}
         WHERE {cg.Name} = {pn.Name}
+        ;";
+
+    /// <summary>
+    /// The name of the active group a person founded (DATABASE-53). The founder is a group's first
+    /// member: every way of creating a group makes its creator the first member and admin, and
+    /// the founding row is never deleted, only deactivated -- so this holds for groups made by
+    /// promoting a device's shell and for groups made directly. The oldest, should there be more.
+    /// </summary>
+    public static string GetFoundedGroupNameSql => $@"
+        SELECT g.{cg.Name}
+        FROM {ts.Groups} AS g
+        WHERE g.{cg.IsActive} = True
+            AND (
+                SELECT gp.{cgp.PersonId}
+                FROM {ts.GroupsPersons} AS gp
+                WHERE gp.{cgp.GroupId} = g.{cg.GroupId}
+                ORDER BY gp.{cgp.InsertedOn}, gp.{cgp.GroupPersonId}
+                LIMIT 1
+            ) = {pn.PersonId}
+        ORDER BY g.{cg.InsertedOn}
+        LIMIT 1
         ;";
 
     /// <summary>
