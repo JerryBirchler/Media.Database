@@ -55,13 +55,60 @@ Media.Database/
 	└── Media.Database.Tests/        # Unit tests
 ```
 
-## Design Patterns in Use
+## Design Patterns
 
-Named here so the code can be read with intent rather than reverse-engineered. Each entry says
-where the pattern lives and what problem it solves *in this codebase* -- not what a textbook says
-it does.
+Patterns in the sense developers share -- the [GoF catalogue](https://refactoring.guru/design-patterns)
+and, where labelled, Fowler's [Patterns of Enterprise Application Architecture](https://martinfowler.com/eaaCatalog/).
+Only those that are a deliberate choice and explain something about this library are listed; ones
+so common they are simply the language or the framework are not.
 
-### Compile-time schema binding (the one that shapes everything else)
+### [Adapter](https://refactoring.guru/design-patterns/adapter) -- one interface per store, and the two kept parallel
+
+`ISqlQueryExecutor` adapts Npgsql (PostgreSQL) and `ICqlQueryExecutor` adapts the Cassandra driver
+(Scylla), and their surfaces are deliberately isomorphic:
+
+```
+QuerySingleAsync<T>(string sql, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader,T>)
+QuerySingleAsync<T>(string cql, Action<Dictionary<string,object>>,  Func<Row,T>)
+```
+
+Same names, same arity, same shape; only the store-specific parameter bag and reader differ, so
+learning one store teaches the other. Keeping the two adapters parallel is a hard constraint -- the
+reason micro-ORMs that cover only ADO.NET have been evaluated and declined.
+
+### [Observer](https://refactoring.guru/design-patterns/observer) -- Scylla, and the Worker, follow Postgres's changes
+
+PostgreSQL's change stream (Debezium -> Kafka) is the subject; `Repositories/Cdc/*CdcSyncHandler.cs`
+are observers, each subscribing to the topics of the tables it cares about. They keep the Scylla
+side current from Postgres's own changes rather than from dual writes.
+
+An honorable mention for Media.Worker, which hosts these handlers alongside its own: the whole
+Worker is this pattern applied to state machines that live in the data. It never needs to be
+called. It observes a row's state change -- a file written, a device verified on both channels --
+and performs that transition's action: a thumbnail, a word index, a provisioned encryption key.
+For key provisioning the idea goes one step further: a step that failed is simply a state still
+waiting, and a periodic sweep finishes it.
+
+### Query Object and Data Mapper ([Fowler](https://martinfowler.com/eaaCatalog/queryObject.html))
+
+`Repositories/Queries/QueryXxx.cs` holds an aggregate's SQL/CQL text alongside the extension-method
+mappers that materialise its rows (`reader.ToFile()`, `row.ToPerson()`). Query text stays readable
+and greppable, mapping stays next to the shape it maps, and repositories stay thin -- the structure
+that stands in for an ORM (see *Compile-time schema binding* below for why there is none).
+
+### Repository and Unit of Work ([Fowler](https://martinfowler.com/eaaCatalog/unitOfWork.html))
+
+`IFileRepository`, `IRegistrationRepository`, `IPersonRepository` and friends wrap the executors per
+aggregate. `IUnitOfWork` is the one worth knowing about: it carries a transaction across writes
+where one must not land without the others -- registering a device, and creating a group together
+with its ownership.
+
+## Conventions and Architecture
+
+Not patterns in the catalogue sense, but decisions every change here has to respect. Where the
+industry has a name for one, it is used.
+
+### Compile-time schema binding
 
 `Repositories/Schemas/` -- `Tables`, `TablesSql`, `TablesCql`, `ColumnsSql`, `OrdinalsSql`,
 `ParameterNames`, all deriving from `BaseSchema<TParent, TChild>`.
@@ -75,61 +122,36 @@ is accepted because a compile error beats a test that might not exist.
 This is also why there is no ORM here. An ORM would move identifier correctness back to runtime
 and put generated SQL between the author and the query plan.
 
-### Symmetric ports over two stores
+### Conditional (compare-and-set) updates for permanent assignments
 
-`ISqlQueryExecutor` (PostgreSQL/Npgsql) and `ICqlQueryExecutor` (Scylla/Cassandra) expose
-deliberately isomorphic surfaces:
-
-```
-QuerySingleAsync<T>(string sql, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader,T>)
-QuerySingleAsync<T>(string cql, Action<Dictionary<string,object>>,  Func<Row,T>)
-```
-
-Same names, same arity, same shape; only the store-specific parameter bag and reader differ.
-Learning one store teaches the other. Preserving this symmetry is a hard constraint -- it is the
-reason micro-ORMs that cover only ADO.NET have been evaluated and declined.
-
-### Query objects with co-located mappers
-
-`Repositories/Queries/QueryXxx.cs` holds the SQL/CQL text for an aggregate alongside the
-extension-method mappers that materialise its rows (`reader.ToFile()`, `row.ToPerson()`). Query
-text stays readable and greppable, mapping stays next to the shape it maps, and repositories stay
-thin.
-
-### Repository and Unit of Work
-
-`IFileRepository`, `IRegistrationRepository`, `IPersonRepository` and friends wrap the executors
-per aggregate. `IUnitOfWork` carries a transaction across several writes where one must not land
-without the others -- device registration being the clearest case.
-
-### Set-once writes for permanent assignments
-
-`SetOwningPersonIfUnsetAsync`, `SetGroupShellIdIfUnsetAsync`, `PromoteIfUnpromotedAsync`,
-`RevokeIfActiveAsync`.
+`SetOwningPersonIfUnsetAsync`, `KeyProvisioningRepository.BindGroupShellIfUnboundAsync`,
+`PromoteIfUnpromotedAsync`, `RevokeIfActiveAsync`.
 
 Each carries its permanence in the `WHERE` clause (`... AND Column IS NULL`, `... AND IsActive =
 true`) rather than in a service-layer check, so the guarantee holds under concurrency and the
-operation is idempotent: a second call changes nothing and returns nothing.
+operation is idempotent: a second call changes nothing. Where the caller must know whether it won
+-- only the winner of a shell binding may deliver that shell's key -- the method reports it.
 
-### Deactivation over deletion
+### Soft delete
 
 `IsActive` flags plus `RevokedOn`/`UpdatedOn` stamps instead of `DELETE`, with unique partial
-indexes (`WHERE IsActive = true`) enforcing "one active row per key". History survives, so it
-stays possible to answer what was true at a past moment -- which matters for credentials and
-encryption keys specifically.
+indexes (`WHERE IsActive = true`) enforcing "one active row per key". History survives, so it stays
+possible to answer what was true at a past moment -- which matters for credentials and encryption
+keys specifically.
 
 ### Envelope encryption
 
 `GroupEncryptionKey` stores a wrapped Data Encryption Key; the customer's key is the wrapping key
-and is never persisted. Rotating the outer key re-wraps a small value instead of re-encrypting
-bulk data. Separate DEKs per `EncryptionDataCategory` keep blast radius contained.
+and is never persisted. Rotating the outer key re-wraps a small value instead of re-encrypting bulk
+data. Separate DEKs per `EncryptionDataCategory` keep blast radius contained.
 
-### Polyglot persistence with identify-then-hydrate
+### Polyglot persistence: identify in Postgres, hydrate from Scylla
 
 Paged reads identify rows in PostgreSQL and hydrate them from Scylla. PostgreSQL owns
-relationships and ordering; Scylla owns read throughput. CDC handlers
-(`Repositories/Cdc/*CdcSyncHandler.cs`) keep the Scylla side current from Postgres's own change
-stream rather than dual writes.
+relationships, constraints and ordering; Scylla owns read throughput. Pages are keyset cursors,
+forward-only -- an iterator over the result rather than numbered pages -- which is why there is no
+"jump to page 7". A column Scylla does not carry is read from Postgres, never assumed from the
+Scylla row.
 
 ## Getting Started
 
@@ -270,7 +292,7 @@ methods that do not exist.
 
 Identifiers are **bound at compile time**, not detected at runtime. `Repositories/Schemas/` is the
 single source of truth for every table, column, ordinal and parameter name, and a mistyped
-identifier fails the build. See [Design Patterns in Use](#design-patterns-in-use).
+identifier fails the build. See [Compile-time schema binding](#compile-time-schema-binding).
 
 > An earlier revision of this file described "dynamic schema detection", which is the opposite of
 > how this library works and of why it was built.
