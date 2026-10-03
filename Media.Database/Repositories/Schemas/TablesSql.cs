@@ -243,6 +243,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string ListType = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
+        public static readonly string InPlay = y();
     }
 
     public static class DeviceSearchListsColumns
@@ -253,6 +254,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string ListType = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
+        public static readonly string InPlay = y();
     }
 
     public static class GroupSearchListsColumns
@@ -263,6 +265,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string ListType = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
+        public static readonly string InPlay = y();
     }
 
 

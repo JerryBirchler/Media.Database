@@ -35,6 +35,7 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string GroupUuid = x();
     public static readonly string Id = x();
     public static readonly string InsertedOn = x();
+    public static readonly string InPlay = x();
     public static readonly string IsActive = x();
     public static readonly string IsAdmin = x();
     public static readonly string IsCurrent = x();

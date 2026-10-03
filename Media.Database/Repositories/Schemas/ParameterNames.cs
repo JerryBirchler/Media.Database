@@ -67,6 +67,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string PersonId = x();
     public static readonly string PersonSearchListId = x();
     public static readonly string PersonSearchListUuid = x();
+    public static readonly string InPlayUuids = x();
     public static readonly string PersonSourceMachineUuid = x();
     public static readonly string PersonUuid = x();
     public static readonly string PersonVoiceProfileId = x();

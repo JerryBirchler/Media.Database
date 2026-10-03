@@ -35,6 +35,8 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string HasRegistration = x();
     public static readonly string Id = x();
     public static readonly string InsertedOn = x();
+    public static readonly string InPlay = x();
+    public static readonly string InPlayUuids = x();
     public static readonly string IsActive = x();
     public static readonly string IsAdmin = x();
     public static readonly string IsCurrent = x();

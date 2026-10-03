@@ -261,4 +261,56 @@ public class SearchListRepositorySearchTests
         bound!["@visibleGroupId"].Value.ShouldBe(5);
         bound["@visibleSourceMachineId"].Value.ShouldBe(DBNull.Value);
     }
+
+    // DATABASE-54: which lists are in play is a saved preference, not page state.
+    [Test]
+    public async Task GetInPlayAsync_Should_AskForTheOwnersListsInPlay_And_ReturnTheirUuids()
+    {
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+        NpgsqlParameterCollection? bound = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QuerySearchLists.GetInPlay(PersonSchema), It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Guid>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, Guid>>((_, bind, _) => { bound = new NpgsqlCommand().Parameters; bind(bound); })
+            .ReturnsAsync([a, b]);
+
+        (await CreateRepository().GetInPlayAsync(OwnerScope.Person, PersonId)).ShouldBe([a, b]);
+        bound!["@PersonId"].Value.ShouldBe(PersonId);
+    }
+
+    [Test]
+    public async Task SetInPlayAsync_Should_ReplaceTheOwnersSet_And_AnswerWithOnlyThoseNowInPlay_OldestFirst()
+    {
+        var older = Guid.NewGuid();
+        var newer = Guid.NewGuid();
+        var notAsked = Guid.NewGuid();
+        NpgsqlParameterCollection? bound = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QuerySearchLists.SetInPlay(PersonSchema), It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, (Guid Uuid, bool InPlay, int Id)>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, (Guid Uuid, bool InPlay, int Id)>>((_, bind, _) => { bound = new NpgsqlCommand().Parameters; bind(bound); })
+            // RETURNING comes back in no particular order.
+            .ReturnsAsync([(newer, true, 9), (notAsked, false, 5), (older, true, 3)]);
+
+        var result = await CreateRepository().SetInPlayAsync(OwnerScope.Person, PersonId, [newer, older, newer]);
+
+        result.ShouldBe([older, newer]);
+        bound!["@PersonId"].Value.ShouldBe(PersonId);
+        // Asked once each, however often repeated.
+        ((Guid[])bound["@InPlayUuids"].Value!).ShouldBe([newer, older]);
+    }
+
+    [Test]
+    public void InPlaySql_Should_BeScopedToTheOwner_AndLeaveTheListsEditTimeAlone()
+    {
+        QuerySearchLists.GetInPlay(PersonSchema).ShouldContain("\"InPlay\"");
+        QuerySearchLists.GetInPlay(PersonSchema).ShouldContain("\"PersonId\" = @PersonId");
+
+        var set = QuerySearchLists.SetInPlay(PersonSchema);
+        // Every one of the owner's lists is set to whether it was asked for -- so a uuid that is
+        // not theirs matches nothing and cannot be put in play.
+        set.ShouldContain("= ANY(@InPlayUuids::uuid[])");
+        set.ShouldContain("WHERE \"PersonId\" = @PersonId");
+        // Being in play is a preference, not an edit.
+        set.ShouldNotContain("UpdatedOn");
+    }
 }

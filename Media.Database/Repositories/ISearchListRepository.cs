@@ -44,6 +44,19 @@ public interface ISearchListRepository
     Task<bool> DeleteAsync(OwnerScope scope, int ownerId, Guid uuid);
 
     /// <summary>
+    /// The owner's lists in play -- narrowing their view -- oldest first (DATABASE-54). A filter
+    /// is a lasting preference, so this is where it is kept, not in any one browser.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetInPlayAsync(OwnerScope scope, int ownerId);
+
+    /// <summary>
+    /// Makes exactly <paramref name="uuids"/> the owner's lists in play, and answers with the set
+    /// now in play. A uuid the owner does not have is ignored, never an error, so another owner's
+    /// list can never be put in play. An empty set clears the filter.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> SetInPlayAsync(OwnerScope scope, int ownerId, IReadOnlyList<Guid> uuids);
+
+    /// <summary>
     /// Runs a combined search: the named lists AND together, each list's lines OR within it, and
     /// the file criteria narrow the whole result.
     ///

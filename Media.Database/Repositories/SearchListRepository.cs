@@ -169,6 +169,49 @@ public class SearchListRepository(
         }
     }
 
+    public async Task<IReadOnlyList<Guid>> GetInPlayAsync(OwnerScope scope, int ownerId)
+    {
+        var schema = SearchListScopeSchema.For(scope);
+
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QuerySearchLists.GetInPlay(schema),
+                p => p.AddWithValue(schema.OwnerParameter, ownerId),
+                reader => reader.GetGuid(0));
+        }
+        catch (Exception ex)
+        {
+            _logger.WithCaller().LogError(ex, "GetInPlayAsync failed. Scope: [{Scope}] OwnerId: [{OwnerId}]", scope, ownerId);
+            throw;
+        }
+    }
+
+    public async Task<IReadOnlyList<Guid>> SetInPlayAsync(OwnerScope scope, int ownerId, IReadOnlyList<Guid> uuids)
+    {
+        var schema = SearchListScopeSchema.For(scope);
+
+        try
+        {
+            var rows = await _sqlExecutor.QueryManyAsync(
+                QuerySearchLists.SetInPlay(schema),
+                p =>
+                {
+                    p.AddWithValue(schema.OwnerParameter, ownerId);
+                    p.AddWithValue(pn.InPlayUuids, uuids.Distinct().ToArray());
+                },
+                reader => (Uuid: reader.GetGuid(0), InPlay: reader.GetBoolean(1), Id: reader.GetInt32(2)));
+
+            // RETURNING has no ORDER BY: sorted here into the same oldest-first order as a read.
+            return rows.Where(row => row.InPlay).OrderBy(row => row.Id).Select(row => row.Uuid).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.WithCaller().LogError(ex, "SetInPlayAsync failed. Scope: [{Scope}] OwnerId: [{OwnerId}] Asked: [{Count}]", scope, ownerId, uuids.Count);
+            throw;
+        }
+    }
+
     public async Task<bool> DeleteAsync(OwnerScope scope, int ownerId, Guid uuid)
     {
         var schema = SearchListScopeSchema.For(scope);

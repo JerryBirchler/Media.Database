@@ -65,6 +65,32 @@ internal static class QuerySearchLists
         ;";
 
     /// <summary>
+    /// SQL for the uuids of an owner's lists in play (DATABASE-54), oldest first -- the order they
+    /// were saved, so the filter reads the same way everywhere.
+    /// </summary>
+    public static string GetInPlay(SearchListScopeSchema s) => $@"
+        SELECT {s.UuidColumn}
+        FROM {s.Table}
+        WHERE {s.OwnerColumn} = {s.OwnerParameter}
+          AND {s.InPlayColumn}
+        ORDER BY {s.IdColumn}
+        ;";
+
+    /// <summary>
+    /// SQL to make exactly these of an owner's lists the ones in play, in one statement: each of the
+    /// owner's rows is set to whether its uuid was asked for. A uuid the owner does not have matches
+    /// no row, so it is ignored rather than refused -- and can never put another owner's list in
+    /// play. UpdatedOn is left alone: being in play is a preference, not an edit to the list.
+    /// Returns every changed row's uuid and flag; the caller keeps those now in play.
+    /// </summary>
+    public static string SetInPlay(SearchListScopeSchema s) => $@"
+        UPDATE {s.Table} SET
+            {s.InPlayColumn} = ({s.UuidColumn} = ANY({pn.InPlayUuids}::uuid[]))
+        WHERE {s.OwnerColumn} = {s.OwnerParameter}
+        RETURNING {s.UuidColumn}, {s.InPlayColumn}, {s.IdColumn}
+        ;";
+
+    /// <summary>
     /// SQL to touch a list when its content changes. The row itself carries nothing the user
     /// edits -- the name and the lines are in Scylla -- so this exists to move UpdatedOn and, by
     /// returning the id, to confirm the list is the owner's before the blobs are rewritten.

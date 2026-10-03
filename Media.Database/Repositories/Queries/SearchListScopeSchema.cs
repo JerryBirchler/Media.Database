@@ -51,6 +51,9 @@ internal sealed record SearchListScopeSchema
     /// <summary>The edited column.</summary>
     public required string UpdatedOnColumn { get; init; }
 
+    /// <summary>Whether the list is narrowing its owner's view (SCHEMA-24) -- a preference, not content.</summary>
+    public required string InPlayColumn { get; init; }
+
     /// <summary>The Scylla partition key column, which is the owner.</summary>
     public required string CqlOwnerColumn { get; init; }
 
@@ -99,6 +102,7 @@ internal sealed record SearchListScopeSchema
         ListTypeColumn = vd.ListType,
         InsertedOnColumn = vd.InsertedOn,
         UpdatedOnColumn = vd.UpdatedOn,
+        InPlayColumn = vd.InPlay,
         OwnerColumn = vd.SourceMachineId,
         CqlOwnerColumn = cd.SourceMachineId,
         CqlNameColumn = cd.Name,
@@ -121,6 +125,7 @@ internal sealed record SearchListScopeSchema
         ListTypeColumn = pv.ListType,
         InsertedOnColumn = pv.InsertedOn,
         UpdatedOnColumn = pv.UpdatedOn,
+        InPlayColumn = pv.InPlay,
         OwnerColumn = pv.PersonId,
         CqlOwnerColumn = cp.PersonId,
         CqlNameColumn = cp.Name,
@@ -143,6 +148,7 @@ internal sealed record SearchListScopeSchema
         ListTypeColumn = gv.ListType,
         InsertedOnColumn = gv.InsertedOn,
         UpdatedOnColumn = gv.UpdatedOn,
+        InPlayColumn = gv.InPlay,
         OwnerColumn = gv.GroupId,
         CqlOwnerColumn = cg.GroupId,
         CqlNameColumn = cg.Name,
