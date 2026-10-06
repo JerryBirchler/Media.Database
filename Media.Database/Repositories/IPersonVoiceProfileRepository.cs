@@ -6,7 +6,7 @@ namespace Media.Database.Repositories;
 /// Storage for the speaker-recognition profiles people have opted into.
 ///
 /// Every method is keyed by <c>PersonId</c> rather than by the profile's own identifier, because a
-/// person has at most one active profile and the caller always knows who they mean. That also
+/// person has at most one current profile and the caller always knows who they mean. That also
 /// keeps the biometric out of any path where a profile could be addressed without knowing whose it
 /// is.
 /// </summary>
@@ -21,8 +21,17 @@ public interface IPersonVoiceProfileRepository
     /// <param name="consentedOn">When the person agreed to this.</param>
     Task<PersonVoiceProfile?> AddAsync(int personId, SpeakerRecognitionProviders provider, string profileData, DateTimeOffset consentedOn);
 
-    /// <summary>Reads a person's active profile, or null when they have not enrolled.</summary>
-    Task<PersonVoiceProfile?> GetActiveByPersonIdAsync(int personId);
+    /// <summary>
+    /// Reads a person's current profile -- in use or paused -- or null when they have not enrolled
+    /// or have withdrawn.
+    /// </summary>
+    Task<PersonVoiceProfile?> GetCurrentByPersonIdAsync(int personId);
+
+    /// <summary>
+    /// Pauses (false) or resumes (true) a person's current profile, keeping the voiceprint. Returns
+    /// the profile, or null when there is none to pause or resume.
+    /// </summary>
+    Task<PersonVoiceProfile?> SetActiveByPersonIdAsync(int personId, bool isActive);
 
     /// <summary>
     /// Reads the active profiles of several people at once -- the identification path, which
@@ -31,8 +40,9 @@ public interface IPersonVoiceProfileRepository
     Task<List<PersonVoiceProfile>> GetActiveByPersonIdsAsync(IEnumerable<int> personIds);
 
     /// <summary>
-    /// Withdraws a person's profile, returning what was revoked or null when there was nothing
-    /// active. Idempotent: revoking twice leaves the first revocation's timestamp intact.
+    /// Withdraws a person's current profile, in use or paused, and erases the voiceprint. Returns
+    /// what was withdrawn, or null when there was nothing current. Idempotent: revoking twice
+    /// leaves the first revocation's timestamp intact.
     /// </summary>
     Task<PersonVoiceProfile?> RevokeByPersonIdAsync(int personId);
 }

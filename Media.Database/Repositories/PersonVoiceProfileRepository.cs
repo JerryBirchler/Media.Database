@@ -44,20 +44,43 @@ public class PersonVoiceProfileRepository(
         }
     }
 
-    public async Task<PersonVoiceProfile?> GetActiveByPersonIdAsync(int personId)
+    public async Task<PersonVoiceProfile?> GetCurrentByPersonIdAsync(int personId)
     {
         try
         {
             return await _sqlExecutor.QuerySingleAsync
             (
-                QueryPersonVoiceProfiles.GetActiveByPersonIdSql,
+                QueryPersonVoiceProfiles.GetCurrentByPersonIdSql,
                 p => p.AddWithValue(pn.PersonId, personId),
                 reader => reader.ToPersonVoiceProfile()
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "GetActiveByPersonIdAsync failed for PersonId: [{PersonId}]", personId);
+            _logger.LogError(ex, "GetCurrentByPersonIdAsync failed for PersonId: [{PersonId}]", personId);
+            throw;
+        }
+    }
+
+    public async Task<PersonVoiceProfile?> SetActiveByPersonIdAsync(int personId, bool isActive)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryPersonVoiceProfiles.SetActiveByPersonIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.PersonId, personId);
+                    p.AddWithValue(pn.IsActive, isActive);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToPersonVoiceProfile()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SetActiveByPersonIdAsync failed for PersonId: [{PersonId}], IsActive: [{IsActive}]", personId, isActive);
             throw;
         }
     }

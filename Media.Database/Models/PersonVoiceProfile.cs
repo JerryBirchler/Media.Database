@@ -30,10 +30,10 @@ public record PersonVoiceProfile
 
     /// <summary>
     /// The provider's own representation of this voice. Never logged, never returned to a caller:
-    /// it is the biometric artifact itself.
+    /// it is the biometric artifact itself. Null once withdrawn (DATABASE-57): withdrawing erases it.
     /// </summary>
     [JsonIgnore]
-    public required string ProfileData { get; init; }
+    public string? ProfileData { get; init; }
 
     /// <summary>
     /// When this person consented to their voice being used this way.

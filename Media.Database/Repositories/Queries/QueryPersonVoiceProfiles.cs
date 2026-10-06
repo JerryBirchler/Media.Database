@@ -48,8 +48,11 @@ public static class QueryPersonVoiceProfiles
             {cv.UpdatedOn}
         ;";
 
-    /// <summary>SQL to read a person's active profile, if they have one.</summary>
-    public static string GetActiveByPersonIdSql => $@"
+    /// <summary>
+    /// SQL to read a person's current profile -- in use or paused, not withdrawn (DATABASE-57) -- if
+    /// they have one.
+    /// </summary>
+    public static string GetCurrentByPersonIdSql => $@"
         SELECT
             {cv.PersonVoiceProfileId},
             {cv.PersonVoiceProfileUuid},
@@ -64,7 +67,7 @@ public static class QueryPersonVoiceProfiles
         FROM {ts.PersonVoiceProfiles}
         WHERE
             {cv.PersonId} = {pn.PersonId}
-            AND {cv.IsActive}
+            AND {cv.RevokedOn} IS NULL
         ;";
 
     /// <summary>
@@ -90,18 +93,44 @@ public static class QueryPersonVoiceProfiles
         ;";
 
     /// <summary>
-    /// SQL to withdraw a person's profile. Set-once on the way out: the WHERE clause requires the
-    /// row to still be active, so a second revocation changes nothing rather than overwriting the
-    /// moment the first one happened.
+    /// SQL to pause or resume a person's current profile (DATABASE-57). Pausing keeps the
+    /// voiceprint, so resuming needs no new recording; a withdrawn profile is never revived.
+    /// </summary>
+    public static string SetActiveByPersonIdSql => $@"
+        UPDATE {ts.PersonVoiceProfiles} SET
+            {cv.IsActive} = {pn.IsActive},
+            {cv.UpdatedOn} = {pn.UpdatedOn}
+        WHERE
+            {cv.PersonId} = {pn.PersonId}
+            AND {cv.RevokedOn} IS NULL
+        RETURNING
+            {cv.PersonVoiceProfileId},
+            {cv.PersonVoiceProfileUuid},
+            {cv.PersonId},
+            {cv.Provider},
+            {cv.ProfileData},
+            {cv.ConsentedOn},
+            {cv.IsActive},
+            {cv.RevokedOn},
+            {cv.InsertedOn},
+            {cv.UpdatedOn}
+        ;";
+
+    /// <summary>
+    /// SQL to withdraw a person's profile, in use or paused, and erase the voiceprint (DATABASE-57):
+    /// the row stays only as the record of consent and withdrawal. Set-once on the way out: the
+    /// WHERE clause requires the row not to be withdrawn yet, so a second revocation changes nothing
+    /// rather than overwriting the moment the first one happened.
     /// </summary>
     public static string RevokeByPersonIdSql => $@"
         UPDATE {ts.PersonVoiceProfiles} SET
             {cv.IsActive} = false,
+            {cv.ProfileData} = NULL,
             {cv.RevokedOn} = {pn.RevokedOn},
             {cv.UpdatedOn} = {pn.UpdatedOn}
         WHERE
             {cv.PersonId} = {pn.PersonId}
-            AND {cv.IsActive}
+            AND {cv.RevokedOn} IS NULL
         RETURNING
             {cv.PersonVoiceProfileId},
             {cv.PersonVoiceProfileUuid},
@@ -128,7 +157,7 @@ public static class PersonVoiceProfileMappers
             PersonVoiceProfileUuid = reader.GetGuid(os.PersonVoiceProfileUuid),
             PersonId = reader.GetInt32(os.PersonId),
             Provider = (SpeakerRecognitionProviders)reader.GetInt32(os.Provider),
-            ProfileData = reader.GetString(os.ProfileData),
+            ProfileData = reader.GetStringOrDefault(os.ProfileData),
             ConsentedOn = reader.GetFieldValue<DateTimeOffset>(os.ConsentedOn),
             IsActive = reader.GetFieldValue<bool>(os.IsActive),
             RevokedOn = reader.GetFieldValue<DateTimeOffset?>(os.RevokedOn),
