@@ -33,6 +33,22 @@ public class PersonAvatarRepository(
         }
     }
 
+    public async Task<DateTimeOffset?> GetUpdatedOnAsync(int personId)
+    {
+        try
+        {
+            return await _cqlExecutor.QuerySingleValueAsync(
+                QueryPersonAvatars.GetUpdatedOnSql,
+                p => p.AddWithValue(pn.PersonId, personId),
+                row => row.GetValue<DateTimeOffset>(Schemas.TablesCql.PersonAvatarsColumns.UpdatedOn));
+        }
+        catch (Exception ex)
+        {
+            _logger.WithCaller().LogError(ex, "GetUpdatedOnAsync failed for a person avatar. PersonId: [{PersonId}]", personId);
+            throw;
+        }
+    }
+
     public async Task SaveAsync(PersonAvatar avatar)
     {
         try

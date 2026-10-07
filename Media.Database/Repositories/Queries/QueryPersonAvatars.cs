@@ -25,6 +25,17 @@ public static class QueryPersonAvatars
         WHERE {cpa.PersonId} = {pn.PersonId}
         ;";
 
+    /// <summary>
+    /// CQL to read when a person's picture last changed, without the picture (DATABASE-58): its
+    /// version, for listing people with their pictures without loading every image.
+    /// </summary>
+    public static string GetUpdatedOnSql => $@"
+        SELECT
+            {cpa.UpdatedOn}
+        FROM {tc.PersonAvatars}
+        WHERE {cpa.PersonId} = {pn.PersonId}
+        ;";
+
     /// <summary>CQL to write (or replace) a person's picture.</summary>
     public static string UpsertSql => $@"
         INSERT INTO {tc.PersonAvatars}

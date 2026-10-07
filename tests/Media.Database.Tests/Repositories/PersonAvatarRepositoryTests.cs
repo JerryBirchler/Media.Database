@@ -52,6 +52,32 @@ public class PersonAvatarRepositoryTests
     }
 
     [Test]
+    public async Task GetUpdatedOnAsync_Should_ReadTheVersionByPersonId()
+    {
+        var personId = _fixture.Create<int>();
+        var updatedOn = _fixture.Create<DateTimeOffset>();
+        Action<Dictionary<string, object>>? captured = null;
+        _cqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryPersonAvatars.GetUpdatedOnSql, It.IsAny<Action<Dictionary<string, object>>>(), It.IsAny<Func<Cassandra.Row, DateTimeOffset>>()))
+            .Callback<string, Action<Dictionary<string, object>>, Func<Cassandra.Row, DateTimeOffset>>((_, configure, _) => captured = configure)
+            .ReturnsAsync(updatedOn);
+
+        var result = await CreateRepository().GetUpdatedOnAsync(personId);
+
+        result.ShouldBe(updatedOn);
+        var parameters = new Dictionary<string, object>();
+        captured!(parameters);
+        parameters[pn.PersonId.ToUpperInvariant()].ShouldBe(personId);
+    }
+
+    [Test]
+    public void GetUpdatedOnSql_Should_ReadNoImage()
+    {
+        // The point of it: a person's version, without their picture's bytes.
+        QueryPersonAvatars.GetUpdatedOnSql.ShouldNotContain(Media.Database.Repositories.Schemas.TablesCql.PersonAvatarsColumns.Image);
+    }
+
+    [Test]
     public void SaveAsync_Should_ConfigureEveryColumn()
     {
         var avatar = _fixture.Create<PersonAvatar>();

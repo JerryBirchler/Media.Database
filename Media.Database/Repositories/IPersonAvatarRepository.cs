@@ -10,6 +10,12 @@ public interface IPersonAvatarRepository
     /// <summary>Gets <paramref name="personId"/>'s picture, or null when they have none.</summary>
     Task<PersonAvatar?> GetAsync(int personId);
 
+    /// <summary>
+    /// When <paramref name="personId"/>'s picture last changed -- its version -- or null when they
+    /// have none. Reads no image.
+    /// </summary>
+    Task<DateTimeOffset?> GetUpdatedOnAsync(int personId);
+
     /// <summary>Writes (or replaces) a person's picture.</summary>
     Task SaveAsync(PersonAvatar avatar);
 
