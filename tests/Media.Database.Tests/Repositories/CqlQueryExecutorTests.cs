@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Shouldly;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace Media.Database.Tests.Repositories;
@@ -99,6 +100,32 @@ public class CqlQueryExecutorTests
             row => row.GetValue<string>("name"));
 
         _sessionMock.Verify(s => s.Prepare("SELECT * FROM t WHERE id = ?"), Times.Once);
+        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Once);
+    }
+
+    [Test]
+    public async Task QueryManyAsync_Should_TryAgain_When_TheDriverHadNoHostForTheFirstAttempt()
+    {
+        _sessionMock.SetupSequence(s => s.ExecuteAsync(It.IsAny<Statement>()))
+            .ThrowsAsync(new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()))
+            .ReturnsAsync(new RowSet());
+        var executor = new CqlQueryExecutor(_scyllaProviderMock.Object, new ReadRetry([TimeSpan.Zero]));
+
+        var result = await executor.QueryManyAsync("SELECT * FROM t", _ => { }, row => row.GetValue<string>("name"));
+
+        result.ShouldBeEmpty();
+        _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Exactly(2));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_Should_NeverRepeatAWrite_When_TheDriverHadNoHost()
+    {
+        _sessionMock.Setup(s => s.ExecuteAsync(It.IsAny<Statement>()))
+            .ThrowsAsync(new NoHostAvailableException(new Dictionary<IPEndPoint, Exception>()));
+        var executor = new CqlQueryExecutor(_scyllaProviderMock.Object, new ReadRetry([TimeSpan.Zero]));
+
+        await Should.ThrowAsync<NoHostAvailableException>(() => executor.ExecuteAsync("INSERT INTO t (id) VALUES (@id)", p => p.AddWithValue("@ID", Guid.NewGuid())));
+
         _sessionMock.Verify(s => s.ExecuteAsync(It.IsAny<Statement>()), Times.Once);
     }
 }

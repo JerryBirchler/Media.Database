@@ -8,8 +8,17 @@ namespace Media.Database.Repositories;
 /// The only class in this project that opens a real PostgreSQL connection. Everything else
 /// depends on <see cref="ISqlQueryExecutor"/> so it can be unit tested without a live database.
 /// </summary>
-public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : ISqlQueryExecutor
+/// <remarks>
+/// A read whose pooled connection was dropped is tried again on a fresh one (<see cref="ReadRetry"/>);
+/// the pool is cleared first, since the connections beside the dead one were likely dropped with it.
+/// Writes, and anything inside a unit of work, are never repeated.
+/// </remarks>
+/// <param name="postgresProvider">Gives the connection string.</param>
+/// <param name="retry">When to try a read again; <see cref="ReadRetry.Default"/> when not given.</param>
+public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider, ReadRetry? retry = null) : ISqlQueryExecutor
 {
+    private readonly ReadRetry _retry = retry ?? ReadRetry.Default;
+
     /// <summary>
     /// Executes a query that returns a single result asynchronously.
     /// </summary>
@@ -18,12 +27,13 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing the result.</returns>
-    public async Task<T?> QuerySingleAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class
-    {
-        await using var connection = await OpenConnectionAsync();
-        var (found, value) = await TryReadSingleAsync(connection, sql, configureParameters, map);
-        return found ? value : null;
-    }
+    public Task<T?> QuerySingleAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : class =>
+        _retry.RunAsync(sql, async () =>
+        {
+            await using var connection = await OpenConnectionAsync();
+            var (found, value) = await TryReadSingleAsync(connection, sql, configureParameters, map);
+            return found ? value : null;
+        }, IsConnectionFailure, ClearPool);
 
     /// <summary>
     /// Executes a query that returns a single value asynchronously.
@@ -33,12 +43,13 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the value type.</param>
     /// <returns>A task representing the asynchronous operation, containing the value.</returns>
-    public async Task<T?> QuerySingleValueAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct
-    {
-        await using var connection = await OpenConnectionAsync();
-        var (found, value) = await TryReadSingleAsync(connection, sql, configureParameters, map);
-        return found ? value : null;
-    }
+    public Task<T?> QuerySingleValueAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) where T : struct =>
+        _retry.RunAsync<T?>(sql, async () =>
+        {
+            await using var connection = await OpenConnectionAsync();
+            var (found, value) = await TryReadSingleAsync(connection, sql, configureParameters, map);
+            return found ? value : null;
+        }, IsConnectionFailure, ClearPool);
 
     /// <summary>
     /// Executes a query that returns multiple results asynchronously.
@@ -48,11 +59,12 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <param name="map">A delegate to map the data reader to the result type.</param>
     /// <returns>A task representing the asynchronous operation, containing a list of results.</returns>
-    public async Task<List<T>> QueryManyAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map)
-    {
-        await using var connection = await OpenConnectionAsync();
-        return await QueryManyAsync(connection, sql, configureParameters, map);
-    }
+    public Task<List<T>> QueryManyAsync<T>(string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) =>
+        _retry.RunAsync(sql, async () =>
+        {
+            await using var connection = await OpenConnectionAsync();
+            return await QueryManyAsync(connection, sql, configureParameters, map);
+        }, IsConnectionFailure, ClearPool);
 
     /// <summary>
     /// Executes a non-query SQL command asynchronously.
@@ -116,6 +128,23 @@ public class SqlQueryExecutor(IPostgresConnectionProvider postgresProvider) : IS
     /// <returns>A task representing the asynchronous operation, containing a list of results.</returns>
     public Task<List<T>> QueryManyAsync<T>(IUnitOfWork unitOfWork, string sql, Action<NpgsqlParameterCollection> configureParameters, Func<NpgsqlDataReader, T> map) =>
         QueryManyAsync(unitOfWork.Connection, sql, configureParameters, map);
+
+    /// <summary>
+    /// A failure of the connection itself -- dropped, reset, unreachable -- which Npgsql marks
+    /// transient, as opposed to an error PostgreSQL returned for the statement.
+    /// </summary>
+    private static bool IsConnectionFailure(Exception exception) =>
+        exception is NpgsqlException { IsTransient: true } and not PostgresException;
+
+    /// <summary>
+    /// Empties this database's connection pool, so the next attempt opens a fresh connection rather
+    /// than taking another that was dropped along with the one that failed.
+    /// </summary>
+    private void ClearPool()
+    {
+        using var connection = new NpgsqlConnection(postgresProvider.GetConnectionString());
+        NpgsqlConnection.ClearPool(connection);
+    }
 
     /// <summary>
     /// Opens a new database connection asynchronously.

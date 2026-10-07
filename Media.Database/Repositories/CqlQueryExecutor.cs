@@ -9,8 +9,17 @@ namespace Media.Database.Repositories;
 /// that binds and executes CQL directly against a live session. Everything else depends on
 /// <see cref="ICqlQueryExecutor"/> so it can be unit tested without a live cluster.
 /// </summary>
-public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQueryExecutor
+/// <remarks>
+/// A read whose connection fails is tried again (<see cref="ReadRetry"/>): when the driver loses its
+/// connection it marks the host down, and every query fails with <see cref="NoHostAvailableException"/>
+/// until it reconnects a moment later. Writes are never repeated.
+/// </remarks>
+/// <param name="scyllaProvider">Gives the live session.</param>
+/// <param name="retry">When to try a read again; <see cref="ReadRetry.Default"/> when not given.</param>
+public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider, ReadRetry? retry = null) : ICqlQueryExecutor
 {
+    private readonly ReadRetry _retry = retry ?? ReadRetry.Default;
+
     /// <summary>
     /// Executes a query that returns a single result asynchronously.
     /// </summary>
@@ -91,12 +100,20 @@ public class CqlQueryExecutor(IScyllaSessionProvider scyllaProvider) : ICqlQuery
     /// <param name="cql">The CQL query to execute, with named (<c>@name</c>) parameters.</param>
     /// <param name="configureParameters">A delegate to configure the query parameters.</param>
     /// <returns>A task representing the asynchronous operation, containing the row set.</returns>
-    private async Task<RowSet> ExecuteRowSetAsync(string cql, Action<Dictionary<string, object>> configureParameters)
-    {
-        var command = GetSession().GetCqlCommand(cql);
-        configureParameters(command.Parameters);
-        return await command.ExecuteRowSet();
-    }
+    private Task<RowSet> ExecuteRowSetAsync(string cql, Action<Dictionary<string, object>> configureParameters) =>
+        _retry.RunAsync(cql, async () =>
+        {
+            var command = GetSession().GetCqlCommand(cql);
+            configureParameters(command.Parameters);
+            return await command.ExecuteRowSet();
+        }, IsConnectionFailure);
+
+    /// <summary>
+    /// The driver's own word that it could not reach the cluster -- no host to send to, or no answer
+    /// from the one it sent to -- as opposed to a statement Scylla refused.
+    /// </summary>
+    private static bool IsConnectionFailure(Exception exception) =>
+        exception is NoHostAvailableException or OperationTimedOutException;
 
     /// <summary>
     /// Gets the active Scylla/Cassandra session.
