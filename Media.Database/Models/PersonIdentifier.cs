@@ -23,4 +23,11 @@ public class PersonIdentifier
 
     /// <summary>Gets or sets the person's first name.</summary>
     public string FirstName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether their membership of the group is active. Always true from the queries that list
+    /// active members only; read from the membership by the admin's list, which shows disabled
+    /// members too (<see cref="Repositories.IGroupPersonRepository.GetMemberIdentifiersByGroupIdAsync"/>).
+    /// </summary>
+    public bool IsMembershipActive { get; set; } = true;
 }

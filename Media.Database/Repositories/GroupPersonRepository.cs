@@ -166,6 +166,29 @@ public class GroupPersonRepository(
         }
     }
 
+    public async Task<List<PersonIdentifier>> GetMemberIdentifiersByGroupIdAsync(int groupId, PersonIdentifier? next, int limit)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync(
+                QueryGroupsPersons.GetMemberIdentifiersByGroupIdSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.LastName, next?.LastName.ToNullableValueForSql());
+                    p.AddWithValue(pn.FirstName, next?.FirstName.ToNullableValueForSql());
+                    p.AddWithValue(pn.PersonUuid, next?.PersonUuid.ToNullableValueForSql());
+                    p.AddWithValue(pn.Limit, limit);
+                },
+                reader => reader.ToMemberIdentifier());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetMemberIdentifiersByGroupIdAsync failed for GroupId: [{GroupId}]", groupId);
+            throw;
+        }
+    }
+
     public async Task<GroupAccess?> GetAccessByGroupPersonUuidAsync(Guid uuid)
     {
         try

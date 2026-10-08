@@ -1,4 +1,4 @@
-﻿using Media.Database.Models;
+using Media.Database.Models;
 
 namespace Media.Database.Repositories;
 
@@ -44,6 +44,13 @@ public interface IGroupPersonRepository
     /// Pass <paramref name="next"/> null for the first page; its PersonId is otherwise unused.
     /// </summary>
     Task<List<PersonIdentifier>> GetPersonIdentifiersByGroupIdAsync(int groupId, PersonIdentifier? next, int limit);
+
+    /// <summary>
+    /// The admin's member list (API-178): a keyset page of a group's members, disabled ones
+    /// included, each with <see cref="PersonIdentifier.IsMembershipActive"/>. Not for contacts or
+    /// voice identification, which must see active members only.
+    /// </summary>
+    Task<List<PersonIdentifier>> GetMemberIdentifiersByGroupIdAsync(int groupId, PersonIdentifier? next, int limit);
 
     /// <summary>
     /// Resolves a <c>GroupPersonUuid</c> -- the multi-origin x-api-key model's third credential

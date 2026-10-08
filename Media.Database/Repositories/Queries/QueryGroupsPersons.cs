@@ -1,4 +1,4 @@
-﻿using Media.Database.Helpers;
+using Media.Database.Helpers;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Npgsql;
@@ -161,6 +161,39 @@ public static class QueryGroupsPersons
         ;";
 
     /// <summary>
+    /// The admin's member list (API-178): the same keyset page as
+    /// <see cref="GetPersonIdentifiersByGroupIdSql"/>, but members whose membership was disabled
+    /// stay in it, with the membership's own active flag -- so an unchecked "Enabled" row survives
+    /// a reload and can be enabled again. Contacts and voice identification keep the active-only
+    /// query: a disabled member must not reach either.
+    /// </summary>
+    public static string GetMemberIdentifiersByGroupIdSql => $@"
+        SELECT
+            p.{cp.PersonId},
+            p.{cp.PersonUuid},
+            p.{cp.LastName},
+            p.{cp.FirstName},
+            gp.{cgp.IsActive}
+        FROM
+            {ts.Persons} AS p
+        JOIN
+            {ts.GroupsPersons} AS gp ON gp.{cgp.PersonId} = p.{cp.PersonId}
+        WHERE
+            gp.{cgp.GroupId} = {pn.GroupId}
+            AND (p.{cp.LastName}, p.{cp.FirstName}, p.{cp.PersonUuid}) >
+            (
+                COALESCE({pn.LastName}, ''),
+                COALESCE({pn.FirstName}, ''),
+                COALESCE({pn.PersonUuid}, '00000000-0000-0000-0000-000000000000'::uuid)
+            )
+        ORDER BY
+            p.{cp.LastName} ASC,
+            p.{cp.FirstName} ASC,
+            p.{cp.PersonUuid} ASC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>
     /// Resolves a <c>GroupPersonUuid</c> -- the multi-origin x-api-key model's third credential
     /// type (MEDIA-34) -- to the group it grants access to. IsEmailVerified/IsSmsVerified come
     /// from the person, not any device, since this credential authenticates the person across
@@ -238,6 +271,14 @@ public static class QueryGroupsPersons
             LastName = reader.GetString(os.LastName),
             FirstName = reader.GetString(os.FirstName)
         };
+    }
+
+    /// <summary>A row of <see cref="GetMemberIdentifiersByGroupIdSql"/>: the identifier and whether the membership is active.</summary>
+    public static PersonIdentifier ToMemberIdentifier(this NpgsqlDataReader reader)
+    {
+        var identifier = reader.ToPersonIdentifier();
+        identifier.IsMembershipActive = reader.GetFieldValue<bool>(os.IsActive);
+        return identifier;
     }
 
     /// <summary>Reads every remaining row from <paramref name="reader"/> and maps each to a <see cref="PersonIdentifier"/>.</summary>
