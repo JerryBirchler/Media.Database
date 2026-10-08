@@ -6,6 +6,9 @@
 /// </summary>
 public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
 {
+    public static readonly string AcceptedByPersonId = x();
+    public static readonly string AnsweredByPersonId = x();
+    public static readonly string AnsweredOn = x();
     public static readonly string Attempts = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ColumnName = x();
@@ -18,10 +21,15 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();
     public static readonly string EncryptedUuidBlob = x();
+    public static readonly string ExpiresOn = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();
     public static readonly string GroupEncryptionKeyUuid = x();
     public static readonly string GroupId = x();
+    public static readonly string GroupInviteId = x();
+    public static readonly string GroupInviteUuid = x();
+    public static readonly string GroupJoinRequestId = x();
+    public static readonly string GroupJoinRequestUuid = x();
     public static readonly string GroupSearchListId = x();
     public static readonly string GroupSearchListUuid = x();
     public static readonly string GroupShellId = x();
@@ -29,6 +37,7 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string Id = x();
     public static readonly string Image = x();
     public static readonly string InsertedOn = x();
+    public static readonly string InvitedByPersonId = x();
     public static readonly string IsActive = x();
     public static readonly string IsCurrent = x();
     public static readonly string IsEmailVerified = x();
@@ -41,6 +50,7 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
     public static readonly string ListType = x();
+    public static readonly string LockedOn = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
     public static readonly string NonceId = x();
@@ -67,10 +77,13 @@ public class OrdinalsCql : BaseSchema<OrdinalsCql, Ordinals>
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
     public static readonly string SpokenName = x();
+    public static readonly string Status = x();
+    public static readonly string StrikeCount = x();
     public static readonly string TableName = x();
     public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();
+    public static readonly string WindowEndsOn = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();
     public static readonly string WordType = x();

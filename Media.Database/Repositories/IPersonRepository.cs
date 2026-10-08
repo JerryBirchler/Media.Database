@@ -29,6 +29,14 @@ public interface IPersonRepository
     Task<bool> IsEnrolledByEmailAsync(EmailAddress emailAddress);
 
     /// <summary>
+    /// Finds the active people with <paramref name="lastName"/> and <paramref name="emailAddress"/>,
+    /// both matching case-insensitively -- adding a member by details (MEDIA-8). Never by cellphone
+    /// number. One match adds, several are shown to pick from, none is a miss (see
+    /// <see cref="IPersonMemberAddStrikeRepository"/>). Ordered by first name.
+    /// </summary>
+    Task<List<PersonMatch>> FindActiveByLastNameAndEmailAsync(PersonName lastName, EmailAddress emailAddress);
+
+    /// <summary>
     /// Retrieves a person by the contact information used to create them. A pure read -- unlike
     /// <see cref="FindOrCreateAsync"/>, it never creates.
     /// </summary>

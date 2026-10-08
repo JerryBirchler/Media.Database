@@ -134,6 +134,30 @@ public class PersonRepository(
         }
     }
 
+    public async Task<List<PersonMatch>> FindActiveByLastNameAndEmailAsync(PersonName lastName, EmailAddress emailAddress)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync
+            (
+                QueryPersons.FindActiveByLastNameAndEmailSql,
+                p =>
+                {
+                    p.AddWithValue(pn.LastName, lastName.ToString());
+                    p.AddWithValue(pn.EmailAddress, emailAddress.ToString());
+                },
+                reader => reader.ToPersonMatch()
+            );
+        }
+        catch (Exception ex)
+        {
+            // Neither the name nor the address is logged: this lookup is what probing for people
+            // would look like, and the log is not where to keep what was probed.
+            _logger.LogError(ex, "FindActiveByLastNameAndEmailAsync failed");
+            throw;
+        }
+    }
+
     public async Task<Person?> CreateAsync(PersonName firstName, PersonName lastName, EmailAddress emailAddress, PhoneNumber? cellPhoneNumber, int createdByPersonId)
     {
         try

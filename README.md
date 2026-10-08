@@ -263,7 +263,7 @@ public class WordIndexService
 
 ## Repository Interfaces
 
-Thirteen repositories, one per aggregate. Every method documented below was verified against the
+Sixteen repositories, one per aggregate. Every method documented below was verified against the
 interface rather than remembered -- an earlier revision of this file listed four `IFileRepository`
 methods that do not exist.
 
@@ -285,8 +285,12 @@ methods that do not exist.
 `IRegistrationRepository` (devices and their OTP lifecycle), `IPersonRepository`,
 `IPersonSourceMachineRepository`, `IGroupRepository`, `IGroupPersonRepository`,
 `IGroupSourceMachineRepository`, `IGroupShellRepository`, `IGroupEncryptionKeyRepository`,
-`IGroupUuidOrchestrationRepository`, `ISourceMachineKeyRepository` and
-`ICanBeEncryptedFieldsRepository`.
+`IGroupUuidOrchestrationRepository`, `ISourceMachineKeyRepository`,
+`ICanBeEncryptedFieldsRepository`, and the group-joining three (SCHEMA-35, MEDIA-8):
+`IGroupJoinRequestRepository` (ask to join by exact name; accept, reject or ignore),
+`IGroupInviteRepository` (invite an email + last name; accept, decline, cancel, expire) and
+`IPersonMemberAddStrikeRepository` (misses adding members by details, with the rule in
+`MemberAddStrikePolicy`).
 
 ## Database Schema
 
@@ -302,8 +306,9 @@ Two stores, each owning what it is good at:
 - **PostgreSQL** -- relationships, ordering, uniqueness and transactional writes. Tables include
   `SourceMachineRegistrations`, `Registrations`, `Persons`, `PersonsSourceMachines`, `Groups`,
   `GroupsPersons`, `GroupsSourceMachines`, `Files`, `Words`, `WordFiles`, plus the
-  encryption-related `GroupShell`, `GroupEncryptionKeys` and the device-credential table
-  `SourceMachineKeys`.
+  encryption-related `GroupShell`, `GroupEncryptionKeys`, the device-credential table
+  `SourceMachineKeys`, and group joining's `GroupJoinRequests`, `GroupInvites` and
+  `PersonMemberAddStrikes`.
 - **Scylla/Cassandra** -- read throughput for hydration, plus tables it owns outright such as
   `can_be_encrypted_fields` and `group_uuid_orchestration`.
 

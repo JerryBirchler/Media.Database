@@ -12,11 +12,14 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
     public static readonly string CanBeEncryptedFields = x();
     public static readonly string DeviceSearchLists = x();
     public static readonly string Files = x();
+    public static readonly string GroupInvites = x();
+    public static readonly string GroupJoinRequests = x();
     public static readonly string Groups = x();
     public static readonly string GroupSearchLists = x();
     public static readonly string GroupUuidOrchestration = x();
     public static readonly string OtpAttempts = x();
     public static readonly string PersonAvatars = x();
+    public static readonly string PersonMemberAddStrikes = x();
     public static readonly string Persons = x();
     public static readonly string PersonSearchLists = x();
     public static readonly string Registrations = x();
@@ -163,6 +166,45 @@ public class TablesCql : BaseSchema<TablesCql, Tables>
         public static readonly string Name = y();
         public static readonly string Payload = y();
         public static readonly string PayloadVersion = y();
+    }
+
+    public static class GroupJoinRequestsColumns
+    {
+        public static readonly string GroupJoinRequestId = y();
+        public static readonly string GroupJoinRequestUuid = y();
+        public static readonly string GroupId = y();
+        public static readonly string PersonId = y();
+        public static readonly string Status = y();
+        public static readonly string AnsweredByPersonId = y();
+        public static readonly string AnsweredOn = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class GroupInvitesColumns
+    {
+        public static readonly string GroupInviteId = y();
+        public static readonly string GroupInviteUuid = y();
+        public static readonly string GroupId = y();
+        public static readonly string InvitedByPersonId = y();
+        public static readonly string EmailAddress = y();
+        public static readonly string LastName = y();
+        public static readonly string Status = y();
+        public static readonly string ExpiresOn = y();
+        public static readonly string AcceptedByPersonId = y();
+        public static readonly string AnsweredOn = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class PersonMemberAddStrikesColumns
+    {
+        public static readonly string PersonId = y();
+        public static readonly string StrikeCount = y();
+        public static readonly string WindowEndsOn = y();
+        public static readonly string LockedOn = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
     }
 
 

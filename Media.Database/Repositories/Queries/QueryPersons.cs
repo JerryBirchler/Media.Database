@@ -330,6 +330,29 @@ public static class QueryPersons
             {cp.UpdatedOn}
         ;";
 
+    /// <summary>
+    /// SQL to find the active people with this last name and email address, both matching
+    /// case-insensitively -- adding a member by details (MEDIA-8), served by
+    /// <c>IX_Persons_EmailAddress_LastName</c>. Never by cellphone number. One match adds, several are
+    /// shown to pick from, none is a miss.
+    /// </summary>
+    public static string FindActiveByLastNameAndEmailSql => $@"
+        SELECT
+            {cp.PersonId},
+            {cp.PersonUuid},
+            {cp.FirstName},
+            {cp.LastName},
+            {cp.EmailAddress}
+        FROM {ts.Persons}
+        WHERE
+            {cp.EmailAddress} = {pn.EmailAddress}
+            AND {cp.LastName} = {pn.LastName}
+            AND {cp.IsActive} = true
+        ORDER BY
+            {cp.FirstName} ASC,
+            {cp.PersonUuid} ASC
+        ;";
+
     #endregion
 
     #region CQL Queries
@@ -450,6 +473,19 @@ public static class QueryPersons
             OtpWindowOverrideMinutes = row.GetValue<int?>(ccp.OtpWindowOverrideMinutes),
             InsertedOn = row.GetValue<DateTimeOffset>(ccp.InsertedOn),
             UpdatedOn = row.GetValue<DateTimeOffset?>(ccp.UpdatedOn)
+        };
+    }
+
+    /// <summary>Maps the current row of <paramref name="reader"/> to a <see cref="PersonMatch"/>.</summary>
+    public static PersonMatch ToPersonMatch(this NpgsqlDataReader reader)
+    {
+        return new PersonMatch
+        {
+            PersonId = reader.GetInt32(os.PersonId),
+            PersonUuid = reader.GetGuid(os.PersonUuid),
+            FirstName = reader.GetString(os.FirstName),
+            LastName = reader.GetString(os.LastName),
+            EmailAddress = reader.GetString(os.EmailAddress)
         };
     }
 }

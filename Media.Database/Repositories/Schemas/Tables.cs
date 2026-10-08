@@ -11,6 +11,8 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string DeviceSearchLists = x();
     public static readonly string Files = x();
     public static readonly string GroupEncryptionKeys = x();
+    public static readonly string GroupInvites = x();
+    public static readonly string GroupJoinRequests = x();
     public static readonly string Groups = x();
     public static readonly string GroupSearchLists = x();
     public static readonly string GroupShell = x();
@@ -19,6 +21,7 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string GroupUuidOrchestration = x();
     public static readonly string OtpAttempts = x();
     public static readonly string PersonAvatars = x();
+    public static readonly string PersonMemberAddStrikes = x();
     public static readonly string Persons = x();
     public static readonly string PersonSearchLists = x();
     public static readonly string PersonsSourceMachines = x();

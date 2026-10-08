@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Archetypes;
 using Media.Common.Providers;
 using Media.Database.Mappers;
 using Media.Database.Models;
@@ -185,6 +186,60 @@ public class PersonRepositoryTests
         var result = await CreateRepository().IsEnrolledByEmailAsync("someone@example.com".Email());
 
         result.ShouldBe(expected);
+    }
+
+    [Test]
+    public async Task FindActiveByLastNameAndEmailAsync_Should_ReturnEveryMatch()
+    {
+        var matches = _fixture.CreateMany<PersonMatch>(2).ToList();
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryPersons.FindActiveByLastNameAndEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonMatch>>()))
+            .ReturnsAsync(matches);
+
+        var result = await CreateRepository().FindActiveByLastNameAndEmailAsync(_fixture.Create<PersonName>(), _fixture.Create<EmailAddress>());
+
+        result.ShouldBe(matches);
+    }
+
+    [Test]
+    public async Task FindActiveByLastNameAndEmailAsync_Should_PassLastNameAndEmail_And_NeverACellphone()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        var lastName = _fixture.Create<PersonName>();
+        var emailAddress = _fixture.Create<EmailAddress>();
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryPersons.FindActiveByLastNameAndEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonMatch>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, PersonMatch>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().FindActiveByLastNameAndEmailAsync(lastName, emailAddress);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.LastName].Value.ShouldBe(lastName.ToString());
+        command.Parameters[pn.EmailAddress].Value.ShouldBe(emailAddress.ToString());
+        command.Parameters.Contains(pn.CellPhoneNumber).ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task FindActiveByLastNameAndEmailAsync_Should_Rethrow_When_ExecutorThrows()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryPersons.FindActiveByLastNameAndEmailSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonMatch>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().FindActiveByLastNameAndEmailAsync(_fixture.Create<PersonName>(), _fixture.Create<EmailAddress>()));
+    }
+
+    [Test]
+    public void FindActiveByLastNameAndEmailSql_Should_MatchActivePeopleByEmailAndLastNameOnly()
+    {
+        var sql = QueryPersons.FindActiveByLastNameAndEmailSql;
+
+        sql.ShouldContain(@"""EmailAddress"" = @EmailAddress");
+        sql.ShouldContain(@"""LastName"" = @LastName");
+        sql.ShouldContain(@"""IsActive"" = true");
+        sql.ShouldNotContain("CellPhoneNumber");
     }
 
     [Test]

@@ -8,7 +8,10 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
 {
+    public static readonly string AcceptedByPersonId = x();
     public static readonly string Algorithm = x();
+    public static readonly string AnsweredByPersonId = x();
+    public static readonly string AnsweredOn = x();
     public static readonly string CameFromFileId = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ConsentedOn = x();
@@ -20,11 +23,16 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string DeviceTypeId = x();
     public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();
+    public static readonly string ExpiresOn = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();
     public static readonly string GroupEncryptionKeyId = x();
     public static readonly string GroupEncryptionKeyUuid = x();
     public static readonly string GroupId = x();
+    public static readonly string GroupInviteId = x();
+    public static readonly string GroupInviteUuid = x();
+    public static readonly string GroupJoinRequestId = x();
+    public static readonly string GroupJoinRequestUuid = x();
     public static readonly string GroupPersonId = x();
     public static readonly string GroupPersonUuid = x();
     public static readonly string GroupSearchListId = x();
@@ -36,6 +44,7 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string Id = x();
     public static readonly string InsertedOn = x();
     public static readonly string InPlay = x();
+    public static readonly string InvitedByPersonId = x();
     public static readonly string IsActive = x();
     public static readonly string IsAdmin = x();
     public static readonly string IsCurrent = x();
@@ -49,6 +58,7 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
     public static readonly string ListType = x();
+    public static readonly string LockedOn = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
     public static readonly string OperatingSystem = x();
@@ -79,10 +89,13 @@ public class ColumnsSql : BaseSchema<ColumnsSql, OrdinalsSql>
     public static readonly string SourceMachineName = x();
     public static readonly string SourceMachineUuid = x();
     public static readonly string SpokenName = x();
+    public static readonly string Status = x();
+    public static readonly string StrikeCount = x();
     public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();
     public static readonly string Uuid = x();
+    public static readonly string WindowEndsOn = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();
     public static readonly string WordType = x();

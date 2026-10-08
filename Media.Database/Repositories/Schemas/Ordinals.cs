@@ -9,7 +9,10 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class Ordinals : BaseSchema<Ordinals, NoSubFields>
 {
+    public static readonly string AcceptedByPersonId = x();
     public static readonly string Algorithm = x();
+    public static readonly string AnsweredByPersonId = x();
+    public static readonly string AnsweredOn = x();
     public static readonly string Attempts = x();
     public static readonly string CameFromFileId = x();
     public static readonly string CellPhoneNumber = x();
@@ -25,11 +28,19 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string DisambiguationKey = x();
     public static readonly string EmailAddress = x();
     public static readonly string EncryptedUuidBlob = x();
+    public static readonly string ExpectedStrikeCount = x();
+    public static readonly string ExpectedWindowEndsOn = x();
+    public static readonly string ExpiresOn = x();
     public static readonly string FileId = x();
     public static readonly string FirstName = x();
     public static readonly string GroupEncryptionKeyId = x();
     public static readonly string GroupEncryptionKeyUuid = x();
     public static readonly string GroupId = x();
+    public static readonly string GroupInviteId = x();
+    public static readonly string GroupInviteUuid = x();
+    public static readonly string GroupJoinRequestId = x();
+    public static readonly string GroupJoinRequestUuid = x();
+    public static readonly string GroupName = x();
     public static readonly string GroupPersonId = x();
     public static readonly string GroupPersonUuid = x();
     public static readonly string GroupSearchListId = x();
@@ -37,6 +48,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string GroupShellId = x();
     public static readonly string GroupSourceMachineId = x();
     public static readonly string GroupSourceMachineUuid = x();
+    public static readonly string GroupTitle = x();
     public static readonly string GroupUuid = x();
     public static readonly string HasRegistration = x();
     public static readonly string Id = x();
@@ -45,6 +57,9 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string InsertedOn = x();
     public static readonly string InPlay = x();
     public static readonly string InPlayUuids = x();
+    public static readonly string InvitedByFirstName = x();
+    public static readonly string InvitedByLastName = x();
+    public static readonly string InvitedByPersonId = x();
     public static readonly string IsActive = x();
     public static readonly string IsAdmin = x();
     public static readonly string IsCurrent = x();
@@ -61,9 +76,11 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string LastName = x();
     public static readonly string Limit = x();
     public static readonly string ListType = x();
+    public static readonly string LockedOn = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
     public static readonly string NonceId = x();
+    public static readonly string Now = x();
     public static readonly string OperatingSystem = x();
     public static readonly string OptCellPhone = x();
     public static readonly string OptEmail = x();
@@ -102,12 +119,15 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string SourceMachineUuid = x();
     public static readonly string SourceUpdatedOn = x();
     public static readonly string SpokenName = x();
+    public static readonly string Status = x();
+    public static readonly string StrikeCount = x();
     public static readonly string TableName = x();
     public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string TimeToLiveSeconds = x();
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();
     public static readonly string Uuid = x();
+    public static readonly string WindowEndsOn = x();
     public static readonly string Word = x();
     public static readonly string WordId = x();
     public static readonly string WordType = x();
