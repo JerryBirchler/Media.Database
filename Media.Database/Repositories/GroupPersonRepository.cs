@@ -170,14 +170,20 @@ public class GroupPersonRepository(
     {
         try
         {
+            // Taken first, then converted: "next?.LastName.ToNullableValueForSql()" would skip the
+            // conversion on the first page and hand Npgsql a bare null instead of DBNull.
+            var afterLastName = next?.LastName;
+            var afterFirstName = next?.FirstName;
+            var afterPersonUuid = next?.PersonUuid;
+
             return await _sqlExecutor.QueryManyAsync(
                 QueryGroupsPersons.GetMemberIdentifiersByGroupIdSql,
                 p =>
                 {
                     p.AddWithValue(pn.GroupId, groupId);
-                    p.AddWithValue(pn.LastName, next?.LastName.ToNullableValueForSql());
-                    p.AddWithValue(pn.FirstName, next?.FirstName.ToNullableValueForSql());
-                    p.AddWithValue(pn.PersonUuid, next?.PersonUuid.ToNullableValueForSql());
+                    p.AddWithValue(pn.LastName, afterLastName.ToNullableValueForSql());
+                    p.AddWithValue(pn.FirstName, afterFirstName.ToNullableValueForSql());
+                    p.AddWithValue(pn.PersonUuid, afterPersonUuid.ToNullableValueForSql());
                     p.AddWithValue(pn.Limit, limit);
                 },
                 reader => reader.ToMemberIdentifier());

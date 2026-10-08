@@ -253,6 +253,24 @@ public class GroupPersonRepositoryTests
     }
 
     [Test]
+    public async Task GetMemberIdentifiersByGroupIdAsync_Should_ConfigureCursorAsDbNull_When_FirstPage()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.GetMemberIdentifiersByGroupIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PersonIdentifier>>()))
+            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, PersonIdentifier>>((_, configure, _) => captured = configure)
+            .ReturnsAsync([]);
+
+        await CreateRepository().GetMemberIdentifiersByGroupIdAsync(3, next: null, limit: 5);
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.LastName].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.FirstName].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.PersonUuid].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
     public void GetMemberIdentifiersByGroupIdSql_Should_KeepDisabledMembers_And_ReadTheirFlag()
     {
         var sql = QueryGroupsPersons.GetMemberIdentifiersByGroupIdSql;
