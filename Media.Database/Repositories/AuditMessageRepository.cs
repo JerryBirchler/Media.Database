@@ -19,7 +19,7 @@ public class AuditMessageRepository(
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
     private readonly FluentLogger<AuditMessageRepository> _logger = logger.Initializer();
 
-    public async Task<long> RecordAsync(IUnitOfWork unitOfWork, int groupId, AuditEntry entry)
+    public async Task<long> RecordAsync(IUnitOfWork unitOfWork, int? groupId, AuditEntry entry)
     {
         try
         {
@@ -31,9 +31,10 @@ public class AuditMessageRepository(
                 {
                     p.AddWithValue(pn.Kind, entry.Kind);
                     p.AddWithValue(pn.Parameters, (object?)entry.Parameters ?? DBNull.Value);
-                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.GroupId, (object?)groupId ?? DBNull.Value);
                     p.AddWithValue(pn.SubjectPersonId, (object?)entry.SubjectPersonId ?? DBNull.Value);
                     p.AddWithValue(pn.ActorPersonId, (object?)entry.ActorPersonId ?? DBNull.Value);
+                    p.AddWithValue(pn.NotificationId, (object?)entry.NotificationId ?? DBNull.Value);
                 },
                 reader => reader.GetInt64(0)
             );
@@ -44,6 +45,42 @@ public class AuditMessageRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "RecordAsync failed for GroupId: [{GroupId}], Kind: [{Kind}]", groupId, entry.Kind);
+            throw;
+        }
+    }
+
+    public async Task<AuditMessage?> GetByIdAsync(long auditMessageId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryAuditMessages.GetByIdSql,
+                p => p.AddWithValue(pn.AuditMessageId, auditMessageId),
+                reader => reader.ToAuditMessage()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetByIdAsync failed for AuditMessageId: [{AuditMessageId}]", auditMessageId);
+            throw;
+        }
+    }
+
+    public async Task<long?> GetMessageIdAsync(long auditMessageId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleValueAsync
+            (
+                QueryAuditMessages.GetMessageIdSql,
+                p => p.AddWithValue(pn.AuditMessageId, auditMessageId),
+                reader => reader.GetInt64(0)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetMessageIdAsync failed for AuditMessageId: [{AuditMessageId}]", auditMessageId);
             throw;
         }
     }

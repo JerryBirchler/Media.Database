@@ -32,10 +32,26 @@ public static class QueryAuditMessages
             VALUES ({pn.Kind}, CAST({pn.Parameters} AS jsonb))
             RETURNING {cm.MessageId}
         )
-        INSERT INTO {ts.AuditMessages} ({ca.MessageId}, {ca.GroupId}, {ca.SubjectPersonId}, {ca.ActorPersonId})
-        SELECT {cm.MessageId}, {pn.GroupId}, {pn.SubjectPersonId}, {pn.ActorPersonId}
+        INSERT INTO {ts.AuditMessages} ({ca.MessageId}, {ca.GroupId}, {ca.SubjectPersonId}, {ca.ActorPersonId}, {ca.NotificationId})
+        SELECT {cm.MessageId}, {pn.GroupId}, {pn.SubjectPersonId}, {pn.ActorPersonId}, {pn.NotificationId}
         FROM message
         RETURNING {ca.AuditMessageId}
+        ;";
+
+    /// <summary>One entry by its id, with its message (WORKER-29): what the Worker tells people about.</summary>
+    public static string GetByIdSql => $@"
+        SELECT
+            a.{ca.AuditMessageId}, a.{ca.AuditMessageUuid}, a.{ca.GroupId}, a.{ca.SubjectPersonId},
+            a.{ca.ActorPersonId}, a.{ca.NotificationId}, a.{ca.InsertedOn},
+            m.{cm.Kind}, CAST(m.{cm.Parameters} AS text) AS {cm.Parameters}, m.{cm.Text}, m.{cm.Language}
+        FROM {ts.AuditMessages} a
+        JOIN {ts.Messages} m ON m.{cm.MessageId} = a.{ca.MessageId}
+        WHERE a.{ca.AuditMessageId} = {pn.AuditMessageId}
+        ;";
+
+    /// <summary>The message an entry refers to, by the entry's id: what its notifications refer to as well.</summary>
+    public static string GetMessageIdSql => $@"
+        SELECT {ca.MessageId} FROM {ts.AuditMessages} WHERE {ca.AuditMessageId} = {pn.AuditMessageId}
         ;";
 
     /// <summary>

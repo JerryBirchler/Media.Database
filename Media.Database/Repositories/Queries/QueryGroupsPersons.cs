@@ -131,6 +131,13 @@ public static class QueryGroupsPersons
             {cgp.IsActive}, {cgp.IsAdmin}, {cgp.InsertedOn}, {cgp.UpdatedOn}
         ;";
 
+    /// <summary>The ids of a group's active admins (WORKER-29): who is told when someone leaves.</summary>
+    public static string ListActiveAdminIdsSql => $@"
+        SELECT {cgp.PersonId}
+        FROM {ts.GroupsPersons}
+        WHERE {cgp.GroupId} = {pn.GroupId} AND {cgp.IsActive} = true AND {cgp.IsAdmin} = true
+        ;";
+
     /// <summary>
     /// SQL to count how many active admins a group currently has -- the "at least one admin must
     /// remain" floor check.

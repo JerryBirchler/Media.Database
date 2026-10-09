@@ -131,6 +131,24 @@ public class GroupPersonRepository(
         }
     }
 
+    public async Task<List<int>> ListActiveAdminIdsAsync(int groupId)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync
+            (
+                QueryGroupsPersons.ListActiveAdminIdsSql,
+                p => p.AddWithValue(pn.GroupId, groupId),
+                reader => reader.GetInt32(0)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ListActiveAdminIdsAsync failed for GroupId: [{GroupId}]", groupId);
+            throw;
+        }
+    }
+
     public async Task<int> CountActiveAdminsAsync(int groupId)
     {
         try

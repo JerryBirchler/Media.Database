@@ -10,4 +10,5 @@ namespace Media.Database.Models;
 /// <param name="SubjectPersonId">The person it happened to, if a person.</param>
 /// <param name="ActorPersonId">The person who did it, or null for the system.</param>
 /// <param name="Parameters">Further values the message is said with, as a JSON object; null for none.</param>
-public record AuditEntry(string Kind, int? SubjectPersonId, int? ActorPersonId, string? Parameters = null);
+/// <param name="NotificationId">The notification this entry is a change of state of (seen, dismissed); null otherwise.</param>
+public record AuditEntry(string Kind, int? SubjectPersonId, int? ActorPersonId, string? Parameters = null, long? NotificationId = null);

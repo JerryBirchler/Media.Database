@@ -9,6 +9,7 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
 {
     public static readonly string AcceptedByPersonId = x();
     public static readonly string Actions = x();
+    public static readonly string ActorName = x();
     public static readonly string ActorPersonId = x();
     public static readonly string Algorithm = x();
     public static readonly string AnsweredByPersonId = x();
@@ -112,6 +113,7 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string SpokenName = x();
     public static readonly string Status = x();
     public static readonly string StrikeCount = x();
+    public static readonly string SubjectName = x();
     public static readonly string SubjectPersonId = x();
     public static readonly string Text = x();
     public static readonly string ThumbnailGeneratedOn = x();

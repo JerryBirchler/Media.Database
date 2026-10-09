@@ -106,6 +106,7 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string Provider = x();
     public static readonly string PublicKey = x();
     public static readonly string RecipientPersonId = x();
+    public static readonly string RecipientPersonIds = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();

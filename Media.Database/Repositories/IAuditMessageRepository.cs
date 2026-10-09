@@ -14,7 +14,13 @@ public interface IAuditMessageRepository
     /// transaction of the change being recorded, so the change and its record commit or fail
     /// together. Returns the new entry's id.
     /// </summary>
-    Task<long> RecordAsync(IUnitOfWork unitOfWork, int groupId, AuditEntry entry);
+    Task<long> RecordAsync(IUnitOfWork unitOfWork, int? groupId, AuditEntry entry);
+
+    /// <summary>One entry by its id, with the message that says it; null when there is none.</summary>
+    Task<AuditMessage?> GetByIdAsync(long auditMessageId);
+
+    /// <summary>The message an entry refers to, by the entry's id; null when there is no such entry.</summary>
+    Task<long?> GetMessageIdAsync(long auditMessageId);
 
     /// <summary>
     /// A page of a group's history, newest first, each entry with its message. <paramref name="before"/>

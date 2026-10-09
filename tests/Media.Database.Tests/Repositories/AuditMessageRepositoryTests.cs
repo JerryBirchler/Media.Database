@@ -52,6 +52,34 @@ public class AuditMessageRepositoryTests
         command.Parameters[pn.SubjectPersonId].Value.ShouldBe(9);
         command.Parameters[pn.ActorPersonId].Value.ShouldBe(9);
         command.Parameters[pn.Parameters].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.NotificationId].Value.ShouldBe(DBNull.Value);
+    }
+
+    [Test]
+    public async Task RecordAsync_Should_RecordAChangeOfANotification_WithNoGroup()
+    {
+        Action<NpgsqlParameterCollection>? captured = null;
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryAuditMessages.RecordSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, long>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, long>>((_, _, configure, _) => captured = configure)
+            .ReturnsAsync(3L);
+
+        await CreateRepository().RecordAsync(_unitOfWorkMock.Object, null, new AuditEntry("notification.seen", 9, 9, NotificationId: 77));
+
+        using var command = new NpgsqlCommand();
+        captured!(command.Parameters);
+        command.Parameters[pn.GroupId].Value.ShouldBe(DBNull.Value);
+        command.Parameters[pn.NotificationId].Value.ShouldBe(77L);
+    }
+
+    [Test]
+    public async Task GetMessageIdAsync_Should_ReturnTheEntrysMessage()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(QueryAuditMessages.GetMessageIdSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, long>>()))
+            .ReturnsAsync(41L);
+
+        (await CreateRepository().GetMessageIdAsync(7)).ShouldBe(41L);
     }
 
     [Test]
