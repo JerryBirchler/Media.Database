@@ -50,6 +50,12 @@ public static class AuditKinds
     public const string InviteDeclined = "invite.declined";
 
     /// <summary>
+    /// An admin cancelled a pending invite (DATABASE-72): history only -- the invite simply leaves
+    /// the invitee's bell, and nobody is told.
+    /// </summary>
+    public const string InviteCancelled = "invite.cancelled";
+
+    /// <summary>
     /// Someone asked to join a group by its name (DATABASE-67). Its parameters carry the request's
     /// uuid -- for the Worker and the Api only, never shown to a client.
     /// </summary>

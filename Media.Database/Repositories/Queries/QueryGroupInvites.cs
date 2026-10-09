@@ -4,6 +4,8 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using cg = Media.Database.Repositories.Schemas.TablesSql.GroupsColumns;
+using cm = Media.Database.Repositories.Schemas.TablesSql.MessagesColumns;
+using cn = Media.Database.Repositories.Schemas.TablesSql.NotificationsColumns;
 using ci = Media.Database.Repositories.Schemas.TablesSql.GroupInvitesColumns;
 using cp = Media.Database.Repositories.Schemas.TablesSql.PersonsColumns;
 using cci = Media.Database.Repositories.Schemas.TablesCql.GroupInvitesColumns;
@@ -164,6 +166,26 @@ public static class QueryGroupInvites
             AND {ci.GroupId} = {pn.GroupId}
             AND {ci.Status} = 0
         RETURNING{Columns}
+        ;";
+
+    /// <summary>
+    /// SQL to close the open (new or seen) notifications of an invite (DATABASE-72): each one made
+    /// from the invite.queued message that names it, marked expired -- the invite is gone. Returns
+    /// how many were closed.
+    /// </summary>
+    public static string CloseNotificationsSql => $@"
+        WITH closed AS (
+            UPDATE {ts.Notifications} n SET
+                {cn.Status} = {(int)NotificationStatus.Expired},
+                {cn.UpdatedOn} = {pn.Now}
+            FROM {ts.Messages} m
+            WHERE m.{cm.MessageId} = n.{cn.MessageId}
+                AND m.{cm.Kind} = '{AuditKinds.InviteQueued}'
+                AND (m.{cm.Parameters} ->> '{AuditKinds.InviteUuidParameter}')::uuid = {pn.GroupInviteUuid}
+                AND n.{cn.Status} IN ({(int)NotificationStatus.New}, {(int)NotificationStatus.Seen})
+            RETURNING 1
+        )
+        SELECT COUNT(*) FROM closed
         ;";
 
     /// <summary>SQL for the Worker sweep: marks every pending invite past its time expired.</summary>

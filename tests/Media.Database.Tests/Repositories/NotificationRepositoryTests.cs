@@ -149,6 +149,7 @@ public class NotificationRepositoryTests
     [TestCase("invite.queued", Told.Invitee)]
     [TestCase("invite.accepted", Told.GroupAdmins)]
     [TestCase("invite.declined", Told.GroupAdmins)]
+    [TestCase("invite.cancelled", Told.Nobody)]
     [TestCase("request.queued", Told.GroupAdmins)]
     [TestCase("request.declined", Told.Subject)]
     [TestCase("request.accepted", Told.Nobody)]

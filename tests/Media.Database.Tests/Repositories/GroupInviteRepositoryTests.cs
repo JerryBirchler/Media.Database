@@ -295,12 +295,48 @@ public class GroupInviteRepositoryTests
     }
 
     [Test]
+    public async Task CancelAsync_Should_RecordIt_AndCloseTheInviteesNotification_InOneTransaction()
+    {
+        var cancelled = _fixture.Create<GroupInvite>() with { Status = GroupInviteStatus.Cancelled };
+        CaptureInTransaction(QueryGroupInvites.CancelSql, cancelled);
+        var audit = new AuditEntry("invite.cancelled", SubjectPersonId: null, ActorPersonId: 7);
+
+        await CreateRepository().CancelAsync(cancelled.GroupId, cancelled.GroupInviteUuid, audit);
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, cancelled.GroupId,
+            It.Is<AuditEntry>(e => e.Kind == "invite.cancelled" && e.Parameters!.Contains(cancelled.GroupInviteUuid.ToString()))), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryGroupInvites.CloseNotificationsSql,
+            It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, long>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task CancelAsync_Should_RecordNothing_When_NothingPendingMatches()
+    {
+        CaptureInTransaction(QueryGroupInvites.CancelSql, null);
+
+        var result = await CreateRepository().CancelAsync(1, Guid.NewGuid(), Audit);
+
+        result.ShouldBeNull();
+        _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int?>(), It.IsAny<AuditEntry>()), Times.Never);
+    }
+
+    [Test]
+    public void CloseNotificationsSql_Should_CloseOnlyOpenNotificationsOfThatInvite()
+    {
+        var sql = QueryGroupInvites.CloseNotificationsSql;
+
+        sql.ShouldContain("'invite.queued'");
+        sql.ShouldContain("->> 'inviteUuid')::uuid = @GroupInviteUuid");
+        sql.ShouldContain(@"""Status"" IN (0, 1)");
+    }
+
+    [Test]
     public async Task CancelAsync_Should_CancelOnlyAnInviteOfTheNamedGroup()
     {
         var cancelled = _fixture.Create<GroupInvite>() with { Status = GroupInviteStatus.Cancelled };
-        CaptureSingle(QueryGroupInvites.CancelSql, cancelled);
+        CaptureInTransaction(QueryGroupInvites.CancelSql, cancelled);
 
-        var result = await CreateRepository().CancelAsync(cancelled.GroupId, cancelled.GroupInviteUuid);
+        var result = await CreateRepository().CancelAsync(cancelled.GroupId, cancelled.GroupInviteUuid, Audit);
 
         result.ShouldBe(cancelled);
         var parameters = Apply(Captured(QueryGroupInvites.CancelSql));

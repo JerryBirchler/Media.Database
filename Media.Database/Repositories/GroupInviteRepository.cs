@@ -245,24 +245,55 @@ public class GroupInviteRepository(
         }
     }
 
-    public async Task<GroupInvite?> CancelAsync(int groupId, Guid groupInviteUuid)
+    public async Task<GroupInvite?> CancelAsync(int groupId, Guid groupInviteUuid, AuditEntry audit)
     {
+        var now = DateTimeOffset.UtcNow;
+        await using var uow = _unitOfWorkFactory();
+
         try
         {
-            return await _sqlExecutor.QuerySingleAsync
+            await uow.BeginTransactionAsync();
+
+            var cancelled = await _sqlExecutor.QuerySingleAsync
             (
+                uow,
                 QueryGroupInvites.CancelSql,
                 p =>
                 {
                     p.AddWithValue(pn.GroupId, groupId);
                     p.AddWithValue(pn.GroupInviteUuid, groupInviteUuid);
-                    p.AddWithValue(pn.Now, DateTimeOffset.UtcNow);
+                    p.AddWithValue(pn.Now, now);
                 },
                 reader => reader.ToGroupInvite()
             );
+
+            if (cancelled is null)
+            {
+                await uow.RollbackAsync();
+                return null;
+            }
+
+            await _auditMessageRepository.RecordAsync(uow, groupId, audit with { Parameters = InviteParameters(cancelled) });
+
+            // Out of the invitee's bell: a cancelled invite cannot be accepted from there.
+            await _sqlExecutor.QuerySingleValueAsync
+            (
+                uow,
+                QueryGroupInvites.CloseNotificationsSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupInviteUuid, cancelled.GroupInviteUuid);
+                    p.AddWithValue(pn.Now, now);
+                },
+                reader => reader.GetFieldValue<long>(0)
+            );
+
+            await uow.CommitAsync();
+            return cancelled;
         }
         catch (Exception ex)
         {
+            await uow.RollbackAsync();
             _logger.LogError(ex, "CancelAsync failed for GroupId: [{GroupId}], GroupInviteUuid: [{GroupInviteUuid}]", groupId, groupInviteUuid);
             throw;
         }

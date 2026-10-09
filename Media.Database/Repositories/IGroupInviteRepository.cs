@@ -55,7 +55,12 @@ public interface IGroupInviteRepository
     /// The group's side withdraws a pending invite of <paramref name="groupId"/>. Returns it, or null
     /// when there is no such pending invite.
     /// </summary>
-    Task<GroupInvite?> CancelAsync(int groupId, Guid groupInviteUuid);
+    /// <remarks>
+    /// In one transaction (DATABASE-72): the cancel, the record as <paramref name="audit"/> naming the
+    /// invite, and every open notification of it closed -- a cancelled invite leaves the invitee's
+    /// bell. Nothing is recorded or closed when nothing was cancelled.
+    /// </remarks>
+    Task<GroupInvite?> CancelAsync(int groupId, Guid groupInviteUuid, AuditEntry audit);
 
     /// <summary>
     /// The Worker sweep: marks every pending invite past its expiry expired. Returns how many.
