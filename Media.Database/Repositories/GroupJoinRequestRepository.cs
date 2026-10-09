@@ -1,7 +1,9 @@
 using Media.Common.Helpers.Fluent;
+using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -16,6 +18,8 @@ namespace Media.Database.Repositories;
 /// </remarks>
 public class GroupJoinRequestRepository(
     ISqlQueryExecutor sqlExecutor,
+    IAuditMessageRepository auditMessageRepository,
+    Func<IUnitOfWork> unitOfWorkFactory,
     ILogger<GroupJoinRequestRepository> logger)
     : IGroupJoinRequestRepository
 {
@@ -26,16 +30,23 @@ public class GroupJoinRequestRepository(
     private const int SubmitAttempts = 3;
 
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+    private readonly IAuditMessageRepository _auditMessageRepository = auditMessageRepository;
+    private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly FluentLogger<GroupJoinRequestRepository> _logger = logger.Initializer();
 
-    public async Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId)
+    public async Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId, AuditEntry audit)
     {
+        await using var uow = _unitOfWorkFactory();
+
         try
         {
+            await uow.BeginTransactionAsync();
+
             for (var attempt = 0; attempt < SubmitAttempts; attempt++)
             {
                 var added = await _sqlExecutor.QuerySingleAsync
                 (
+                    uow,
                     QueryGroupJoinRequests.AddSql,
                     p =>
                     {
@@ -46,12 +57,18 @@ public class GroupJoinRequestRepository(
                 );
 
                 if (added is not null)
+                {
+                    // The request and its record together (DATABASE-67): the admins are told from the record.
+                    await _auditMessageRepository.RecordAsync(uow, groupId, audit with { Parameters = RequestParameters(added) });
+                    await uow.CommitAsync();
                     return new GroupJoinRequestSubmission(added, IsNew: true);
+                }
 
                 // Absorbed: an open request is already there. Read it -- unless it was answered in
                 // the instant between, in which case there is room for a new one, so go round again.
                 var open = await _sqlExecutor.QuerySingleAsync
                 (
+                    uow,
                     QueryGroupJoinRequests.GetOpenSql,
                     p =>
                     {
@@ -62,7 +79,10 @@ public class GroupJoinRequestRepository(
                 );
 
                 if (open is not null)
+                {
+                    await uow.CommitAsync();
                     return new GroupJoinRequestSubmission(open, IsNew: false);
+                }
             }
 
             throw new InvalidOperationException(
@@ -70,10 +90,15 @@ public class GroupJoinRequestRepository(
         }
         catch (Exception ex)
         {
+            await uow.RollbackAsync();
             _logger.LogError(ex, "SubmitAsync failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", groupId, personId);
             throw;
         }
     }
+
+    /// <summary>The request an entry is about, as its parameters: for the Worker and the Api, never shown to a client.</summary>
+    private static string RequestParameters(GroupJoinRequest request) =>
+        JsonSerializer.Serialize(new Dictionary<string, Guid> { [AuditKinds.RequestUuidParameter] = request.GroupJoinRequestUuid });
 
     public async Task<GroupJoinRequest?> GetByUuidAsync(Guid groupJoinRequestUuid)
     {

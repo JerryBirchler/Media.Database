@@ -11,9 +11,11 @@ public interface IGroupJoinRequestRepository
     /// Asks for <paramref name="personId"/> to join <paramref name="groupId"/>. When the person
     /// already has an open request to the group -- pending, or ignored for good -- the repeat is
     /// absorbed into it: nothing is written and that request is returned with
-    /// <see cref="GroupJoinRequestSubmission.IsNew"/> false.
+    /// <see cref="GroupJoinRequestSubmission.IsNew"/> false. A new request is recorded as
+    /// <paramref name="audit"/> in the same transaction, naming the request in its parameters; a
+    /// repeat records nothing.
     /// </summary>
-    Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId);
+    Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId, AuditEntry audit);
 
     /// <summary>Reads a request by its external identifier, or null.</summary>
     Task<GroupJoinRequest?> GetByUuidAsync(Guid groupJoinRequestUuid);

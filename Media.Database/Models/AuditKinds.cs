@@ -49,6 +49,12 @@ public static class AuditKinds
     /// <summary>The person invited declined.</summary>
     public const string InviteDeclined = "invite.declined";
 
+    /// <summary>
+    /// Someone asked to join a group by its name (DATABASE-67). Its parameters carry the request's
+    /// uuid -- for the Worker and the Api only, never shown to a client.
+    /// </summary>
+    public const string RequestQueued = "request.queued";
+
     /// <summary>Its recipient saw a notification (WEB-140): a change in the notification's state.</summary>
     public const string NotificationSeen = "notification.seen";
 
@@ -61,6 +67,9 @@ public static class AuditKinds
     /// <summary>The parameter naming the invite an invite.* entry is about.</summary>
     public const string InviteUuidParameter = "inviteUuid";
 
+    /// <summary>The parameter naming the request to join a request.* entry is about.</summary>
+    public const string RequestUuidParameter = "requestUuid";
+
     /// <summary>An entry of <paramref name="kind"/>, about <paramref name="subject"/>, done by <paramref name="actor"/>.</summary>
     public static AuditEntry Entry(string kind, int subject, int actor, bool? isAdmin = null) =>
         new(kind, subject, actor, isAdmin is { } admin ? $"{{\"isAdmin\":{(admin ? "true" : "false")}}}" : null);
@@ -71,7 +80,7 @@ public static class AuditKinds
     /// </summary>
     public static Told WhoIsTold(string? kind) => kind switch
     {
-        MemberLeft or InviteAccepted or InviteDeclined => Told.GroupAdmins,
+        MemberLeft or InviteAccepted or InviteDeclined or RequestQueued => Told.GroupAdmins,
         InviteQueued => Told.Invitee,
         MemberAdded or MemberRequestAccepted or MemberMadeAdmin or MemberMadeMember
             or MemberEnabled or MemberDisabled or MemberRemoved => Told.Subject,

@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories;
 using Media.Database.Repositories.Queries;
@@ -22,24 +23,42 @@ namespace Media.Database.Tests.Repositories;
 public class GroupJoinRequestRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<IAuditMessageRepository> _auditMock = null!;
+    private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
+
+    /// <summary>What a new request is recorded as (DATABASE-67).</summary>
+    private static readonly AuditEntry Audit = new("request.queued", SubjectPersonId: 5, ActorPersonId: 5);
 
     [SetUp]
     public void Setup()
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = _fixture.Freeze<Mock<ISqlQueryExecutor>>();
+        _auditMock = new Mock<IAuditMessageRepository>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
     private GroupJoinRequestRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
+        _auditMock.Object,
+        () => _unitOfWorkMock.Object,
         Mock.Of<ILogger<GroupJoinRequestRepository>>());
 
+    /// <summary>A submission's statement, run inside its transaction (DATABASE-67), answering each result in turn.</summary>
     private void SetupSingle(string sql, params GroupJoinRequest?[] results)
     {
-        var sequence = _sqlExecutorMock.SetupSequence(e => e.QuerySingleAsync(sql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()));
+        var sequence = _sqlExecutorMock.SetupSequence(e => e.QuerySingleAsync(_unitOfWorkMock.Object, sql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()));
         foreach (var result in results)
             sequence = sequence.ReturnsAsync(result);
+    }
+
+    /// <summary>A statement run on its own, outside any transaction, answering <paramref name="result"/>.</summary>
+    private void SetupRead(string sql, GroupJoinRequest? result)
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(sql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
+            .ReturnsAsync(result);
     }
 
     private static NpgsqlParameterCollection Apply(Action<NpgsqlParameterCollection> configure)
@@ -61,11 +80,11 @@ public class GroupJoinRequestRepositoryTests
         var added = _fixture.Create<GroupJoinRequest>();
         SetupSingle(QueryGroupJoinRequests.AddSql, added);
 
-        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId);
+        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Audit);
 
         result.Request.ShouldBe(added);
         result.IsNew.ShouldBeTrue();
-        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(QueryGroupJoinRequests.GetOpenSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()), Times.Never);
+        _sqlExecutorMock.Verify(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.GetOpenSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()), Times.Never);
     }
 
     [TestCase(GroupJoinRequestStatus.Pending)]
@@ -76,7 +95,7 @@ public class GroupJoinRequestRepositoryTests
         SetupSingle(QueryGroupJoinRequests.AddSql, (GroupJoinRequest?)null);
         SetupSingle(QueryGroupJoinRequests.GetOpenSql, open);
 
-        var result = await CreateRepository().SubmitAsync(open.GroupId, open.PersonId);
+        var result = await CreateRepository().SubmitAsync(open.GroupId, open.PersonId, Audit);
 
         result.Request.ShouldBe(open);
         result.IsNew.ShouldBeFalse();
@@ -89,7 +108,7 @@ public class GroupJoinRequestRepositoryTests
         SetupSingle(QueryGroupJoinRequests.AddSql, null, added);
         SetupSingle(QueryGroupJoinRequests.GetOpenSql, (GroupJoinRequest?)null);
 
-        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId);
+        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Audit);
 
         result.Request.ShouldBe(added);
         result.IsNew.ShouldBeTrue();
@@ -99,10 +118,39 @@ public class GroupJoinRequestRepositoryTests
     public async Task SubmitAsync_Should_Throw_When_ItNeitherInsertsNorFindsOne()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(It.IsAny<string>(), It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, It.IsAny<string>(), It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
             .ReturnsAsync((GroupJoinRequest?)null);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SubmitAsync(_fixture.Create<int>(), _fixture.Create<int>()));
+        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SubmitAsync(_fixture.Create<int>(), _fixture.Create<int>(), Audit));
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_RecordANewRequest_InItsTransaction()
+    {
+        var added = _fixture.Create<GroupJoinRequest>();
+        SetupSingle(QueryGroupJoinRequests.AddSql, added);
+
+        await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, added.GroupId,
+            It.Is<AuditEntry>(e => e.Kind == "request.queued" && e.Parameters!.Contains(added.GroupJoinRequestUuid.ToString()))), Times.Once);
+        _unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_RecordNothing_When_TheRepeatIsAbsorbed()
+    {
+        var open = _fixture.Create<GroupJoinRequest>();
+        SetupSingle(QueryGroupJoinRequests.AddSql, (GroupJoinRequest?)null);
+        SetupSingle(QueryGroupJoinRequests.GetOpenSql, open);
+
+        await CreateRepository().SubmitAsync(open.GroupId, open.PersonId, Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int?>(), It.IsAny<AuditEntry>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
     }
 
     [Test]
@@ -112,11 +160,11 @@ public class GroupJoinRequestRepositoryTests
         var groupId = _fixture.Create<int>();
         var personId = _fixture.Create<int>();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupJoinRequests.AddSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupJoinRequest>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.AddSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupJoinRequest>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(_fixture.Create<GroupJoinRequest>());
 
-        await CreateRepository().SubmitAsync(groupId, personId);
+        await CreateRepository().SubmitAsync(groupId, personId, Audit);
 
         var parameters = Apply(captured!);
         parameters[pn.GroupId].Value.ShouldBe(groupId);
@@ -133,7 +181,7 @@ public class GroupJoinRequestRepositoryTests
     public async Task GetByUuidAsync_Should_ReturnTheRequest()
     {
         var request = _fixture.Create<GroupJoinRequest>();
-        SetupSingle(QueryGroupJoinRequests.GetByUuidSql, request);
+        SetupRead(QueryGroupJoinRequests.GetByUuidSql, request);
 
         var result = await CreateRepository().GetByUuidAsync(request.GroupJoinRequestUuid);
 
@@ -181,7 +229,7 @@ public class GroupJoinRequestRepositoryTests
     [Test]
     public async Task AnswerAsync_Should_ReturnNull_When_NothingPendingMatches()
     {
-        SetupSingle(QueryGroupJoinRequests.AnswerSql, (GroupJoinRequest?)null);
+        SetupRead(QueryGroupJoinRequests.AnswerSql, (GroupJoinRequest?)null);
 
         var result = await CreateRepository().AnswerAsync(_fixture.Create<int>(), Guid.NewGuid(), GroupJoinRequestStatus.Accepted, _fixture.Create<int>());
 
