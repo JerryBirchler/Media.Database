@@ -94,6 +94,36 @@ public class GroupPersonRepository(
         }
     }
 
+    public Task<GroupPerson?> DeactivateKeepingAnAdminAsync(int groupId, int personId) =>
+        ChangeKeepingAnAdminAsync(QueryGroupsPersons.DeactivateKeepingAnAdminSql, nameof(DeactivateKeepingAnAdminAsync), groupId, personId);
+
+    public Task<GroupPerson?> DemoteKeepingAnAdminAsync(int groupId, int personId) =>
+        ChangeKeepingAnAdminAsync(QueryGroupsPersons.DemoteKeepingAnAdminSql, nameof(DemoteKeepingAnAdminAsync), groupId, personId);
+
+    /// <summary>The two guarded changes run the same way: one statement, the pair and the time.</summary>
+    private async Task<GroupPerson?> ChangeKeepingAnAdminAsync(string sql, string operation, int groupId, int personId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                sql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.PersonId, personId);
+                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                },
+                reader => reader.ToGroupPerson(_groupPersonResponseMapper)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "{Operation} failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", operation, groupId, personId);
+            throw;
+        }
+    }
+
     public async Task<int> CountActiveAdminsAsync(int groupId)
     {
         try

@@ -29,6 +29,21 @@ public interface IGroupPersonRepository
     Task<int> CountActiveAdminsAsync(int groupId);
 
     /// <summary>
+    /// Deactivates the active association for a (GroupId, PersonId) pair unless it is the group's
+    /// last active admin -- the check and the change in one statement, so concurrent removals cannot
+    /// both pass it. Returns the deactivated row, or <see langword="null"/> when nothing was active
+    /// or the floor refused; read the membership again to tell which.
+    /// </summary>
+    Task<GroupPerson?> DeactivateKeepingAnAdminAsync(int groupId, int personId);
+
+    /// <summary>
+    /// Makes an active admin a member only unless they are the group's last active admin, in one
+    /// statement as <see cref="DeactivateKeepingAnAdminAsync"/>. Returns the updated row, or
+    /// <see langword="null"/> when they were not an active admin or the floor refused.
+    /// </summary>
+    Task<GroupPerson?> DemoteKeepingAnAdminAsync(int groupId, int personId);
+
+    /// <summary>
     /// Identifies a keyset-paged page of the active groups <paramref name="personId"/> belongs to,
     /// ordered by name -- identifiers only (GroupId, Name), for cheap cursor computation before
     /// hydrating full rows via <see cref="IGroupRepository.GetByIdsAsync"/>. Pass

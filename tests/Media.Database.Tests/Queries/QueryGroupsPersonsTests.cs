@@ -35,6 +35,17 @@ public class QueryGroupsPersonsTests
         sql.ShouldContain("RETURNING");
     }
 
+    [TestCase(nameof(QueryGroupsPersons.DeactivateKeepingAnAdminSql))]
+    [TestCase(nameof(QueryGroupsPersons.DemoteKeepingAnAdminSql))]
+    public void KeepingAnAdminSql_Should_LockTheAdmins_And_RequireAnotherInTheSameStatement(string query)
+    {
+        var sql = (string)typeof(QueryGroupsPersons).GetProperty(query)!.GetValue(null)!;
+        sql.ShouldContain("FOR UPDATE");
+        sql.ShouldContain("UPDATE");
+        sql.ShouldContain("EXISTS (SELECT 1 FROM admins WHERE admins.");
+        sql.ShouldContain("RETURNING");
+    }
+
     [Test]
     public void CountActiveAdminsSql_Should_Contain_SelectCount_Where()
     {

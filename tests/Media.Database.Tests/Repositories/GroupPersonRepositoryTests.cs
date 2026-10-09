@@ -126,6 +126,41 @@ public class GroupPersonRepositoryTests
     }
 
     [Test]
+    public async Task DeactivateKeepingAnAdminAsync_Should_ReturnTheRow_TheGuardedStatementReturns()
+    {
+        var deactivated = CreateGroupPerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.DeactivateKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .ReturnsAsync(deactivated);
+
+        var result = await CreateRepository().DeactivateKeepingAnAdminAsync(deactivated.GroupId, deactivated.PersonId);
+
+        result.ShouldBe(deactivated);
+    }
+
+    [Test]
+    public async Task DemoteKeepingAnAdminAsync_Should_ReturnNull_When_TheFloorRefuses()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.DemoteKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .ReturnsAsync((GroupPerson?)null);
+
+        var result = await CreateRepository().DemoteKeepingAnAdminAsync(1, 2);
+
+        result.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task DeactivateKeepingAnAdminAsync_Should_Rethrow_When_TheStatementFails()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.DeactivateKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .ThrowsAsync(new InvalidOperationException("down"));
+
+        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DeactivateKeepingAnAdminAsync(1, 2));
+    }
+
+    [Test]
     public async Task CountActiveAdminsAsync_Should_ReturnCount()
     {
         _sqlExecutorMock

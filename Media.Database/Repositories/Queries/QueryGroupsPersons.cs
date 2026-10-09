@@ -85,6 +85,53 @@ public static class QueryGroupsPersons
         ;";
 
     /// <summary>
+    /// The group's active admins, locked: the guard <see cref="DeactivateKeepingAnAdminSql"/> and
+    /// <see cref="DemoteKeepingAnAdminSql"/> share. A second statement doing the same waits here for
+    /// the first to commit, then reads the admins as they are after it -- so two admins leaving at
+    /// once cannot each count the other and leave the group with none.
+    /// </summary>
+    private static string LockedAdminsCte => $@"
+        WITH admins AS (
+            SELECT {cgp.PersonId}
+            FROM {ts.GroupsPersons}
+            WHERE {cgp.GroupId} = {pn.GroupId} AND {cgp.IsActive} = true AND {cgp.IsAdmin} = true
+            FOR UPDATE
+        )";
+
+    /// <summary>
+    /// SQL to deactivate the active association for a (GroupId, PersonId) pair -- only when they are
+    /// not an admin, or another active admin remains: the "at least one admin" floor, checked in the
+    /// same statement that acts on it. Returns the updated row, or no rows when the pair is not
+    /// active or is the group's last admin.
+    /// </summary>
+    public static string DeactivateKeepingAnAdminSql => $@"{LockedAdminsCte}
+        UPDATE {ts.GroupsPersons} SET
+            {cgp.IsActive} = false,
+            {cgp.UpdatedOn} = {pn.UpdatedOn}
+        WHERE {cgp.GroupId} = {pn.GroupId} AND {cgp.PersonId} = {pn.PersonId} AND {cgp.IsActive} = true
+            AND ({cgp.IsAdmin} = false OR EXISTS (SELECT 1 FROM admins WHERE admins.{cgp.PersonId} <> {pn.PersonId}))
+        RETURNING
+            {cgp.GroupPersonId}, {cgp.GroupPersonUuid}, {cgp.GroupId}, {cgp.PersonId},
+            {cgp.IsActive}, {cgp.IsAdmin}, {cgp.InsertedOn}, {cgp.UpdatedOn}
+        ;";
+
+    /// <summary>
+    /// SQL to make an active admin a member only -- only while another active admin remains, checked
+    /// in the same statement (<see cref="DeactivateKeepingAnAdminSql"/>'s floor). Returns the updated
+    /// row, or no rows when the pair is not an active admin or is the group's last.
+    /// </summary>
+    public static string DemoteKeepingAnAdminSql => $@"{LockedAdminsCte}
+        UPDATE {ts.GroupsPersons} SET
+            {cgp.IsAdmin} = false,
+            {cgp.UpdatedOn} = {pn.UpdatedOn}
+        WHERE {cgp.GroupId} = {pn.GroupId} AND {cgp.PersonId} = {pn.PersonId} AND {cgp.IsActive} = true AND {cgp.IsAdmin} = true
+            AND EXISTS (SELECT 1 FROM admins WHERE admins.{cgp.PersonId} <> {pn.PersonId})
+        RETURNING
+            {cgp.GroupPersonId}, {cgp.GroupPersonUuid}, {cgp.GroupId}, {cgp.PersonId},
+            {cgp.IsActive}, {cgp.IsAdmin}, {cgp.InsertedOn}, {cgp.UpdatedOn}
+        ;";
+
+    /// <summary>
     /// SQL to count how many active admins a group currently has -- the "at least one admin must
     /// remain" floor check.
     /// </summary>
