@@ -37,11 +37,29 @@ public static class AuditKinds
     /// <summary>A member left the group on their own.</summary>
     public const string MemberLeft = "member.left";
 
+    /// <summary>
+    /// An admin invited someone by last name and email (DATABASE-66). Its parameters carry the
+    /// invite's uuid -- for the Worker and the Api only, never shown to a client.
+    /// </summary>
+    public const string InviteQueued = "invite.queued";
+
+    /// <summary>The person invited accepted, and is a member.</summary>
+    public const string InviteAccepted = "invite.accepted";
+
+    /// <summary>The person invited declined.</summary>
+    public const string InviteDeclined = "invite.declined";
+
     /// <summary>Its recipient saw a notification (WEB-140): a change in the notification's state.</summary>
     public const string NotificationSeen = "notification.seen";
 
     /// <summary>Its recipient put a notification away.</summary>
     public const string NotificationDismissed = "notification.dismissed";
+
+    /// <summary>Its recipient answered a notification's decision (accepted, declined): it is done.</summary>
+    public const string NotificationActed = "notification.acted";
+
+    /// <summary>The parameter naming the invite an invite.* entry is about.</summary>
+    public const string InviteUuidParameter = "inviteUuid";
 
     /// <summary>An entry of <paramref name="kind"/>, about <paramref name="subject"/>, done by <paramref name="actor"/>.</summary>
     public static AuditEntry Entry(string kind, int subject, int actor, bool? isAdmin = null) =>
@@ -53,7 +71,8 @@ public static class AuditKinds
     /// </summary>
     public static Told WhoIsTold(string? kind) => kind switch
     {
-        MemberLeft => Told.GroupAdmins,
+        MemberLeft or InviteAccepted or InviteDeclined => Told.GroupAdmins,
+        InviteQueued => Told.Invitee,
         MemberAdded or MemberRequestAccepted or MemberMadeAdmin or MemberMadeMember
             or MemberEnabled or MemberDisabled or MemberRemoved => Told.Subject,
         _ => Told.Nobody
@@ -70,5 +89,11 @@ public enum Told
     Subject,
 
     /// <summary>The group's active admins.</summary>
-    GroupAdmins
+    GroupAdmins,
+
+    /// <summary>
+    /// Whoever an invite names: the active persons with its last name and email -- found after the
+    /// fact, so queuing an invite answers the same whether or not anyone has those details.
+    /// </summary>
+    Invitee
 }

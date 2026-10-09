@@ -12,7 +12,11 @@ public interface INotificationRepository
     /// Notifies each of <paramref name="recipientPersonIds"/> of the message, once: a person already
     /// notified of it is skipped. Returns how many notifications were made.
     /// </summary>
-    Task<int> CreateAsync(long messageId, IReadOnlyCollection<int> recipientPersonIds);
+    /// <param name="expiresOn">When it stops being theirs to act on (an invite's own expiry), or null.</param>
+    Task<int> CreateAsync(long messageId, IReadOnlyCollection<int> recipientPersonIds, DateTimeOffset? expiresOn = null);
+
+    /// <summary>One of the recipient's notifications by its id -- open or not -- or null when it is not theirs.</summary>
+    Task<NotificationView?> GetForRecipientAsync(Guid notificationUuid, int recipientPersonId);
 
     /// <summary>
     /// A page of the person's open notifications (new or seen), newest first. <paramref name="before"/>
@@ -21,7 +25,7 @@ public interface INotificationRepository
     Task<List<NotificationView>> ListOpenAsync(int recipientPersonId, long? before, int limit);
 
     /// <summary>
-    /// Moves one of the recipient's notifications to seen (from new) or dismissed (from new or seen),
+    /// Moves one of the recipient's notifications to seen (from new), or dismissed or acted (from new or seen),
     /// and records the change in the audit in the same transaction. False when it is not theirs, does
     /// not exist, or is already past that state.
     /// </summary>

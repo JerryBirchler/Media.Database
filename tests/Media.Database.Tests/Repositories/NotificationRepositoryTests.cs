@@ -91,6 +91,7 @@ public class NotificationRepositoryTests
 
     [TestCase(NotificationStatus.Seen, "notification.seen")]
     [TestCase(NotificationStatus.Dismissed, "notification.dismissed")]
+    [TestCase(NotificationStatus.Acted, "notification.acted")]
     public async Task SetStatusAsync_Should_RecordTheChange_AboutTheNotification(NotificationStatus status, string kind)
     {
         _sqlExecutorMock
@@ -132,9 +133,10 @@ public class NotificationRepositoryTests
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [TestCase(NotificationStatus.Acted)]
     [TestCase(NotificationStatus.New)]
-    public async Task SetStatusAsync_Should_RefuseAnythingButSeenOrDismissed(NotificationStatus status)
+    [TestCase(NotificationStatus.Expired)]
+    [TestCase(NotificationStatus.Answered)]
+    public async Task SetStatusAsync_Should_RefuseWhatOnlyTheSystemSets(NotificationStatus status)
     {
         await Should.ThrowAsync<ArgumentOutOfRangeException>(() => CreateRepository().SetStatusAsync(Guid.NewGuid(), 9, status));
     }
@@ -144,6 +146,9 @@ public class NotificationRepositoryTests
     [TestCase("member.disabled", Told.Subject)]
     [TestCase("member.made-admin", Told.Subject)]
     [TestCase("member.request-accepted", Told.Subject)]
+    [TestCase("invite.queued", Told.Invitee)]
+    [TestCase("invite.accepted", Told.GroupAdmins)]
+    [TestCase("invite.declined", Told.GroupAdmins)]
     [TestCase("group.created", Told.Nobody)]
     [TestCase("notification.dismissed", Told.Nobody)]
     [TestCase(null, Told.Nobody)]

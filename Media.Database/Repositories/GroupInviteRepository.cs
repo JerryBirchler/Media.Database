@@ -1,8 +1,10 @@
 using Media.Common.Archetypes;
 using Media.Common.Helpers.Fluent;
+using Media.Common.Transactions;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -17,23 +19,31 @@ namespace Media.Database.Repositories;
 /// </remarks>
 public class GroupInviteRepository(
     ISqlQueryExecutor sqlExecutor,
+    IAuditMessageRepository auditMessageRepository,
+    Func<IUnitOfWork> unitOfWorkFactory,
     ILogger<GroupInviteRepository> logger)
     : IGroupInviteRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
+    private readonly IAuditMessageRepository _auditMessageRepository = auditMessageRepository;
+    private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly FluentLogger<GroupInviteRepository> _logger = logger.Initializer();
 
-    public async Task<GroupInvite> CreateAsync(int groupId, int invitedByPersonId, EmailAddress emailAddress, PersonName lastName, TimeSpan lifetime)
+    public async Task<GroupInvite> CreateAsync(int groupId, int invitedByPersonId, EmailAddress emailAddress, PersonName lastName, TimeSpan lifetime, AuditEntry audit)
     {
         if (lifetime <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, "An invite's lifetime must be positive.");
 
         var now = DateTimeOffset.UtcNow;
+        await using var uow = _unitOfWorkFactory();
 
         try
         {
+            await uow.BeginTransactionAsync();
+
             var invite = await _sqlExecutor.QuerySingleAsync
             (
+                uow,
                 QueryGroupInvites.CreateSql,
                 p =>
                 {
@@ -45,17 +55,27 @@ public class GroupInviteRepository(
                     p.AddWithValue(pn.Now, now);
                 },
                 reader => reader.ToGroupInvite()
-            );
-
+            )
             // An insert or an upsert always returns its row; nothing back means the statement did not run.
-            return invite ?? throw new InvalidOperationException($"Creating an invite to GroupId {groupId} returned no row.");
+            ?? throw new InvalidOperationException($"Creating an invite to GroupId {groupId} returned no row.");
+
+            // Who it names is found later, by the Worker, from the invite this points at (DATABASE-66).
+            await _auditMessageRepository.RecordAsync(uow, groupId, audit with { Parameters = InviteParameters(invite) });
+
+            await uow.CommitAsync();
+            return invite;
         }
         catch (Exception ex)
         {
+            await uow.RollbackAsync();
             _logger.LogError(ex, "CreateAsync failed for GroupId: [{GroupId}], InvitedByPersonId: [{InvitedByPersonId}]", groupId, invitedByPersonId);
             throw;
         }
     }
+
+    /// <summary>The invite an entry is about, as its parameters: for the Worker and the Api, never shown to a client.</summary>
+    private static string InviteParameters(GroupInvite invite) =>
+        JsonSerializer.Serialize(new Dictionary<string, Guid> { [AuditKinds.InviteUuidParameter] = invite.GroupInviteUuid });
 
     public async Task<GroupInvite?> GetByUuidAsync(Guid groupInviteUuid)
     {
@@ -119,36 +139,88 @@ public class GroupInviteRepository(
         }
     }
 
-    public async Task<GroupInvite?> AcceptAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress, int acceptedByPersonId)
+    public async Task<GroupInvite?> AcceptAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress, int acceptedByPersonId, AuditEntry audit)
     {
+        var now = DateTimeOffset.UtcNow;
+        await using var uow = _unitOfWorkFactory();
+
         try
         {
-            return await _sqlExecutor.QuerySingleAsync
+            await uow.BeginTransactionAsync();
+
+            var accepted = await _sqlExecutor.QuerySingleAsync
             (
+                uow,
                 QueryGroupInvites.AcceptSql,
                 p =>
                 {
                     p.AddWithValue(pn.GroupInviteUuid, groupInviteUuid);
                     p.AddWithValue(pn.EmailAddress, recipientEmailAddress.ToString());
                     p.AddWithValue(pn.AcceptedByPersonId, acceptedByPersonId);
-                    p.AddWithValue(pn.Now, DateTimeOffset.UtcNow);
+                    p.AddWithValue(pn.Now, now);
                 },
                 reader => reader.ToGroupInvite()
             );
+
+            if (accepted is null)
+            {
+                await uow.RollbackAsync();
+                return null;
+            }
+
+            // A member already stays exactly as they are -- above all, an admin is never demoted.
+            var current = await _sqlExecutor.QuerySingleValueAsync
+            (
+                uow,
+                QueryGroupsPersons.CountActiveMembershipSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, accepted.GroupId);
+                    p.AddWithValue(pn.PersonId, acceptedByPersonId);
+                },
+                reader => reader.GetInt64(0)
+            );
+
+            if (current is not > 0)
+            {
+                await _sqlExecutor.ExecuteAsync
+                (
+                    uow,
+                    QueryGroupsPersons.UpsertSql,
+                    p =>
+                    {
+                        p.AddWithValue(pn.GroupId, accepted.GroupId);
+                        p.AddWithValue(pn.PersonId, acceptedByPersonId);
+                        p.AddWithValue(pn.IsAdmin, false);
+                        p.AddWithValue(pn.UpdatedOn, now);
+                    }
+                );
+            }
+
+            await _auditMessageRepository.RecordAsync(uow, accepted.GroupId, audit with { Parameters = InviteParameters(accepted) });
+
+            await uow.CommitAsync();
+            return accepted;
         }
         catch (Exception ex)
         {
+            await uow.RollbackAsync();
             _logger.LogError(ex, "AcceptAsync failed for GroupInviteUuid: [{GroupInviteUuid}], AcceptedByPersonId: [{AcceptedByPersonId}]", groupInviteUuid, acceptedByPersonId);
             throw;
         }
     }
 
-    public async Task<GroupInvite?> DeclineAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress)
+    public async Task<GroupInvite?> DeclineAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress, AuditEntry audit)
     {
+        await using var uow = _unitOfWorkFactory();
+
         try
         {
-            return await _sqlExecutor.QuerySingleAsync
+            await uow.BeginTransactionAsync();
+
+            var declined = await _sqlExecutor.QuerySingleAsync
             (
+                uow,
                 QueryGroupInvites.DeclineSql,
                 p =>
                 {
@@ -158,9 +230,16 @@ public class GroupInviteRepository(
                 },
                 reader => reader.ToGroupInvite()
             );
+
+            if (declined is not null)
+                await _auditMessageRepository.RecordAsync(uow, declined.GroupId, audit with { Parameters = InviteParameters(declined) });
+
+            await uow.CommitAsync();
+            return declined;
         }
         catch (Exception ex)
         {
+            await uow.RollbackAsync();
             _logger.LogError(ex, "DeclineAsync failed for GroupInviteUuid: [{GroupInviteUuid}]", groupInviteUuid);
             throw;
         }

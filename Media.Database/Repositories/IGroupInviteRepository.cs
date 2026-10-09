@@ -19,7 +19,8 @@ public interface IGroupInviteRepository
     /// and inviter -- rather than a second one queued.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="lifetime"/> is not positive.</exception>
-    Task<GroupInvite> CreateAsync(int groupId, int invitedByPersonId, EmailAddress emailAddress, PersonName lastName, TimeSpan lifetime);
+    /// <param name="audit">What queuing it is recorded as (DATABASE-66); the invite's uuid is added to its parameters.</param>
+    Task<GroupInvite> CreateAsync(int groupId, int invitedByPersonId, EmailAddress emailAddress, PersonName lastName, TimeSpan lifetime, AuditEntry audit);
 
     /// <summary>Reads an invite by its external identifier, or null.</summary>
     Task<GroupInvite?> GetByUuidAsync(Guid groupInviteUuid);
@@ -38,14 +39,17 @@ public interface IGroupInviteRepository
     /// <paramref name="recipientEmailAddress"/> changes. Returns it, or null when there is no such
     /// invite. Records the acceptance only: the membership itself is the caller's to add.
     /// </summary>
-    Task<GroupInvite?> AcceptAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress, int acceptedByPersonId);
+    /// <param name="audit">What accepting it is recorded as (DATABASE-66). Accepting also makes the person a member -- never demoting
+    /// one already in -- and both commit with the entry, or none of them does.</param>
+    Task<GroupInvite?> AcceptAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress, int acceptedByPersonId, AuditEntry audit);
 
     /// <summary>
     /// The recipient declines: only a pending, unexpired invite addressed to
     /// <paramref name="recipientEmailAddress"/> changes. Returns it, or null when there is no such
     /// invite.
     /// </summary>
-    Task<GroupInvite?> DeclineAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress);
+    /// <param name="audit">What declining it is recorded as (DATABASE-66), in the same transaction.</param>
+    Task<GroupInvite?> DeclineAsync(Guid groupInviteUuid, EmailAddress recipientEmailAddress, AuditEntry audit);
 
     /// <summary>
     /// The group's side withdraws a pending invite of <paramref name="groupId"/>. Returns it, or null

@@ -1,4 +1,6 @@
 #nullable enable
+using Media.Common.Transactions;
+using System.Threading;
 using AutoFixture;
 using Media.Common.Archetypes;
 using Media.Database.Models;
@@ -23,18 +25,43 @@ namespace Media.Database.Tests.Repositories;
 public class GroupInviteRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<IAuditMessageRepository> _auditMock = null!;
+    private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
+
+    /// <summary>What each change in these tests is recorded as (DATABASE-66).</summary>
+    private static readonly AuditEntry Audit = new("invite.queued", SubjectPersonId: null, ActorPersonId: 7);
 
     [SetUp]
     public void Setup()
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = _fixture.Freeze<Mock<ISqlQueryExecutor>>();
+        _auditMock = new Mock<IAuditMessageRepository>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
     private GroupInviteRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
+        _auditMock.Object,
+        () => _unitOfWorkMock.Object,
         Mock.Of<ILogger<GroupInviteRepository>>());
+
+    /// <summary>A statement run inside the change's transaction (DATABASE-66), answering <paramref name="result"/>.</summary>
+    private void CaptureInTransaction(string sql, GroupInvite? result)
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, sql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupInvite>>()))
+            .ReturnsAsync(result);
+    }
+
+    /// <summary>Whether the person is already a member, as the accept's transaction asks.</summary>
+    private void AlreadyMember(bool member)
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryGroupsPersons.CountActiveMembershipSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, long>>()))
+            .ReturnsAsync(member ? 1L : 0L);
+    }
 
     private void CaptureSingle(string sql, GroupInvite? result)
     {
@@ -46,8 +73,8 @@ public class GroupInviteRepositoryTests
     /// <summary>The parameter setup the repository passed with its last call for <paramref name="sql"/>.</summary>
     private Action<NpgsqlParameterCollection> Captured(string sql) =>
         (Action<NpgsqlParameterCollection>)_sqlExecutorMock.Invocations
-            .Last(i => i.Arguments.Count == 3 && Equals(i.Arguments[0], sql))
-            .Arguments[1];
+            .Last(i => i.Arguments.Contains(sql))
+            .Arguments.OfType<Action<NpgsqlParameterCollection>>().Single();
 
     private static NpgsqlParameterCollection Apply(Action<NpgsqlParameterCollection> configure)
     {
@@ -69,10 +96,10 @@ public class GroupInviteRepositoryTests
         var emailAddress = _fixture.Create<EmailAddress>();
         var lastName = _fixture.Create<PersonName>();
         var lifetime = TimeSpan.FromDays(14);
-        CaptureSingle(QueryGroupInvites.CreateSql, invite);
+        CaptureInTransaction(QueryGroupInvites.CreateSql, invite);
 
         var before = DateTimeOffset.UtcNow;
-        var result = await CreateRepository().CreateAsync(invite.GroupId, invite.InvitedByPersonId, emailAddress, lastName, lifetime);
+        var result = await CreateRepository().CreateAsync(invite.GroupId, invite.InvitedByPersonId, emailAddress, lastName, lifetime, Audit);
 
         result.ShouldBe(invite);
         var parameters = Apply(Captured(QueryGroupInvites.CreateSql));
@@ -90,7 +117,7 @@ public class GroupInviteRepositoryTests
     public async Task CreateAsync_Should_Throw_When_TheLifetimeIsNotPositive(int days)
     {
         await Should.ThrowAsync<ArgumentOutOfRangeException>(() => CreateRepository().CreateAsync(
-            _fixture.Create<int>(), _fixture.Create<int>(), _fixture.Create<EmailAddress>(), _fixture.Create<PersonName>(), TimeSpan.FromDays(days)));
+            _fixture.Create<int>(), _fixture.Create<int>(), _fixture.Create<EmailAddress>(), _fixture.Create<PersonName>(), TimeSpan.FromDays(days), Audit));
 
         _sqlExecutorMock.VerifyNoOtherCalls();
     }
@@ -98,10 +125,10 @@ public class GroupInviteRepositoryTests
     [Test]
     public async Task CreateAsync_Should_Throw_When_NoRowComesBack()
     {
-        CaptureSingle(QueryGroupInvites.CreateSql, null);
+        CaptureInTransaction(QueryGroupInvites.CreateSql, null);
 
         await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().CreateAsync(
-            _fixture.Create<int>(), _fixture.Create<int>(), _fixture.Create<EmailAddress>(), _fixture.Create<PersonName>(), TimeSpan.FromDays(1)));
+            _fixture.Create<int>(), _fixture.Create<int>(), _fixture.Create<EmailAddress>(), _fixture.Create<PersonName>(), TimeSpan.FromDays(1), Audit));
     }
 
     [Test]
@@ -171,9 +198,9 @@ public class GroupInviteRepositoryTests
     {
         var accepted = _fixture.Create<GroupInvite>() with { Status = GroupInviteStatus.Accepted };
         var emailAddress = _fixture.Create<EmailAddress>();
-        CaptureSingle(QueryGroupInvites.AcceptSql, accepted);
+        CaptureInTransaction(QueryGroupInvites.AcceptSql, accepted);
 
-        var result = await CreateRepository().AcceptAsync(accepted.GroupInviteUuid, emailAddress, accepted.AcceptedByPersonId!.Value);
+        var result = await CreateRepository().AcceptAsync(accepted.GroupInviteUuid, emailAddress, accepted.AcceptedByPersonId!.Value, Audit);
 
         result.ShouldBe(accepted);
         var parameters = Apply(Captured(QueryGroupInvites.AcceptSql));
@@ -186,9 +213,9 @@ public class GroupInviteRepositoryTests
     [Test]
     public async Task AcceptAsync_Should_ReturnNull_When_NoPendingInviteMatches()
     {
-        CaptureSingle(QueryGroupInvites.AcceptSql, null);
+        CaptureInTransaction(QueryGroupInvites.AcceptSql, null);
 
-        var result = await CreateRepository().AcceptAsync(Guid.NewGuid(), _fixture.Create<EmailAddress>(), _fixture.Create<int>());
+        var result = await CreateRepository().AcceptAsync(Guid.NewGuid(), _fixture.Create<EmailAddress>(), _fixture.Create<int>(), Audit);
 
         result.ShouldBeNull();
     }
@@ -198,12 +225,73 @@ public class GroupInviteRepositoryTests
     {
         var declined = _fixture.Create<GroupInvite>() with { Status = GroupInviteStatus.Declined };
         var emailAddress = _fixture.Create<EmailAddress>();
-        CaptureSingle(QueryGroupInvites.DeclineSql, declined);
+        CaptureInTransaction(QueryGroupInvites.DeclineSql, declined);
 
-        var result = await CreateRepository().DeclineAsync(declined.GroupInviteUuid, emailAddress);
+        var result = await CreateRepository().DeclineAsync(declined.GroupInviteUuid, emailAddress, Audit);
 
         result.ShouldBe(declined);
         Apply(Captured(QueryGroupInvites.DeclineSql))[pn.EmailAddress].Value.ShouldBe(emailAddress.ToString());
+    }
+
+    [Test]
+    public async Task CreateAsync_Should_RecordTheInvite_WithItsUuid_InTheSameTransaction()
+    {
+        var invite = _fixture.Create<GroupInvite>();
+        CaptureInTransaction(QueryGroupInvites.CreateSql, invite);
+
+        await CreateRepository().CreateAsync(invite.GroupId, 7, _fixture.Create<EmailAddress>(), _fixture.Create<PersonName>(), TimeSpan.FromDays(14), Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, invite.GroupId,
+            It.Is<AuditEntry>(e => e.Kind == "invite.queued" && e.Parameters!.Contains(invite.GroupInviteUuid.ToString()))), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task AcceptAsync_Should_MakeThemAMember_AndRecordIt_Together()
+    {
+        var accepted = _fixture.Create<GroupInvite>() with { Status = GroupInviteStatus.Accepted };
+        CaptureInTransaction(QueryGroupInvites.AcceptSql, accepted);
+        AlreadyMember(false);
+
+        await CreateRepository().AcceptAsync(accepted.GroupInviteUuid, _fixture.Create<EmailAddress>(), 9, Audit);
+
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, accepted.GroupId, It.IsAny<AuditEntry>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task AcceptAsync_Should_LeaveAMemberAsTheyAre_NeverDemotingAnAdmin()
+    {
+        var accepted = _fixture.Create<GroupInvite>() with { Status = GroupInviteStatus.Accepted };
+        CaptureInTransaction(QueryGroupInvites.AcceptSql, accepted);
+        AlreadyMember(true);
+
+        await CreateRepository().AcceptAsync(accepted.GroupInviteUuid, _fixture.Create<EmailAddress>(), 9, Audit);
+
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(It.IsAny<IUnitOfWork>(), QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task AcceptAsync_Should_RecordNothing_When_NoPendingInviteMatches()
+    {
+        CaptureInTransaction(QueryGroupInvites.AcceptSql, null);
+
+        await CreateRepository().AcceptAsync(Guid.NewGuid(), _fixture.Create<EmailAddress>(), 9, Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int?>(), It.IsAny<AuditEntry>()), Times.Never);
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(It.IsAny<IUnitOfWork>(), QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task DeclineAsync_Should_RecordIt_InTheSameTransaction()
+    {
+        var declined = _fixture.Create<GroupInvite>() with { Status = GroupInviteStatus.Declined };
+        CaptureInTransaction(QueryGroupInvites.DeclineSql, declined);
+
+        await CreateRepository().DeclineAsync(declined.GroupInviteUuid, _fixture.Create<EmailAddress>(), Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, declined.GroupId, It.IsAny<AuditEntry>()), Times.Once);
     }
 
     [Test]

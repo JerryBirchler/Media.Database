@@ -31,8 +31,8 @@ public static class QueryNotifications
     /// </summary>
     public static string CreateSql => $@"
         WITH made AS (
-            INSERT INTO {ts.Notifications} ({cn.MessageId}, {cn.RecipientPersonId})
-            SELECT {pn.MessageId}, recipient
+            INSERT INTO {ts.Notifications} ({cn.MessageId}, {cn.RecipientPersonId}, {cn.ExpiresOn})
+            SELECT {pn.MessageId}, recipient, {pn.ExpiresOn}
             FROM unnest(CAST({pn.RecipientPersonIds} AS integer[])) AS recipient
             ON CONFLICT ({cn.MessageId}, {cn.RecipientPersonId}) DO NOTHING
             RETURNING 1
@@ -50,7 +50,24 @@ public static class QueryNotifications
     /// Each with its message and what the message is about -- from the audit entry that first said
     /// it (the one that is not itself about a notification), when there is one.
     /// </summary>
-    public static string ListOpenByRecipientSql => $@"
+    public static string ListOpenByRecipientSql => $@"{Select}
+        WHERE n.{cn.RecipientPersonId} = {pn.RecipientPersonId}
+            AND n.{cn.Status} IN (0, 1)
+            -- Past its time -- an invite that expired -- it is no longer open, whether or not a sweep marked it.
+            AND (n.{cn.ExpiresOn} IS NULL OR n.{cn.ExpiresOn} > now())
+            AND ({pn.NotificationId}::bigint IS NULL OR n.{cn.NotificationId} < {pn.NotificationId}::bigint)
+        ORDER BY n.{cn.NotificationId} DESC
+        LIMIT {pn.Limit}
+        ;";
+
+    /// <summary>One notification, as its recipient reads it -- nobody else's (API-189): what an answer is about.</summary>
+    public static string GetForRecipientSql => $@"{Select}
+        WHERE n.{cn.NotificationUuid} = {pn.NotificationUuid}
+            AND n.{cn.RecipientPersonId} = {pn.RecipientPersonId}
+        ;";
+
+    /// <summary>The columns and joins every read of a notification shares.</summary>
+    private static string Select => $@"
         SELECT
             n.{cn.NotificationId}, n.{cn.NotificationUuid}, n.{cn.Status}, n.{cn.IsPinned}, n.{cn.ExpiresOn}, n.{cn.InsertedOn},
             m.{cm.Kind}, CAST(m.{cm.Parameters} AS text) AS {cm.Parameters}, m.{cm.Text}, m.{cm.Language},
@@ -68,13 +85,7 @@ public static class QueryNotifications
         ) origin ON true
         LEFT JOIN {ts.Groups} g ON g.{cg.GroupId} = origin.{ca.GroupId}
         LEFT JOIN {ts.Persons} sp ON sp.{cp.PersonId} = origin.{ca.SubjectPersonId}
-        LEFT JOIN {ts.Persons} ap ON ap.{cp.PersonId} = origin.{ca.ActorPersonId}
-        WHERE n.{cn.RecipientPersonId} = {pn.RecipientPersonId}
-            AND n.{cn.Status} IN (0, 1)
-            AND ({pn.NotificationId}::bigint IS NULL OR n.{cn.NotificationId} < {pn.NotificationId}::bigint)
-        ORDER BY n.{cn.NotificationId} DESC
-        LIMIT {pn.Limit}
-        ;";
+        LEFT JOIN {ts.Persons} ap ON ap.{cp.PersonId} = origin.{ca.ActorPersonId}";
 
     /// <summary>
     /// SQL to move one of the recipient's notifications on: to seen only from new, to dismissed from
@@ -87,7 +98,7 @@ public static class QueryNotifications
             {cn.UpdatedOn} = {pn.UpdatedOn}
         WHERE {cn.NotificationUuid} = {pn.NotificationUuid}
             AND {cn.RecipientPersonId} = {pn.RecipientPersonId}
-            AND (({pn.Status} = 1 AND {cn.Status} = 0) OR ({pn.Status} = 2 AND {cn.Status} IN (0, 1)))
+            AND (({pn.Status} = 1 AND {cn.Status} = 0) OR ({pn.Status} IN (2, 3) AND {cn.Status} IN (0, 1)))
         RETURNING {cn.NotificationId}
         ;";
 

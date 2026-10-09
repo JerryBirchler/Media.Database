@@ -23,7 +23,7 @@ public class NotificationRepository(
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly FluentLogger<NotificationRepository> _logger = logger.Initializer();
 
-    public async Task<int> CreateAsync(long messageId, IReadOnlyCollection<int> recipientPersonIds)
+    public async Task<int> CreateAsync(long messageId, IReadOnlyCollection<int> recipientPersonIds, DateTimeOffset? expiresOn = null)
     {
         if (recipientPersonIds.Count == 0)
             return 0;
@@ -37,6 +37,7 @@ public class NotificationRepository(
                 {
                     p.AddWithValue(pn.MessageId, messageId);
                     p.AddWithValue(pn.RecipientPersonIds, recipientPersonIds.ToArray());
+                    p.AddWithValue(pn.ExpiresOn, (object?)expiresOn ?? DBNull.Value);
                 },
                 reader => reader.GetInt64(0)
             );
@@ -46,6 +47,28 @@ public class NotificationRepository(
         catch (Exception ex)
         {
             _logger.LogError(ex, "CreateAsync failed for MessageId: [{MessageId}], Recipients: [{Count}]", messageId, recipientPersonIds.Count);
+            throw;
+        }
+    }
+
+    public async Task<NotificationView?> GetForRecipientAsync(Guid notificationUuid, int recipientPersonId)
+    {
+        try
+        {
+            return await _sqlExecutor.QuerySingleAsync
+            (
+                QueryNotifications.GetForRecipientSql,
+                p =>
+                {
+                    p.AddWithValue(pn.NotificationUuid, notificationUuid);
+                    p.AddWithValue(pn.RecipientPersonId, recipientPersonId);
+                },
+                reader => reader.ToNotificationView()
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetForRecipientAsync failed for RecipientPersonId: [{RecipientPersonId}]", recipientPersonId);
             throw;
         }
     }
@@ -79,7 +102,8 @@ public class NotificationRepository(
         {
             NotificationStatus.Seen => AuditKinds.NotificationSeen,
             NotificationStatus.Dismissed => AuditKinds.NotificationDismissed,
-            _ => throw new ArgumentOutOfRangeException(nameof(status), status, "A recipient may only mark a notification seen or dismissed.")
+            NotificationStatus.Acted => AuditKinds.NotificationActed,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, "A recipient may only mark a notification seen, dismissed or acted.")
         };
 
         await using var uow = _unitOfWorkFactory();
