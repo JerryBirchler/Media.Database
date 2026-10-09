@@ -14,6 +14,7 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string GroupEncryptionKeys = x();
     public static readonly string GroupInvites = x();
     public static readonly string GroupJoinRequests = x();
+    public static readonly string GroupJoinRequestMutes = x();
     public static readonly string Groups = x();
     public static readonly string GroupSearchLists = x();
     public static readonly string GroupShell = x();

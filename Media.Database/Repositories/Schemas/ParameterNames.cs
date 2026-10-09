@@ -40,6 +40,8 @@ public class ParameterNames : BaseSchema<ParameterNames, Ordinals>
     public static readonly string GroupInviteUuid = x();
     public static readonly string GroupJoinRequestId = x();
     public static readonly string GroupJoinRequestUuid = x();
+    public static readonly string GroupJoinRequestMuteId = x();
+    public static readonly string MutedByPersonId = x();
     public static readonly string GroupName = x();
     public static readonly string GroupPersonUuid = x();
     public static readonly string GroupSearchListId = x();

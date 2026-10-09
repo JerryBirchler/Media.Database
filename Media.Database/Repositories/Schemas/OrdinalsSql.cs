@@ -37,6 +37,8 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string GroupInviteUuid = x();
     public static readonly string GroupJoinRequestId = x();
     public static readonly string GroupJoinRequestUuid = x();
+    public static readonly string GroupJoinRequestMuteId = x();
+    public static readonly string MutedByPersonId = x();
     public static readonly string GroupName = x();
     public static readonly string GroupPersonId = x();
     public static readonly string GroupPersonUuid = x();

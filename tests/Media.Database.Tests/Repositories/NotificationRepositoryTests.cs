@@ -153,6 +153,7 @@ public class NotificationRepositoryTests
     [TestCase("request.declined", Told.Subject)]
     [TestCase("request.accepted", Told.Nobody)]
     [TestCase("request.ignored", Told.GroupAdmins)]
+    [TestCase("request.muted", Told.Nobody)]
     [TestCase("group.created", Told.Nobody)]
     [TestCase("notification.dismissed", Told.Nobody)]
     [TestCase(null, Told.Nobody)]

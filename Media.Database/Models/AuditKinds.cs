@@ -70,6 +70,12 @@ public static class AuditKinds
     /// </summary>
     public const string RequestIgnored = "request.ignored";
 
+    /// <summary>
+    /// An admin muted someone's requests to a group, for themselves alone (DATABASE-69): history
+    /// only -- nobody is told, and the request stays pending for the other admins.
+    /// </summary>
+    public const string RequestMuted = "request.muted";
+
     /// <summary>Its recipient saw a notification (WEB-140): a change in the notification's state.</summary>
     public const string NotificationSeen = "notification.seen";
 

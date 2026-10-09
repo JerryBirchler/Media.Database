@@ -4,6 +4,7 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using cj = Media.Database.Repositories.Schemas.TablesSql.GroupJoinRequestsColumns;
+using cjm = Media.Database.Repositories.Schemas.TablesSql.GroupJoinRequestMutesColumns;
 using cm = Media.Database.Repositories.Schemas.TablesSql.MessagesColumns;
 using cn = Media.Database.Repositories.Schemas.TablesSql.NotificationsColumns;
 using cp = Media.Database.Repositories.Schemas.TablesSql.PersonsColumns;
@@ -90,6 +91,13 @@ public static class QueryGroupJoinRequests
             r.{cj.GroupId} = {pn.GroupId}
             AND r.{cj.Status} = 0
             AND p.{cp.IsActive} = true
+            -- Not those the admin reading muted (SCHEMA-38): theirs to the other admins only.
+            AND NOT EXISTS (
+                SELECT 1 FROM {ts.GroupJoinRequestMutes} AS m
+                WHERE m.{cjm.GroupId} = r.{cj.GroupId}
+                    AND m.{cjm.PersonId} = r.{cj.PersonId}
+                    AND m.{cjm.MutedByPersonId} = {pn.MutedByPersonId}
+            )
         ORDER BY
             r.{cj.InsertedOn} ASC,
             r.{cj.GroupJoinRequestId} ASC
@@ -167,6 +175,51 @@ public static class QueryGroupJoinRequests
     /// <summary>CQL to delete a request's Scylla copy.</summary>
     public static string DeleteCql => $@"
         DELETE FROM {tc.GroupJoinRequests} WHERE {ccj.GroupJoinRequestId} = {pn.GroupJoinRequestId};";
+
+    /// <summary>
+    /// SQL to mute one person's requests to a group for one admin (DATABASE-69): one row, however
+    /// often it is asked for.
+    /// </summary>
+    public static string MuteSql => $@"
+        INSERT INTO {ts.GroupJoinRequestMutes} (
+            {cjm.GroupId},
+            {cjm.PersonId},
+            {cjm.MutedByPersonId}
+        ) VALUES (
+            {pn.GroupId},
+            {pn.PersonId},
+            {pn.MutedByPersonId}
+        )
+        ON CONFLICT ({cjm.GroupId}, {cjm.PersonId}, {cjm.MutedByPersonId}) DO NOTHING
+        ;";
+
+    /// <summary>
+    /// SQL to close one admin's open notifications of a request (DATABASE-69): a mute ends their own
+    /// being asked, not the other admins'. Returns how many were closed.
+    /// </summary>
+    public static string CloseNotificationsOfSql => $@"
+        WITH closed AS (
+            UPDATE {ts.Notifications} n SET
+                {cn.Status} = {(int)NotificationStatus.Acted},
+                {cn.UpdatedOn} = {pn.Now}
+            FROM {ts.Messages} m
+            WHERE m.{cm.MessageId} = n.{cn.MessageId}
+                AND m.{cm.Kind} = '{AuditKinds.RequestQueued}'
+                AND (m.{cm.Parameters} ->> '{AuditKinds.RequestUuidParameter}')::uuid = {pn.GroupJoinRequestUuid}
+                AND n.{cn.RecipientPersonId} = {pn.MutedByPersonId}
+                AND n.{cn.Status} IN ({(int)NotificationStatus.New}, {(int)NotificationStatus.Seen})
+            RETURNING 1
+        )
+        SELECT COUNT(*) FROM closed
+        ;";
+
+    /// <summary>SQL for the admins who muted a person's requests to a group (DATABASE-69).</summary>
+    public static string ListMutedBySql => $@"
+        SELECT {cjm.MutedByPersonId}
+        FROM {ts.GroupJoinRequestMutes}
+        WHERE {cjm.GroupId} = {pn.GroupId}
+            AND {cjm.PersonId} = {pn.PersonId}
+        ;";
 
     #endregion
 

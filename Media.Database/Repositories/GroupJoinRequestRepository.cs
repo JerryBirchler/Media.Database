@@ -124,20 +124,110 @@ public class GroupJoinRequestRepository(
         }
     }
 
-    public async Task<List<PendingGroupJoinRequest>> ListPendingByGroupAsync(int groupId)
+    public async Task<List<PendingGroupJoinRequest>> ListPendingByGroupAsync(int groupId, int viewerPersonId)
     {
         try
         {
             return await _sqlExecutor.QueryManyAsync
             (
                 QueryGroupJoinRequests.ListPendingByGroupSql,
-                p => p.AddWithValue(pn.GroupId, groupId),
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.MutedByPersonId, viewerPersonId);
+                },
                 reader => reader.ToPendingGroupJoinRequest()
             );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ListPendingByGroupAsync failed for GroupId: [{GroupId}]", groupId);
+            throw;
+        }
+    }
+
+    public async Task<GroupJoinRequest?> MuteAsync(int groupId, Guid groupJoinRequestUuid, int mutedByPersonId, AuditEntry audit)
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var uow = _unitOfWorkFactory();
+
+        try
+        {
+            await uow.BeginTransactionAsync();
+
+            // Only a request still waiting, and only of this group.
+            var request = await _sqlExecutor.QuerySingleAsync
+            (
+                uow,
+                QueryGroupJoinRequests.GetByUuidSql,
+                p => p.AddWithValue(pn.GroupJoinRequestUuid, groupJoinRequestUuid),
+                reader => reader.ToGroupJoinRequest()
+            );
+
+            if (request is not { Status: GroupJoinRequestStatus.Pending } || request.GroupId != groupId)
+            {
+                await uow.RollbackAsync();
+                return null;
+            }
+
+            await _sqlExecutor.ExecuteAsync
+            (
+                uow,
+                QueryGroupJoinRequests.MuteSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.PersonId, request.PersonId);
+                    p.AddWithValue(pn.MutedByPersonId, mutedByPersonId);
+                }
+            );
+
+            await _auditMessageRepository.RecordAsync(uow, groupId,
+                audit with { SubjectPersonId = request.PersonId, Parameters = RequestParameters(request, audit.Parameters) });
+
+            // That admin is asked no more; the other admins still are.
+            await _sqlExecutor.QuerySingleValueAsync
+            (
+                uow,
+                QueryGroupJoinRequests.CloseNotificationsOfSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupJoinRequestUuid, request.GroupJoinRequestUuid);
+                    p.AddWithValue(pn.MutedByPersonId, mutedByPersonId);
+                    p.AddWithValue(pn.Now, now);
+                },
+                reader => reader.GetFieldValue<long>(0)
+            );
+
+            await uow.CommitAsync();
+            return request;
+        }
+        catch (Exception ex)
+        {
+            await uow.RollbackAsync();
+            _logger.LogError(ex, "MuteAsync failed for GroupId: [{GroupId}], GroupJoinRequestUuid: [{GroupJoinRequestUuid}]", groupId, groupJoinRequestUuid);
+            throw;
+        }
+    }
+
+    public async Task<List<int>> ListMutedByAsync(int groupId, int personId)
+    {
+        try
+        {
+            return await _sqlExecutor.QueryManyAsync
+            (
+                QueryGroupJoinRequests.ListMutedBySql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.PersonId, personId);
+                },
+                reader => reader.GetFieldValue<int>(0)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ListMutedByAsync failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", groupId, personId);
             throw;
         }
     }

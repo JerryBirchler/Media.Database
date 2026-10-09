@@ -21,9 +21,23 @@ public interface IGroupJoinRequestRepository
     Task<GroupJoinRequest?> GetByUuidAsync(Guid groupJoinRequestUuid);
 
     /// <summary>
-    /// A group's pending requests, oldest first, with each active requester's name and email.
+    /// A group's pending requests, oldest first, with each active requester's name and email -- as
+    /// <paramref name="viewerPersonId"/> sees them: without those they muted (DATABASE-69).
     /// </summary>
-    Task<List<PendingGroupJoinRequest>> ListPendingByGroupAsync(int groupId);
+    Task<List<PendingGroupJoinRequest>> ListPendingByGroupAsync(int groupId, int viewerPersonId);
+
+    /// <summary>
+    /// Mutes, for <paramref name="mutedByPersonId"/> alone, the person who made a pending request of
+    /// <paramref name="groupId"/> (DATABASE-69). It answers nothing: the request stays pending for
+    /// the other admins. In one transaction: the mute (once, however often asked), the record as
+    /// <paramref name="audit"/> about the person who asked, and that admin's open notification of the
+    /// request closed. Returns the request, or null when there is no pending request of that group
+    /// by that identifier -- and then nothing is written.
+    /// </summary>
+    Task<GroupJoinRequest?> MuteAsync(int groupId, Guid groupJoinRequestUuid, int mutedByPersonId, AuditEntry audit);
+
+    /// <summary>The admins who muted <paramref name="personId"/>'s requests to <paramref name="groupId"/>.</summary>
+    Task<List<int>> ListMutedByAsync(int groupId, int personId);
 
     /// <summary>
     /// Answers a pending request of <paramref name="groupId"/> -- accepted, rejected or ignored --

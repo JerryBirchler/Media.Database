@@ -199,7 +199,7 @@ public class GroupJoinRequestRepositoryTests
             .Setup(e => e.QueryManyAsync(QueryGroupJoinRequests.ListPendingByGroupSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PendingGroupJoinRequest>>()))
             .ReturnsAsync(pending);
 
-        var result = await CreateRepository().ListPendingByGroupAsync(_fixture.Create<int>());
+        var result = await CreateRepository().ListPendingByGroupAsync(_fixture.Create<int>(), _fixture.Create<int>());
 
         result.ShouldBe(pending);
     }
@@ -271,6 +271,69 @@ public class GroupJoinRequestRepositoryTests
     }
 
     [Test]
+    public void ListPendingByGroupSql_Should_LeaveOutThoseTheViewerMuted()
+    {
+        var sql = QueryGroupJoinRequests.ListPendingByGroupSql;
+
+        sql.ShouldContain(@"NOT EXISTS");
+        sql.ShouldContain(@"""MutedByPersonId"" = @MutedByPersonId");
+    }
+
+    [Test]
+    public async Task MuteAsync_Should_MuteTheAsker_RecordIt_AndCloseOnlyThatAdminsNotification()
+    {
+        var request = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Pending };
+        SetupSingle(QueryGroupJoinRequests.GetByUuidSql, request);
+        var muted = new AuditEntry("request.muted", SubjectPersonId: null, ActorPersonId: 7);
+
+        var result = await CreateRepository().MuteAsync(request.GroupId, request.GroupJoinRequestUuid, 7, muted);
+
+        result.ShouldBe(request);
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.MuteSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, request.GroupId, It.Is<AuditEntry>(e =>
+            e.Kind == "request.muted" && e.SubjectPersonId == request.PersonId && e.Parameters!.Contains(request.GroupJoinRequestUuid.ToString()))), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.CloseNotificationsOfSql,
+            It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, long>>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [TestCase(GroupJoinRequestStatus.Accepted)]
+    [TestCase(GroupJoinRequestStatus.Ignored)]
+    public async Task MuteAsync_Should_WriteNothing_When_TheRequestIsNoLongerPending(GroupJoinRequestStatus status)
+    {
+        var request = _fixture.Create<GroupJoinRequest>() with { Status = status };
+        SetupSingle(QueryGroupJoinRequests.GetByUuidSql, request);
+
+        var result = await CreateRepository().MuteAsync(request.GroupId, request.GroupJoinRequestUuid, 7, Answer);
+
+        result.ShouldBeNull();
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(It.IsAny<IUnitOfWork>(), It.IsAny<string>(), It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Never);
+        _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int?>(), It.IsAny<AuditEntry>()), Times.Never);
+    }
+
+    [Test]
+    public async Task MuteAsync_Should_WriteNothing_When_TheRequestIsAnotherGroups()
+    {
+        var request = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Pending };
+        SetupSingle(QueryGroupJoinRequests.GetByUuidSql, request);
+
+        (await CreateRepository().MuteAsync(request.GroupId + 1, request.GroupJoinRequestUuid, 7, Answer)).ShouldBeNull();
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(It.IsAny<IUnitOfWork>(), It.IsAny<string>(), It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Never);
+    }
+
+    [Test]
+    public void MuteSql_Should_MuteOncePerAdminPersonAndGroup()
+    {
+        QueryGroupJoinRequests.MuteSql.ShouldContain(@"ON CONFLICT (""GroupId"", ""PersonId"", ""MutedByPersonId"") DO NOTHING");
+    }
+
+    [Test]
+    public void CloseNotificationsOfSql_Should_CloseOnlyTheMutingAdminsNotifications()
+    {
+        QueryGroupJoinRequests.CloseNotificationsOfSql.ShouldContain(@"""RecipientPersonId"" = @MutedByPersonId");
+    }
+
+    [Test]
     public void CloseNotificationsSql_Should_CloseOnlyOpenNotificationsOfThatRequest()
     {
         var sql = QueryGroupJoinRequests.CloseNotificationsSql;
@@ -306,6 +369,6 @@ public class GroupJoinRequestRepositoryTests
             .Setup(e => e.QueryManyAsync(QueryGroupJoinRequests.ListPendingByGroupSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, PendingGroupJoinRequest>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ListPendingByGroupAsync(_fixture.Create<int>()));
+        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().ListPendingByGroupAsync(_fixture.Create<int>(), _fixture.Create<int>()));
     }
 }

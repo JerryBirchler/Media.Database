@@ -14,6 +14,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     public static readonly string GroupEncryptionKeys = x();
     public static readonly string GroupInvites = x();
     public static readonly string GroupJoinRequests = x();
+    public static readonly string GroupJoinRequestMutes = x();
     public static readonly string Groups = x();
     public static readonly string GroupSearchLists = x();
     public static readonly string GroupShell = x();
@@ -285,6 +286,16 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string AnsweredOn = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
+    }
+
+    /// <summary>One admin muting one person's requests to a group (SCHEMA-38).</summary>
+    public static class GroupJoinRequestMutesColumns
+    {
+        public static readonly string GroupJoinRequestMuteId = y();
+        public static readonly string GroupId = y();
+        public static readonly string PersonId = y();
+        public static readonly string MutedByPersonId = y();
+        public static readonly string InsertedOn = y();
     }
 
     public static class GroupInvitesColumns
