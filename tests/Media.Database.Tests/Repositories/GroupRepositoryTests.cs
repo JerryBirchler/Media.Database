@@ -36,7 +36,10 @@ public class GroupRepositoryTests
     private Mock<ICqlQueryExecutor> _cqlExecutorMock = null!;
     private Mock<IScyllaSessionProvider> _scyllaProviderMock = null!;
     private Mock<IUnitOfWork> _unitOfWorkMock = null!;
+    private Mock<IAuditMessageRepository> _auditMock = null!;
     private IFixture _fixture = null!;
+
+    private static readonly AuditEntry Created = new("group.created", SubjectPersonId: 12, ActorPersonId: 12);
 
     [SetUp]
     public void Setup()
@@ -46,6 +49,7 @@ public class GroupRepositoryTests
         _cqlExecutorMock = new Mock<ICqlQueryExecutor>();
         _scyllaProviderMock = new Mock<IScyllaSessionProvider>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _auditMock = new Mock<IAuditMessageRepository>();
     }
 
     private GroupRepository CreateRepository() => new(
@@ -54,6 +58,7 @@ public class GroupRepositoryTests
         _scyllaProviderMock.Object,
         new MapGroupResponse(),
         () => _unitOfWorkMock.Object,
+        _auditMock.Object,
         Mock.Of<ILogger<GroupRepository>>());
 
     private Group CreateGroup(string? name = null, string? title = null, string? description = null)
@@ -352,7 +357,7 @@ public class GroupRepositoryTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(
-            () => CreateRepository().CreateOwnedAsync(group.Name, group.Title, null, true, 12, [17]));
+            () => CreateRepository().CreateOwnedAsync(group.Name, group.Title, null, true, 12, [17], Created));
 
         _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -368,13 +373,15 @@ public class GroupRepositoryTests
                 It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, Group>>()))
             .ReturnsAsync(group);
 
-        var result = await CreateRepository().CreateOwnedAsync(group.Name, group.Title, null, true, 12, [17, 23]);
+        var result = await CreateRepository().CreateOwnedAsync(group.Name, group.Title, null, true, 12, [17, 23], Created);
 
         result.ShouldBe(group);
         _sqlExecutorMock.Verify(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql,
             It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
         _sqlExecutorMock.Verify(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.UpsertSql,
             It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Exactly(2));
+        // Its first history entry, in the same transaction (DATABASE-63).
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, group.GroupId, Created), Times.Once);
         _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

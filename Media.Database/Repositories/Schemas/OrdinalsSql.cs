@@ -8,9 +8,13 @@
 public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
 {
     public static readonly string AcceptedByPersonId = x();
+    public static readonly string Actions = x();
+    public static readonly string ActorPersonId = x();
     public static readonly string Algorithm = x();
     public static readonly string AnsweredByPersonId = x();
     public static readonly string AnsweredOn = x();
+    public static readonly string AuditMessageId = x();
+    public static readonly string AuditMessageUuid = x();
     public static readonly string CameFromFileId = x();
     public static readonly string CellPhoneNumber = x();
     public static readonly string ConsentedOn = x();
@@ -55,17 +59,24 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string IsCurrent = x();
     public static readonly string IsEmailVerified = x();
     public static readonly string IsEncrypted = x();
+    public static readonly string IsPinned = x();
     public static readonly string IsProperName = x();
     public static readonly string IsSmsVerified = x();
     public static readonly string IsSuperAdmin = x();
     public static readonly string KeyDeliveryMethod = x();
     public static readonly string KeyPurpose = x();
+    public static readonly string Kind = x();
+    public static readonly string Language = x();
     public static readonly string LastFileUpdate = x();
     public static readonly string LastName = x();
     public static readonly string ListType = x();
     public static readonly string LockedOn = x();
+    public static readonly string MessageId = x();
+    public static readonly string MessageUuid = x();
     public static readonly string Metadata = x();
     public static readonly string Name = x();
+    public static readonly string NotificationId = x();
+    public static readonly string NotificationUuid = x();
     public static readonly string OperatingSystem = x();
     public static readonly string Origin = x();
     public static readonly string OriginalFilePath = x();
@@ -73,6 +84,7 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string OtpEmail = x();
     public static readonly string OtpWindowOverrideMinutes = x();
     public static readonly string OwningPersonId = x();
+    public static readonly string Parameters = x();
     public static readonly string Payload = x();
     public static readonly string PayloadVersion = x();
     public static readonly string PersonId = x();
@@ -87,6 +99,7 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string PromotedGroupId = x();
     public static readonly string Provider = x();
     public static readonly string PublicKey = x();
+    public static readonly string RecipientPersonId = x();
     public static readonly string RegistrationId = x();
     public static readonly string RegistrationInsertedOn = x();
     public static readonly string RegistrationUpdatedOn = x();
@@ -99,6 +112,8 @@ public class OrdinalsSql : BaseSchema<OrdinalsSql, Ordinals>
     public static readonly string SpokenName = x();
     public static readonly string Status = x();
     public static readonly string StrikeCount = x();
+    public static readonly string SubjectPersonId = x();
+    public static readonly string Text = x();
     public static readonly string ThumbnailGeneratedOn = x();
     public static readonly string Title = x();
     public static readonly string UpdatedOn = x();

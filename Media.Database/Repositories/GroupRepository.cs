@@ -26,10 +26,12 @@ public class GroupRepository(
     IScyllaSessionProvider scyllaProvider,
     IMapGroupResponse groupResponseMapper,
     Func<IUnitOfWork> unitOfWorkFactory,
+    IAuditMessageRepository auditMessageRepository,
     ILogger<GroupRepository> logger)
     : BaseRepository(scyllaProvider), IGroupRepository
 {
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
+    private readonly IAuditMessageRepository _auditMessageRepository = auditMessageRepository;
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
     private readonly ICqlQueryExecutor _cqlExecutor = cqlExecutor;
     private readonly IMapGroupResponse _groupResponseMapper = groupResponseMapper;
@@ -41,7 +43,8 @@ public class GroupRepository(
         string? description,
         bool isActive,
         int ownerPersonId,
-        IReadOnlyList<int> sourceMachineIds)
+        IReadOnlyList<int> sourceMachineIds,
+        AuditEntry audit)
     {
         await using var uow = _unitOfWorkFactory();
 
@@ -81,6 +84,9 @@ public class GroupRepository(
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
                 }
             );
+
+            // The group's first entry (DATABASE-63), in the transaction that made it.
+            await _auditMessageRepository.RecordAsync(uow, group.GroupId, audit);
 
             foreach (var sourceMachineId in sourceMachineIds)
             {

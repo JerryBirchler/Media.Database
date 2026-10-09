@@ -1,4 +1,5 @@
 using Media.Common.Helpers.Fluent;
+using Media.Common.Transactions;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories.Queries;
@@ -15,38 +16,21 @@ namespace Media.Database.Repositories;
 public class GroupPersonRepository(
     ISqlQueryExecutor sqlExecutor,
     IMapGroupPersonResponse groupPersonResponseMapper,
+    IAuditMessageRepository auditMessageRepository,
+    Func<IUnitOfWork> unitOfWorkFactory,
     ILogger<GroupPersonRepository> logger)
     : IGroupPersonRepository
 {
     private readonly ISqlQueryExecutor _sqlExecutor = sqlExecutor;
     private readonly IMapGroupPersonResponse _groupPersonResponseMapper = groupPersonResponseMapper;
+    private readonly IAuditMessageRepository _auditMessageRepository = auditMessageRepository;
+    private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly FluentLogger<GroupPersonRepository> _logger = logger.Initializer();
 
-    public async Task<GroupPerson> UpsertAsync(int groupId, int personId, bool isAdmin)
+    public async Task<GroupPerson> UpsertAsync(int groupId, int personId, bool isAdmin, AuditEntry audit)
     {
-        try
-        {
-            var result = await _sqlExecutor.QuerySingleAsync
-            (
-                QueryGroupsPersons.UpsertSql,
-                p =>
-                {
-                    p.AddWithValue(pn.GroupId, groupId);
-                    p.AddWithValue(pn.PersonId, personId);
-                    p.AddWithValue(pn.IsAdmin, isAdmin);
-                    p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
-                },
-                reader => reader.ToGroupPerson(_groupPersonResponseMapper)
-            );
-
-            // UpsertSql's update/insert CTE pair always produces exactly one row between them.
-            return result!;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "UpsertAsync failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", groupId, personId);
-            throw;
-        }
+        // UpsertSql's update/insert CTE pair always produces exactly one row between them.
+        return (await AuditedAsync(QueryGroupsPersons.UpsertSql, nameof(UpsertAsync), groupId, personId, audit, p => p.AddWithValue(pn.IsAdmin, isAdmin)))!;
     }
 
     public async Task<GroupPerson?> GetActiveAsync(int groupId, int personId)
@@ -94,32 +78,55 @@ public class GroupPersonRepository(
         }
     }
 
-    public Task<GroupPerson?> DeactivateKeepingAnAdminAsync(int groupId, int personId) =>
-        ChangeKeepingAnAdminAsync(QueryGroupsPersons.DeactivateKeepingAnAdminSql, nameof(DeactivateKeepingAnAdminAsync), groupId, personId);
+    public Task<GroupPerson?> DeactivateKeepingAnAdminAsync(int groupId, int personId, AuditEntry audit) =>
+        AuditedAsync(QueryGroupsPersons.DeactivateKeepingAnAdminSql, nameof(DeactivateKeepingAnAdminAsync), groupId, personId, audit);
 
-    public Task<GroupPerson?> DemoteKeepingAnAdminAsync(int groupId, int personId) =>
-        ChangeKeepingAnAdminAsync(QueryGroupsPersons.DemoteKeepingAnAdminSql, nameof(DemoteKeepingAnAdminAsync), groupId, personId);
+    public Task<GroupPerson?> DemoteKeepingAnAdminAsync(int groupId, int personId, AuditEntry audit) =>
+        AuditedAsync(QueryGroupsPersons.DemoteKeepingAnAdminSql, nameof(DemoteKeepingAnAdminAsync), groupId, personId, audit);
 
-    /// <summary>The two guarded changes run the same way: one statement, the pair and the time.</summary>
-    private async Task<GroupPerson?> ChangeKeepingAnAdminAsync(string sql, string operation, int groupId, int personId)
+    /// <summary>
+    /// A membership change and its audit entry (DATABASE-63), in one transaction: both commit, or
+    /// neither does -- there is never a change without its record. A change that did nothing (a
+    /// guard refused it, or no active membership was there) records nothing.
+    /// </summary>
+    private async Task<GroupPerson?> AuditedAsync(
+        string sql,
+        string operation,
+        int groupId,
+        int personId,
+        AuditEntry audit,
+        Action<Npgsql.NpgsqlParameterCollection>? more = null)
     {
+        await using var uow = _unitOfWorkFactory();
+
         try
         {
-            return await _sqlExecutor.QuerySingleAsync
+            await uow.BeginTransactionAsync();
+
+            var changed = await _sqlExecutor.QuerySingleAsync
             (
+                uow,
                 sql,
                 p =>
                 {
                     p.AddWithValue(pn.GroupId, groupId);
                     p.AddWithValue(pn.PersonId, personId);
                     p.AddWithValue(pn.UpdatedOn, DateTimeOffset.UtcNow);
+                    more?.Invoke(p);
                 },
                 reader => reader.ToGroupPerson(_groupPersonResponseMapper)
             );
+
+            if (changed is not null)
+                await _auditMessageRepository.RecordAsync(uow, groupId, audit);
+
+            await uow.CommitAsync();
+            return changed;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "{Operation} failed for GroupId: [{GroupId}], PersonId: [{PersonId}]", operation, groupId, personId);
+            await uow.RollbackAsync();
+            _logger.LogError(ex, "{Operation} failed for GroupId: [{GroupId}], PersonId: [{PersonId}], Kind: [{Kind}]", operation, groupId, personId, audit.Kind);
             throw;
         }
     }

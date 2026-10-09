@@ -8,7 +8,8 @@ public interface IGroupPersonRepository
     /// Upserts a group/person association: reactivates (and updates admin status on) any existing
     /// row for the pair, active or not, or inserts a new active row if none exists.
     /// </summary>
-    Task<GroupPerson> UpsertAsync(int groupId, int personId, bool isAdmin);
+    /// <param name="audit">What the change is recorded as (DATABASE-63), in the same transaction.</param>
+    Task<GroupPerson> UpsertAsync(int groupId, int personId, bool isAdmin, AuditEntry audit);
 
     /// <summary>
     /// Finds the active association for a (groupId, personId) pair, or <see langword="null"/> if
@@ -34,14 +35,16 @@ public interface IGroupPersonRepository
     /// both pass it. Returns the deactivated row, or <see langword="null"/> when nothing was active
     /// or the floor refused; read the membership again to tell which.
     /// </summary>
-    Task<GroupPerson?> DeactivateKeepingAnAdminAsync(int groupId, int personId);
+    /// <param name="audit">What the change is recorded as (DATABASE-63), in the same transaction; nothing is recorded when nothing changed.</param>
+    Task<GroupPerson?> DeactivateKeepingAnAdminAsync(int groupId, int personId, AuditEntry audit);
 
     /// <summary>
     /// Makes an active admin a member only unless they are the group's last active admin, in one
     /// statement as <see cref="DeactivateKeepingAnAdminAsync"/>. Returns the updated row, or
     /// <see langword="null"/> when they were not an active admin or the floor refused.
     /// </summary>
-    Task<GroupPerson?> DemoteKeepingAnAdminAsync(int groupId, int personId);
+    /// <param name="audit">What the change is recorded as (DATABASE-63), in the same transaction; nothing is recorded when nothing changed.</param>
+    Task<GroupPerson?> DemoteKeepingAnAdminAsync(int groupId, int personId, AuditEntry audit);
 
     /// <summary>
     /// Identifies a keyset-paged page of the active groups <paramref name="personId"/> belongs to,

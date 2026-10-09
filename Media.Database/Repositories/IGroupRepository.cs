@@ -25,7 +25,8 @@ public interface IGroupRepository
         string? description,
         bool isActive,
         int ownerPersonId,
-        IReadOnlyList<int> sourceMachineIds);
+        IReadOnlyList<int> sourceMachineIds,
+        AuditEntry audit);
 
     /// <summary>
     /// Finds the group matching <paramref name="groupUuid"/>, or <see langword="null"/> if none exists.

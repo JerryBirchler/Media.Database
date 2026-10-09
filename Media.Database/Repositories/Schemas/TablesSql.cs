@@ -8,6 +8,7 @@ namespace Media.Database.Repositories.Schemas;
 /// </summary>
 public class TablesSql : BaseSchema<TablesSql, Tables>
 {
+    public static readonly string AuditMessages = x();
     public static readonly string DeviceSearchLists = x();
     public static readonly string Files = x();
     public static readonly string GroupEncryptionKeys = x();
@@ -18,6 +19,8 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
     public static readonly string GroupShell = x();
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
+    public static readonly string Messages = x();
+    public static readonly string Notifications = x();
     public static readonly string PersonMemberAddStrikes = x();
     public static readonly string Persons = x();
     public static readonly string PersonSearchLists = x();
@@ -308,6 +311,43 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string LockedOn = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
+    }
+
+    public static class MessagesColumns
+    {
+        public static readonly string MessageId = y();
+        public static readonly string MessageUuid = y();
+        public static readonly string Kind = y();
+        public static readonly string Parameters = y();
+        public static readonly string Text = y();
+        public static readonly string Language = y();
+        public static readonly string InsertedOn = y();
+    }
+
+    public static class NotificationsColumns
+    {
+        public static readonly string NotificationId = y();
+        public static readonly string NotificationUuid = y();
+        public static readonly string MessageId = y();
+        public static readonly string RecipientPersonId = y();
+        public static readonly string Status = y();
+        public static readonly string Actions = y();
+        public static readonly string ExpiresOn = y();
+        public static readonly string IsPinned = y();
+        public static readonly string InsertedOn = y();
+        public static readonly string UpdatedOn = y();
+    }
+
+    public static class AuditMessagesColumns
+    {
+        public static readonly string AuditMessageId = y();
+        public static readonly string AuditMessageUuid = y();
+        public static readonly string MessageId = y();
+        public static readonly string GroupId = y();
+        public static readonly string SubjectPersonId = y();
+        public static readonly string ActorPersonId = y();
+        public static readonly string NotificationId = y();
+        public static readonly string InsertedOn = y();
     }
 
 

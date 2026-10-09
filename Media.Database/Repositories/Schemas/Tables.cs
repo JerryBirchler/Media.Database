@@ -7,6 +7,7 @@
 /// </summary>
 public class Tables : BaseSchema<Tables, NoSubFields>
 {
+    public static readonly string AuditMessages = x();
     public static readonly string CanBeEncryptedFields = x();
     public static readonly string DeviceSearchLists = x();
     public static readonly string Files = x();
@@ -19,6 +20,8 @@ public class Tables : BaseSchema<Tables, NoSubFields>
     public static readonly string GroupsPersons = x();
     public static readonly string GroupsSourceMachines = x();
     public static readonly string GroupUuidOrchestration = x();
+    public static readonly string Messages = x();
+    public static readonly string Notifications = x();
     public static readonly string OtpAttempts = x();
     public static readonly string PersonAvatars = x();
     public static readonly string PersonMemberAddStrikes = x();

@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Transactions;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories;
@@ -12,6 +13,7 @@ using NUnit.Framework;
 using Shouldly;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -23,18 +25,27 @@ namespace Media.Database.Tests.Repositories;
 public class GroupPersonRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<IAuditMessageRepository> _auditMock = null!;
+    private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
+
+    /// <summary>What every change in these tests is recorded as.</summary>
+    private static readonly AuditEntry Audit = new("member.added", SubjectPersonId: 9, ActorPersonId: 7);
 
     [SetUp]
     public void Setup()
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _auditMock = new Mock<IAuditMessageRepository>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
     private GroupPersonRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
         new MapGroupPersonResponse(),
+        _auditMock.Object,
+        () => _unitOfWorkMock.Object,
         Mock.Of<ILogger<GroupPersonRepository>>());
 
     private GroupPerson CreateGroupPerson(bool isAdmin = false) => _fixture.Create<GroupPerson>() with { IsAdmin = isAdmin };
@@ -50,10 +61,10 @@ public class GroupPersonRepositoryTests
     {
         var upserted = CreateGroupPerson(isAdmin: true);
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
             .ReturnsAsync(upserted);
 
-        var result = await CreateRepository().UpsertAsync(upserted.GroupId, upserted.PersonId, true);
+        var result = await CreateRepository().UpsertAsync(upserted.GroupId, upserted.PersonId, true, Audit);
 
         result.ShouldBe(upserted);
     }
@@ -64,11 +75,11 @@ public class GroupPersonRepositoryTests
         Action<NpgsqlParameterCollection>? captured = null;
         var groupPerson = CreateGroupPerson();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupPerson>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupPerson>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(groupPerson);
 
-        await CreateRepository().UpsertAsync(7, 9, true);
+        await CreateRepository().UpsertAsync(7, 9, true, Audit);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
@@ -81,10 +92,10 @@ public class GroupPersonRepositoryTests
     public void UpsertAsync_Should_Rethrow_When_ExecutorThrows()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpsertAsync(1, 2, false));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpsertAsync(1, 2, false, Audit));
     }
 
     [Test]
@@ -130,10 +141,10 @@ public class GroupPersonRepositoryTests
     {
         var deactivated = CreateGroupPerson();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.DeactivateKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.DeactivateKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
             .ReturnsAsync(deactivated);
 
-        var result = await CreateRepository().DeactivateKeepingAnAdminAsync(deactivated.GroupId, deactivated.PersonId);
+        var result = await CreateRepository().DeactivateKeepingAnAdminAsync(deactivated.GroupId, deactivated.PersonId, Audit);
 
         result.ShouldBe(deactivated);
     }
@@ -142,10 +153,10 @@ public class GroupPersonRepositoryTests
     public async Task DemoteKeepingAnAdminAsync_Should_ReturnNull_When_TheFloorRefuses()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.DemoteKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.DemoteKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
             .ReturnsAsync((GroupPerson?)null);
 
-        var result = await CreateRepository().DemoteKeepingAnAdminAsync(1, 2);
+        var result = await CreateRepository().DemoteKeepingAnAdminAsync(1, 2, Audit);
 
         result.ShouldBeNull();
     }
@@ -154,10 +165,54 @@ public class GroupPersonRepositoryTests
     public async Task DeactivateKeepingAnAdminAsync_Should_Rethrow_When_TheStatementFails()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsPersons.DeactivateKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.DeactivateKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
             .ThrowsAsync(new InvalidOperationException("down"));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DeactivateKeepingAnAdminAsync(1, 2));
+        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DeactivateKeepingAnAdminAsync(1, 2, Audit));
+    }
+
+    [Test]
+    public async Task UpsertAsync_Should_RecordTheChange_InItsOwnTransaction_ThenCommit()
+    {
+        var upserted = CreateGroupPerson();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .ReturnsAsync(upserted);
+
+        await CreateRepository().UpsertAsync(5, 9, false, Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, 5, Audit), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task DeactivateKeepingAnAdminAsync_Should_RecordNothing_When_TheGuardRefuses()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.DeactivateKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .ReturnsAsync((GroupPerson?)null);
+
+        var result = await CreateRepository().DeactivateKeepingAnAdminAsync(5, 9, Audit);
+
+        result.ShouldBeNull();
+        _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int>(), It.IsAny<AuditEntry>()), Times.Never);
+    }
+
+    [Test]
+    public async Task DemoteKeepingAnAdminAsync_Should_RollBackTheChange_When_RecordingItFails()
+    {
+        // A change without its record must never commit: the audit is what history rests on.
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsPersons.DemoteKeepingAnAdminSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupPerson>>()))
+            .ReturnsAsync(CreateGroupPerson());
+        _auditMock
+            .Setup(a => a.RecordAsync(_unitOfWorkMock.Object, 5, Audit))
+            .ThrowsAsync(new InvalidOperationException("audit down"));
+
+        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DemoteKeepingAnAdminAsync(5, 9, Audit));
+
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
