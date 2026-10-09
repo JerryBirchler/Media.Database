@@ -50,6 +50,13 @@ public static class AuditKinds
     public const string InviteDeclined = "invite.declined";
 
     /// <summary>
+    /// A member sent a note to others they chose (DATABASE-73): told to them, never the sender. Its
+    /// parameters carry the note, shown as written, and the recipients -- for the Worker only,
+    /// never shown to a client.
+    /// </summary>
+    public const string NoteSent = "note.sent";
+
+    /// <summary>
     /// An admin cancelled a pending invite (DATABASE-72): history only -- the invite simply leaves
     /// the invitee's bell, and nobody is told.
     /// </summary>
@@ -103,6 +110,9 @@ public static class AuditKinds
     /// </summary>
     public const string NoteParameter = "note";
 
+    /// <summary>The parameter naming a note's recipients, by person id (DATABASE-73): never shown to a client.</summary>
+    public const string RecipientsParameter = "recipients";
+
     /// <summary>The longest a note may be.</summary>
     public const int NoteMaxLength = 280;
 
@@ -118,6 +128,7 @@ public static class AuditKinds
     {
         MemberLeft or InviteAccepted or InviteDeclined or RequestQueued or RequestIgnored => Told.GroupAdmins,
         InviteQueued => Told.Invitee,
+        NoteSent => Told.Named,
         MemberAdded or MemberRequestAccepted or MemberMadeAdmin or MemberMadeMember
             or MemberEnabled or MemberDisabled or MemberRemoved or RequestDeclined => Told.Subject,
         _ => Told.Nobody
@@ -140,5 +151,11 @@ public enum Told
     /// Whoever an invite names: the active persons with its last name and email -- found after the
     /// fact, so queuing an invite answers the same whether or not anyone has those details.
     /// </summary>
-    Invitee
+    Invitee,
+
+    /// <summary>
+    /// The people the entry names itself (DATABASE-73): a note's recipients, those still active
+    /// members of the group.
+    /// </summary>
+    Named
 }
