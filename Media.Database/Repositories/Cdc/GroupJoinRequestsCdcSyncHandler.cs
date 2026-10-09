@@ -54,6 +54,11 @@ public sealed class GroupJoinRequestsCdcSyncHandler(
                 p.AddWithValue(pn.Status, after.GetProperty("Status").GetInt32());
                 p.AddWithValue(pn.AnsweredByPersonId, after.GetNullableInt32("AnsweredByPersonId")!);
                 p.AddWithValue(pn.AnsweredOn, after.GetNullableDateTimeOffset("AnsweredOn")!);
+                // A record from before requests expired (SCHEMA-39) has no ExpiresOn: replayed, it
+                // must not stop the Worker, so it is mirrored without one.
+                p.AddWithValue(pn.ExpiresOn, after.TryGetProperty("ExpiresOn", out var expires) && expires.ValueKind != JsonValueKind.Null
+                    ? expires.GetDateTimeOffset()
+                    : null!);
                 p.AddWithValue(pn.InsertedOn, after.GetProperty("InsertedOn").GetDateTimeOffset());
                 p.AddWithValue(pn.UpdatedOn, after.GetNullableDateTimeOffset("UpdatedOn")!);
             });

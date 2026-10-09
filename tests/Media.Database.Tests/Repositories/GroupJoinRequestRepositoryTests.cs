@@ -30,6 +30,9 @@ public class GroupJoinRequestRepositoryTests
     /// <summary>What an answer is recorded as (DATABASE-68); who asked is filled in from the request.</summary>
     private static readonly AuditEntry Answer = new("request.declined", SubjectPersonId: null, ActorPersonId: 7);
 
+    /// <summary>How long a request waits (SCHEMA-39).</summary>
+    private static readonly TimeSpan Lifetime = TimeSpan.FromDays(14);
+
     /// <summary>What a new request is recorded as (DATABASE-67).</summary>
     private static readonly AuditEntry Audit = new("request.queued", SubjectPersonId: 5, ActorPersonId: 5);
 
@@ -83,7 +86,7 @@ public class GroupJoinRequestRepositoryTests
         var added = _fixture.Create<GroupJoinRequest>();
         SetupSingle(QueryGroupJoinRequests.AddSql, added);
 
-        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Audit);
+        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Lifetime, Audit);
 
         result.Request.ShouldBe(added);
         result.IsNew.ShouldBeTrue();
@@ -98,7 +101,7 @@ public class GroupJoinRequestRepositoryTests
         SetupSingle(QueryGroupJoinRequests.AddSql, (GroupJoinRequest?)null);
         SetupSingle(QueryGroupJoinRequests.GetOpenSql, open);
 
-        var result = await CreateRepository().SubmitAsync(open.GroupId, open.PersonId, Audit);
+        var result = await CreateRepository().SubmitAsync(open.GroupId, open.PersonId, Lifetime, Audit);
 
         result.Request.ShouldBe(open);
         result.IsNew.ShouldBeFalse();
@@ -111,7 +114,7 @@ public class GroupJoinRequestRepositoryTests
         SetupSingle(QueryGroupJoinRequests.AddSql, null, added);
         SetupSingle(QueryGroupJoinRequests.GetOpenSql, (GroupJoinRequest?)null);
 
-        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Audit);
+        var result = await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Lifetime, Audit);
 
         result.Request.ShouldBe(added);
         result.IsNew.ShouldBeTrue();
@@ -124,7 +127,7 @@ public class GroupJoinRequestRepositoryTests
             .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, It.IsAny<string>(), It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
             .ReturnsAsync((GroupJoinRequest?)null);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SubmitAsync(_fixture.Create<int>(), _fixture.Create<int>(), Audit));
+        await Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().SubmitAsync(_fixture.Create<int>(), _fixture.Create<int>(), Lifetime, Audit));
         _unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
         _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
     }
@@ -135,7 +138,7 @@ public class GroupJoinRequestRepositoryTests
         var added = _fixture.Create<GroupJoinRequest>();
         SetupSingle(QueryGroupJoinRequests.AddSql, added);
 
-        await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Audit);
+        await CreateRepository().SubmitAsync(added.GroupId, added.PersonId, Lifetime, Audit);
 
         _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, added.GroupId,
             It.Is<AuditEntry>(e => e.Kind == "request.queued" && e.Parameters!.Contains(added.GroupJoinRequestUuid.ToString()))), Times.Once);
@@ -150,7 +153,7 @@ public class GroupJoinRequestRepositoryTests
         SetupSingle(QueryGroupJoinRequests.AddSql, (GroupJoinRequest?)null);
         SetupSingle(QueryGroupJoinRequests.GetOpenSql, open);
 
-        await CreateRepository().SubmitAsync(open.GroupId, open.PersonId, Audit);
+        await CreateRepository().SubmitAsync(open.GroupId, open.PersonId, Lifetime, Audit);
 
         _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int?>(), It.IsAny<AuditEntry>()), Times.Never);
         _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
@@ -167,7 +170,7 @@ public class GroupJoinRequestRepositoryTests
             .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupJoinRequest>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(_fixture.Create<GroupJoinRequest>());
 
-        await CreateRepository().SubmitAsync(groupId, personId, Audit);
+        await CreateRepository().SubmitAsync(groupId, personId, Lifetime, Audit);
 
         var parameters = Apply(captured!);
         parameters[pn.GroupId].Value.ShouldBe(groupId);
@@ -271,6 +274,58 @@ public class GroupJoinRequestRepositoryTests
     }
 
     [Test]
+    public async Task SubmitAsync_Should_RetireAnExpiredRequestFirst_ThenWaitALifetime()
+    {
+        Action<NpgsqlParameterCollection>? added = null;
+        var request = _fixture.Create<GroupJoinRequest>();
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.AddSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupJoinRequest>>((_, _, configure, _) => added = configure)
+            .ReturnsAsync(request);
+
+        var before = DateTimeOffset.UtcNow;
+        await CreateRepository().SubmitAsync(request.GroupId, request.PersonId, Lifetime, Audit);
+
+        _sqlExecutorMock.Verify(e => e.ExecuteAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.ExpireStaleSql, It.IsAny<Action<NpgsqlParameterCollection>>()), Times.Once);
+        var expiresOn = (DateTimeOffset)Apply(added!)[pn.ExpiresOn].Value!;
+        expiresOn.ShouldBeGreaterThanOrEqualTo(before + Lifetime);
+        expiresOn.ShouldBeLessThan(before + Lifetime + TimeSpan.FromMinutes(1));
+    }
+
+    [Test]
+    public async Task SubmitAsync_Should_Throw_When_TheLifetimeIsNotPositive()
+    {
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(() => CreateRepository().SubmitAsync(1, 2, TimeSpan.Zero, Audit));
+    }
+
+    [Test]
+    public void ExpireStaleSql_Should_RetireOnlyThatPersonsPendingRequestPastItsTime()
+    {
+        var sql = QueryGroupJoinRequests.ExpireStaleSql;
+
+        sql.ShouldContain(@"""Status"" = 4");
+        sql.ShouldContain(@"""Status"" = 0");
+        sql.ShouldContain(@"""ExpiresOn"" <= @Now");
+        sql.ShouldContain(@"""PersonId"" = @PersonId");
+    }
+
+    [Test]
+    public void ListAndAnswer_Should_TreatARequestPastItsTimeAsGone()
+    {
+        QueryGroupJoinRequests.ListPendingByGroupSql.ShouldContain(@"""ExpiresOn"" > now()");
+        QueryGroupJoinRequests.AnswerSql.ShouldContain(@"""ExpiresOn"" > @Now");
+    }
+
+    [Test]
+    public async Task MuteAsync_Should_WriteNothing_When_TheRequestHasExpired()
+    {
+        var request = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Pending, ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(-1) };
+        SetupSingle(QueryGroupJoinRequests.GetByUuidSql, request);
+
+        (await CreateRepository().MuteAsync(request.GroupId, request.GroupJoinRequestUuid, 7, Answer)).ShouldBeNull();
+    }
+
+    [Test]
     public void ListPendingByGroupSql_Should_LeaveOutThoseTheViewerMuted()
     {
         var sql = QueryGroupJoinRequests.ListPendingByGroupSql;
@@ -282,7 +337,7 @@ public class GroupJoinRequestRepositoryTests
     [Test]
     public async Task MuteAsync_Should_MuteTheAsker_RecordIt_AndCloseOnlyThatAdminsNotification()
     {
-        var request = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Pending };
+        var request = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Pending, ExpiresOn = DateTimeOffset.UtcNow.AddDays(1) };
         SetupSingle(QueryGroupJoinRequests.GetByUuidSql, request);
         var muted = new AuditEntry("request.muted", SubjectPersonId: null, ActorPersonId: 7);
 
@@ -314,7 +369,7 @@ public class GroupJoinRequestRepositoryTests
     [Test]
     public async Task MuteAsync_Should_WriteNothing_When_TheRequestIsAnotherGroups()
     {
-        var request = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Pending };
+        var request = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Pending, ExpiresOn = DateTimeOffset.UtcNow.AddDays(1) };
         SetupSingle(QueryGroupJoinRequests.GetByUuidSql, request);
 
         (await CreateRepository().MuteAsync(request.GroupId + 1, request.GroupJoinRequestUuid, 7, Answer)).ShouldBeNull();

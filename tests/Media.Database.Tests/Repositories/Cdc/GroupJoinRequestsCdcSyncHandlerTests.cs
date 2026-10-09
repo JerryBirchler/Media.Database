@@ -64,6 +64,7 @@ public class GroupJoinRequestsCdcSyncHandlerTests
         Status = 3,
         AnsweredByPersonId = 9,
         AnsweredOn = "2026-10-08T04:00:00.000Z",
+        ExpiresOn = "2026-10-22T03:58:44.798Z",
         InsertedOn = "2026-10-08T03:58:44.798Z",
         UpdatedOn = "2026-10-08T04:00:00.000Z",
         __source_ts_ms = 1791431924810L,
@@ -79,6 +80,7 @@ public class GroupJoinRequestsCdcSyncHandlerTests
         Status = 0,
         AnsweredByPersonId = (int?)null,
         AnsweredOn = (string?)null,
+        ExpiresOn = "2026-10-22T03:58:44.798Z",
         InsertedOn = "2026-10-08T03:58:44.798Z",
         UpdatedOn = (string?)null,
         __source_ts_ms = 1791431924810L,
@@ -101,6 +103,32 @@ public class GroupJoinRequestsCdcSyncHandlerTests
         _captured["@ANSWEREDBYPERSONID"].ShouldBe(9);
         _captured["@ANSWEREDON"].ShouldBe(DateTimeOffset.Parse("2026-10-08T04:00:00.000Z"));
         _captured["@INSERTEDON"].ShouldBe(DateTimeOffset.Parse("2026-10-08T03:58:44.798Z"));
+        _captured["@EXPIRESON"].ShouldBe(DateTimeOffset.Parse("2026-10-22T03:58:44.798Z"));
+    }
+
+    [Test]
+    public async Task ApplyAsync_Should_MirrorARecordFromBeforeRequestsExpired_WithoutExpiry()
+    {
+        // Written before SCHEMA-39: no ExpiresOn at all. Replayed, it must not stop the Worker.
+        var before = new
+        {
+            GroupJoinRequestId = 4,
+            GroupJoinRequestUuid = Uuid,
+            GroupId = 2,
+            PersonId = 5,
+            Status = 0,
+            AnsweredByPersonId = (int?)null,
+            AnsweredOn = (string?)null,
+            InsertedOn = "2026-10-08T03:58:44.798Z",
+            UpdatedOn = (string?)null,
+            __source_ts_ms = 1791431924810L,
+            __op = "c"
+        };
+
+        await CreateHandler().ApplyAsync(UpsertRecord(before, 4), CancellationToken.None);
+
+        _captured.ShouldNotBeNull();
+        _captured!["@EXPIRESON"].ShouldBeNull();
     }
 
     [Test]

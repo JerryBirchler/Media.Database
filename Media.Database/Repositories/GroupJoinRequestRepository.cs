@@ -35,13 +35,30 @@ public class GroupJoinRequestRepository(
     private readonly Func<IUnitOfWork> _unitOfWorkFactory = unitOfWorkFactory;
     private readonly FluentLogger<GroupJoinRequestRepository> _logger = logger.Initializer();
 
-    public async Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId, AuditEntry audit)
+    public async Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId, TimeSpan lifetime, AuditEntry audit)
     {
+        if (lifetime <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(lifetime), lifetime, "A request's lifetime must be positive.");
+
+        var now = DateTimeOffset.UtcNow;
         await using var uow = _unitOfWorkFactory();
 
         try
         {
             await uow.BeginTransactionAsync();
+
+            // One of theirs past its time is gone: retired, so this one starts fresh (SCHEMA-39).
+            await _sqlExecutor.ExecuteAsync
+            (
+                uow,
+                QueryGroupJoinRequests.ExpireStaleSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupId, groupId);
+                    p.AddWithValue(pn.PersonId, personId);
+                    p.AddWithValue(pn.Now, now);
+                }
+            );
 
             for (var attempt = 0; attempt < SubmitAttempts; attempt++)
             {
@@ -53,6 +70,7 @@ public class GroupJoinRequestRepository(
                     {
                         p.AddWithValue(pn.GroupId, groupId);
                         p.AddWithValue(pn.PersonId, personId);
+                        p.AddWithValue(pn.ExpiresOn, now + lifetime);
                     },
                     reader => reader.ToGroupJoinRequest()
                 );
@@ -164,7 +182,7 @@ public class GroupJoinRequestRepository(
                 reader => reader.ToGroupJoinRequest()
             );
 
-            if (request is not { Status: GroupJoinRequestStatus.Pending } || request.GroupId != groupId)
+            if (request is not { Status: GroupJoinRequestStatus.Pending } || request.GroupId != groupId || request.ExpiresOn <= now)
             {
                 await uow.RollbackAsync();
                 return null;

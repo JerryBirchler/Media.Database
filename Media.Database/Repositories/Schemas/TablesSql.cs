@@ -284,6 +284,7 @@ public class TablesSql : BaseSchema<TablesSql, Tables>
         public static readonly string Status = y();
         public static readonly string AnsweredByPersonId = y();
         public static readonly string AnsweredOn = y();
+        public static readonly string ExpiresOn = y();
         public static readonly string InsertedOn = y();
         public static readonly string UpdatedOn = y();
     }

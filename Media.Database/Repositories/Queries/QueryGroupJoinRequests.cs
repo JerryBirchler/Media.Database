@@ -32,6 +32,7 @@ public static class QueryGroupJoinRequests
             {cj.Status},
             {cj.AnsweredByPersonId},
             {cj.AnsweredOn},
+            {cj.ExpiresOn},
             {cj.InsertedOn},
             {cj.UpdatedOn}";
 
@@ -45,13 +46,31 @@ public static class QueryGroupJoinRequests
     public static string AddSql => $@"
         INSERT INTO {ts.GroupJoinRequests} (
             {cj.GroupId},
-            {cj.PersonId}
+            {cj.PersonId},
+            {cj.ExpiresOn}
         ) VALUES (
             {pn.GroupId},
-            {pn.PersonId}
+            {pn.PersonId},
+            {pn.ExpiresOn}
         )
         ON CONFLICT ({cj.GroupId}, {cj.PersonId}) WHERE {cj.Status} IN (0, 3) DO NOTHING
         RETURNING{Columns}
+        ;";
+
+    /// <summary>
+    /// SQL to retire a person's pending request to a group that is past its time (SCHEMA-39), so
+    /// asking again starts fresh instead of being absorbed into a request nobody can see. Run before
+    /// <see cref="AddSql"/>, in the same transaction.
+    /// </summary>
+    public static string ExpireStaleSql => $@"
+        UPDATE {ts.GroupJoinRequests} SET
+            {cj.Status} = {(int)GroupJoinRequestStatus.Expired},
+            {cj.UpdatedOn} = {pn.Now}
+        WHERE
+            {cj.GroupId} = {pn.GroupId}
+            AND {cj.PersonId} = {pn.PersonId}
+            AND {cj.Status} = 0
+            AND {cj.ExpiresOn} <= {pn.Now}
         ;";
 
     /// <summary>SQL to read a person's open (pending or ignored) request to a group.</summary>
@@ -90,6 +109,8 @@ public static class QueryGroupJoinRequests
         WHERE
             r.{cj.GroupId} = {pn.GroupId}
             AND r.{cj.Status} = 0
+            -- Still waiting: past its time, it is as good as gone (SCHEMA-39).
+            AND r.{cj.ExpiresOn} > now()
             AND p.{cp.IsActive} = true
             -- Not those the admin reading muted (SCHEMA-38): theirs to the other admins only.
             AND NOT EXISTS (
@@ -118,6 +139,8 @@ public static class QueryGroupJoinRequests
             {cj.GroupJoinRequestUuid} = {pn.GroupJoinRequestUuid}
             AND {cj.GroupId} = {pn.GroupId}
             AND {cj.Status} = 0
+            -- Past its time there is nothing left to answer (SCHEMA-39).
+            AND {cj.ExpiresOn} > {pn.Now}
         RETURNING{Columns}
         ;";
 
@@ -156,6 +179,7 @@ public static class QueryGroupJoinRequests
             {ccj.Status},
             {ccj.AnsweredByPersonId},
             {ccj.AnsweredOn},
+            {ccj.ExpiresOn},
             {ccj.InsertedOn},
             {ccj.UpdatedOn}
         )
@@ -168,6 +192,7 @@ public static class QueryGroupJoinRequests
             {pn.Status},
             {pn.AnsweredByPersonId},
             {pn.AnsweredOn},
+            {pn.ExpiresOn},
             {pn.InsertedOn},
             {pn.UpdatedOn}
         );";
@@ -235,6 +260,7 @@ public static class QueryGroupJoinRequests
             Status = (GroupJoinRequestStatus)reader.GetInt32(os.Status),
             AnsweredByPersonId = reader.GetFieldValue<int?>(os.AnsweredByPersonId),
             AnsweredOn = reader.GetFieldValue<DateTimeOffset?>(os.AnsweredOn),
+            ExpiresOn = reader.GetFieldValue<DateTimeOffset>(os.ExpiresOn),
             InsertedOn = reader.GetFieldValue<DateTimeOffset>(os.InsertedOn),
             UpdatedOn = reader.GetFieldValue<DateTimeOffset?>(os.UpdatedOn)
         };

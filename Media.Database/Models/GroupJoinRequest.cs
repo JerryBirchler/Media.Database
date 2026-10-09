@@ -24,6 +24,14 @@ public record GroupJoinRequest
     /// <summary>When it was answered; null while pending.</summary>
     public DateTimeOffset? AnsweredOn { get; init; }
 
+    /// <summary>
+    /// When a pending request stops waiting (SCHEMA-39): fourteen days after it was asked, by
+    /// Media.Api's setting. Past it, it is as good as gone -- out of the admins' lists, unanswerable
+    /// -- and retired as <see cref="GroupJoinRequestStatus.Expired"/> when the person asks again.
+    /// An answer, a ban included, never expires.
+    /// </summary>
+    public DateTimeOffset ExpiresOn { get; init; }
+
     public DateTimeOffset InsertedOn { get; init; }
 
     public DateTimeOffset? UpdatedOn { get; init; }
@@ -48,5 +56,8 @@ public enum GroupJoinRequestStatus
     /// An admin chose not to answer, for good. The requester is never told, and every further
     /// request from them to this group is absorbed into this one in silence.
     /// </summary>
-    Ignored = 3
+    Ignored = 3,
+
+    /// <summary>Nobody answered before it expired (SCHEMA-39); the person may ask afresh.</summary>
+    Expired = 4
 }

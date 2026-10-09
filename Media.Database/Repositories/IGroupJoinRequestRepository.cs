@@ -15,7 +15,11 @@ public interface IGroupJoinRequestRepository
     /// <paramref name="audit"/> in the same transaction, naming the request in its parameters; a
     /// repeat records nothing.
     /// </summary>
-    Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId, AuditEntry audit);
+    /// <remarks>
+    /// The request waits <paramref name="lifetime"/> (SCHEMA-39); a pending one of theirs already past
+    /// its time is retired first, so asking again after it expired starts fresh.
+    /// </remarks>
+    Task<GroupJoinRequestSubmission> SubmitAsync(int groupId, int personId, TimeSpan lifetime, AuditEntry audit);
 
     /// <summary>Reads a request by its external identifier, or null.</summary>
     Task<GroupJoinRequest?> GetByUuidAsync(Guid groupJoinRequestUuid);
