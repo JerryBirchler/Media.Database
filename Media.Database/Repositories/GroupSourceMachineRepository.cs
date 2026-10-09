@@ -89,7 +89,10 @@ public class GroupSourceMachineRepository(
         }
     }
 
-    public async Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, bool includeInactive, (int SourceMachineId, string SourceMachineName)? next, int limit)
+    public Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, bool includeInactive, (int SourceMachineId, string SourceMachineName)? next, int limit) =>
+        GetSourceMachineIdentifiersByGroupIdAsync(groupId, includeInactive, includeRemoved: false, next, limit);
+
+    public async Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, bool includeInactive, bool includeRemoved, (int SourceMachineId, string SourceMachineName)? next, int limit)
     {
         try
         {
@@ -102,6 +105,7 @@ public class GroupSourceMachineRepository(
                 {
                     p.AddWithValue(pn.GroupId, groupId);
                     p.AddWithValue(pn.IncludeInactive, includeInactive);
+                    p.AddWithValue(pn.IncludeRemoved, includeRemoved);
                     p.AddWithValue(pn.SourceMachineName, afterSourceMachineName.ToNullableValueForSql());
                     p.AddWithValue(pn.SourceMachineId, afterSourceMachineId.ToNullableValueForSql());
                     p.AddWithValue(pn.Limit, limit);

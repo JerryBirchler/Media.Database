@@ -61,6 +61,7 @@ public class Ordinals : BaseSchema<Ordinals, NoSubFields>
     public static readonly string Id = x();
     public static readonly string Image = x();
     public static readonly string IncludeInactive = x();
+    public static readonly string IncludeRemoved = x();
     public static readonly string InsertedOn = x();
     public static readonly string InPlay = x();
     public static readonly string InPlayUuids = x();

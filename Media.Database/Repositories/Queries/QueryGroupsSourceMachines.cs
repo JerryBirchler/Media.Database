@@ -98,7 +98,8 @@ public static class QueryGroupsSourceMachines
     /// group/device association (GroupsSourceMachines.IsActive) must always be active -- a device
     /// removed from the group never appears, regardless of the IncludeInactive parameter -- but the
     /// device's own SourceMachineRegistrations.IsActive is only enforced when IncludeInactive is
-    /// false, since MEDIA-8 only lets a group admin see inactive devices.
+    /// false, since MEDIA-8 only lets a group admin see inactive devices. IncludeRemoved (DATABASE-71)
+    /// lists devices taken out of the group too -- for its admins, who may put them back.
     /// </summary>
     public static string GetSourceMachineIdentifiersByGroupIdSql => $@"
         SELECT
@@ -110,7 +111,7 @@ public static class QueryGroupsSourceMachines
             {ts.GroupsSourceMachines} AS gsm ON gsm.{cgsm.SourceMachineId} = smr.{csmr.SourceMachineId}
         WHERE
             gsm.{cgsm.GroupId} = {pn.GroupId}
-            AND gsm.{cgsm.IsActive} = true
+            AND ({pn.IncludeRemoved} = true OR gsm.{cgsm.IsActive} = true)
             AND ({pn.IncludeInactive} = true OR smr.{csmr.IsActive} = true)
             AND (smr.{csmr.SourceMachineName}, smr.{csmr.SourceMachineId}) >
             (

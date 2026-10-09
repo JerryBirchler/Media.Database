@@ -34,6 +34,12 @@ public interface IGroupSourceMachineRepository
     Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, bool includeInactive, (int SourceMachineId, string SourceMachineName)? next, int limit);
 
     /// <summary>
+    /// As above, and with <paramref name="includeRemoved"/> the devices taken out of the group too
+    /// (DATABASE-71) -- for its admins, who may put them back.
+    /// </summary>
+    Task<List<(int SourceMachineId, string SourceMachineName)>> GetSourceMachineIdentifiersByGroupIdAsync(int groupId, bool includeInactive, bool includeRemoved, (int SourceMachineId, string SourceMachineName)? next, int limit);
+
+    /// <summary>
     /// Resolves a group-scoped caller's deviceName/deviceType/disambiguationKey triple (MEDIA-34)
     /// to the SourceMachineId of one specific active device within <paramref name="groupId"/>, or
     /// <see langword="null"/> if no active device in that group matches. See
