@@ -27,6 +27,9 @@ public class GroupJoinRequestRepositoryTests
     private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
 
+    /// <summary>What an answer is recorded as (DATABASE-68); who asked is filled in from the request.</summary>
+    private static readonly AuditEntry Answer = new("request.declined", SubjectPersonId: null, ActorPersonId: 7);
+
     /// <summary>What a new request is recorded as (DATABASE-67).</summary>
     private static readonly AuditEntry Audit = new("request.queued", SubjectPersonId: 5, ActorPersonId: 5);
 
@@ -210,12 +213,12 @@ public class GroupJoinRequestRepositoryTests
         var answered = _fixture.Create<GroupJoinRequest>() with { Status = answer };
         var answeredBy = _fixture.Create<int>();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupJoinRequests.AnswerSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupJoinRequest>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.AnswerSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupJoinRequest>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupJoinRequest>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(answered);
 
         var before = DateTimeOffset.UtcNow;
-        var result = await CreateRepository().AnswerAsync(answered.GroupId, answered.GroupJoinRequestUuid, answer, answeredBy);
+        var result = await CreateRepository().AnswerAsync(answered.GroupId, answered.GroupJoinRequestUuid, answer, answeredBy, Answer);
 
         result.ShouldBe(answered);
         var parameters = Apply(captured!);
@@ -227,20 +230,62 @@ public class GroupJoinRequestRepositoryTests
     }
 
     [Test]
-    public async Task AnswerAsync_Should_ReturnNull_When_NothingPendingMatches()
+    public async Task AnswerAsync_Should_ReturnNull_AndRecordNothing_When_NothingPendingMatches()
     {
-        SetupRead(QueryGroupJoinRequests.AnswerSql, (GroupJoinRequest?)null);
+        SetupSingle(QueryGroupJoinRequests.AnswerSql, (GroupJoinRequest?)null);
 
-        var result = await CreateRepository().AnswerAsync(_fixture.Create<int>(), Guid.NewGuid(), GroupJoinRequestStatus.Accepted, _fixture.Create<int>());
+        var result = await CreateRepository().AnswerAsync(_fixture.Create<int>(), Guid.NewGuid(), GroupJoinRequestStatus.Accepted, _fixture.Create<int>(), Answer);
 
         result.ShouldBeNull();
+        _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int?>(), It.IsAny<AuditEntry>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
+    }
+
+    [Test]
+    public async Task AnswerAsync_Should_RecordItAboutTheAsker_AndCloseItsNotifications_InOneTransaction()
+    {
+        var answered = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Rejected };
+        SetupSingle(QueryGroupJoinRequests.AnswerSql, answered);
+
+        await CreateRepository().AnswerAsync(answered.GroupId, answered.GroupJoinRequestUuid, GroupJoinRequestStatus.Rejected, 7, Answer);
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, answered.GroupId, It.Is<AuditEntry>(e =>
+            e.Kind == "request.declined" && e.SubjectPersonId == answered.PersonId && e.ActorPersonId == 7
+            && e.Parameters!.Contains(answered.GroupJoinRequestUuid.ToString()))), Times.Once);
+        _sqlExecutorMock.Verify(e => e.QuerySingleValueAsync(_unitOfWorkMock.Object, QueryGroupJoinRequests.CloseNotificationsSql,
+            It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, long>>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Test]
+    public async Task AnswerAsync_Should_KeepWhatTheEntryCarries_BesideTheRequest()
+    {
+        var answered = _fixture.Create<GroupJoinRequest>() with { Status = GroupJoinRequestStatus.Rejected };
+        SetupSingle(QueryGroupJoinRequests.AnswerSql, answered);
+
+        await CreateRepository().AnswerAsync(answered.GroupId, answered.GroupJoinRequestUuid, GroupJoinRequestStatus.Rejected, 7,
+            Answer with { Parameters = "{\"note\":\"We only add family.\"}" });
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, answered.GroupId, It.Is<AuditEntry>(e =>
+            e.Parameters!.Contains("\"note\":\"We only add family.\"") && e.Parameters.Contains(answered.GroupJoinRequestUuid.ToString()))), Times.Once);
+    }
+
+    [Test]
+    public void CloseNotificationsSql_Should_CloseOnlyOpenNotificationsOfThatRequest()
+    {
+        var sql = QueryGroupJoinRequests.CloseNotificationsSql;
+
+        sql.ShouldContain("'request.queued'");
+        sql.ShouldContain("->> 'requestUuid')::uuid = @GroupJoinRequestUuid");
+        sql.ShouldContain(@"""Status"" IN (0, 1)");
+        sql.ShouldContain(@"""Status"" = 3");
     }
 
     [TestCase(GroupJoinRequestStatus.Pending)]
     [TestCase((GroupJoinRequestStatus)42)]
     public async Task AnswerAsync_Should_Throw_When_TheAnswerIsNotAnAnswer(GroupJoinRequestStatus answer)
     {
-        await Should.ThrowAsync<ArgumentOutOfRangeException>(() => CreateRepository().AnswerAsync(_fixture.Create<int>(), Guid.NewGuid(), answer, _fixture.Create<int>()));
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(() => CreateRepository().AnswerAsync(_fixture.Create<int>(), Guid.NewGuid(), answer, _fixture.Create<int>(), Answer));
 
         _sqlExecutorMock.VerifyNoOtherCalls();
     }

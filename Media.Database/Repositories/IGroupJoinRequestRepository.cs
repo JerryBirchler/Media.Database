@@ -31,7 +31,13 @@ public interface IGroupJoinRequestRepository
     /// or null when there is no pending request of that group by that identifier (unknown, another
     /// group's, or answered already). Accepting records the answer only: the membership itself is
     /// the caller's to add.
+    /// <para>
+    /// In the same transaction (DATABASE-68): the answer is recorded as <paramref name="audit"/>,
+    /// about the person who asked and naming the request; and every admin's open notification of
+    /// the request is closed as acted, so nobody is left asked about a request already answered.
+    /// Nothing is recorded or closed when nothing was answered.
+    /// </para>
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="answer"/> is Pending, which is not an answer.</exception>
-    Task<GroupJoinRequest?> AnswerAsync(int groupId, Guid groupJoinRequestUuid, GroupJoinRequestStatus answer, int answeredByPersonId);
+    Task<GroupJoinRequest?> AnswerAsync(int groupId, Guid groupJoinRequestUuid, GroupJoinRequestStatus answer, int answeredByPersonId, AuditEntry audit);
 }

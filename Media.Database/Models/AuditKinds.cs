@@ -55,6 +55,21 @@ public static class AuditKinds
     /// </summary>
     public const string RequestQueued = "request.queued";
 
+    /// <summary>
+    /// An admin let in someone who asked (DATABASE-68): history only -- the person is told by
+    /// <see cref="MemberRequestAccepted"/>, recorded with their membership.
+    /// </summary>
+    public const string RequestAccepted = "request.accepted";
+
+    /// <summary>An admin turned down someone who asked; they are told, and may ask again.</summary>
+    public const string RequestDeclined = "request.declined";
+
+    /// <summary>
+    /// An admin ignored someone's requests for good, for the whole group: the person is never told,
+    /// and later requests are absorbed. Every other admin is told -- one admin decided for all.
+    /// </summary>
+    public const string RequestIgnored = "request.ignored";
+
     /// <summary>Its recipient saw a notification (WEB-140): a change in the notification's state.</summary>
     public const string NotificationSeen = "notification.seen";
 
@@ -70,6 +85,15 @@ public static class AuditKinds
     /// <summary>The parameter naming the request to join a request.* entry is about.</summary>
     public const string RequestUuidParameter = "requestUuid";
 
+    /// <summary>
+    /// The parameter carrying an admin's own words with an answer (a decline's note): shown as
+    /// written, never translated -- a novel message, not a catalogued one.
+    /// </summary>
+    public const string NoteParameter = "note";
+
+    /// <summary>The longest a note may be.</summary>
+    public const int NoteMaxLength = 280;
+
     /// <summary>An entry of <paramref name="kind"/>, about <paramref name="subject"/>, done by <paramref name="actor"/>.</summary>
     public static AuditEntry Entry(string kind, int subject, int actor, bool? isAdmin = null) =>
         new(kind, subject, actor, isAdmin is { } admin ? $"{{\"isAdmin\":{(admin ? "true" : "false")}}}" : null);
@@ -80,10 +104,10 @@ public static class AuditKinds
     /// </summary>
     public static Told WhoIsTold(string? kind) => kind switch
     {
-        MemberLeft or InviteAccepted or InviteDeclined or RequestQueued => Told.GroupAdmins,
+        MemberLeft or InviteAccepted or InviteDeclined or RequestQueued or RequestIgnored => Told.GroupAdmins,
         InviteQueued => Told.Invitee,
         MemberAdded or MemberRequestAccepted or MemberMadeAdmin or MemberMadeMember
-            or MemberEnabled or MemberDisabled or MemberRemoved => Told.Subject,
+            or MemberEnabled or MemberDisabled or MemberRemoved or RequestDeclined => Told.Subject,
         _ => Told.Nobody
     };
 }

@@ -4,6 +4,8 @@ using Npgsql;
 
 #pragma warning disable CS8981
 using cj = Media.Database.Repositories.Schemas.TablesSql.GroupJoinRequestsColumns;
+using cm = Media.Database.Repositories.Schemas.TablesSql.MessagesColumns;
+using cn = Media.Database.Repositories.Schemas.TablesSql.NotificationsColumns;
 using cp = Media.Database.Repositories.Schemas.TablesSql.PersonsColumns;
 using ccj = Media.Database.Repositories.Schemas.TablesCql.GroupJoinRequestsColumns;
 using os = Media.Database.Repositories.Schemas.OrdinalsSql;
@@ -109,6 +111,26 @@ public static class QueryGroupJoinRequests
             AND {cj.GroupId} = {pn.GroupId}
             AND {cj.Status} = 0
         RETURNING{Columns}
+        ;";
+
+    /// <summary>
+    /// SQL to close the open (new or seen) notifications of a request (DATABASE-68): each one made
+    /// from the request.queued message that names it, marked acted -- someone has answered it.
+    /// Returns how many were closed.
+    /// </summary>
+    public static string CloseNotificationsSql => $@"
+        WITH closed AS (
+            UPDATE {ts.Notifications} n SET
+                {cn.Status} = {(int)NotificationStatus.Acted},
+                {cn.UpdatedOn} = {pn.Now}
+            FROM {ts.Messages} m
+            WHERE m.{cm.MessageId} = n.{cn.MessageId}
+                AND m.{cm.Kind} = '{AuditKinds.RequestQueued}'
+                AND (m.{cm.Parameters} ->> '{AuditKinds.RequestUuidParameter}')::uuid = {pn.GroupJoinRequestUuid}
+                AND n.{cn.Status} IN ({(int)NotificationStatus.New}, {(int)NotificationStatus.Seen})
+            RETURNING 1
+        )
+        SELECT COUNT(*) FROM closed
         ;";
 
     #endregion

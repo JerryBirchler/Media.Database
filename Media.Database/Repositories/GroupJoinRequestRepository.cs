@@ -4,6 +4,7 @@ using Media.Database.Models;
 using Media.Database.Repositories.Queries;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 #pragma warning disable CS8981
 using pn = Media.Database.Repositories.Schemas.ParameterNames;
@@ -97,8 +98,13 @@ public class GroupJoinRequestRepository(
     }
 
     /// <summary>The request an entry is about, as its parameters: for the Worker and the Api, never shown to a client.</summary>
-    private static string RequestParameters(GroupJoinRequest request) =>
-        JsonSerializer.Serialize(new Dictionary<string, Guid> { [AuditKinds.RequestUuidParameter] = request.GroupJoinRequestUuid });
+    /// <remarks>Whatever the entry already carries -- a decline's note -- is kept beside it.</remarks>
+    private static string RequestParameters(GroupJoinRequest request, string? carried = null)
+    {
+        var parameters = (carried is null ? null : JsonNode.Parse(carried) as JsonObject) ?? [];
+        parameters[AuditKinds.RequestUuidParameter] = request.GroupJoinRequestUuid;
+        return parameters.ToJsonString();
+    }
 
     public async Task<GroupJoinRequest?> GetByUuidAsync(Guid groupJoinRequestUuid)
     {
@@ -136,15 +142,21 @@ public class GroupJoinRequestRepository(
         }
     }
 
-    public async Task<GroupJoinRequest?> AnswerAsync(int groupId, Guid groupJoinRequestUuid, GroupJoinRequestStatus answer, int answeredByPersonId)
+    public async Task<GroupJoinRequest?> AnswerAsync(int groupId, Guid groupJoinRequestUuid, GroupJoinRequestStatus answer, int answeredByPersonId, AuditEntry audit)
     {
         if (answer is GroupJoinRequestStatus.Pending || !Enum.IsDefined(answer))
             throw new ArgumentOutOfRangeException(nameof(answer), answer, "An answer is Accepted, Rejected or Ignored.");
 
+        var now = DateTimeOffset.UtcNow;
+        await using var uow = _unitOfWorkFactory();
+
         try
         {
-            return await _sqlExecutor.QuerySingleAsync
+            await uow.BeginTransactionAsync();
+
+            var answered = await _sqlExecutor.QuerySingleAsync
             (
+                uow,
                 QueryGroupJoinRequests.AnswerSql,
                 p =>
                 {
@@ -152,13 +164,40 @@ public class GroupJoinRequestRepository(
                     p.AddWithValue(pn.GroupJoinRequestUuid, groupJoinRequestUuid);
                     p.AddWithValue(pn.Status, (int)answer);
                     p.AddWithValue(pn.AnsweredByPersonId, answeredByPersonId);
-                    p.AddWithValue(pn.Now, DateTimeOffset.UtcNow);
+                    p.AddWithValue(pn.Now, now);
                 },
                 reader => reader.ToGroupJoinRequest()
             );
+
+            if (answered is null)
+            {
+                await uow.RollbackAsync();
+                return null;
+            }
+
+            // The answer, about the person who asked (DATABASE-68) -- known only now, from the request.
+            await _auditMessageRepository.RecordAsync(uow, groupId,
+                audit with { SubjectPersonId = answered.PersonId, Parameters = RequestParameters(answered, audit.Parameters) });
+
+            // Nobody is left asked about it: every admin's notification of the request is done.
+            await _sqlExecutor.QuerySingleValueAsync
+            (
+                uow,
+                QueryGroupJoinRequests.CloseNotificationsSql,
+                p =>
+                {
+                    p.AddWithValue(pn.GroupJoinRequestUuid, answered.GroupJoinRequestUuid);
+                    p.AddWithValue(pn.Now, now);
+                },
+                reader => reader.GetFieldValue<long>(0)
+            );
+
+            await uow.CommitAsync();
+            return answered;
         }
         catch (Exception ex)
         {
+            await uow.RollbackAsync();
             _logger.LogError(ex, "AnswerAsync failed for GroupId: [{GroupId}], GroupJoinRequestUuid: [{GroupJoinRequestUuid}], Answer: [{Answer}]",
                 groupId, groupJoinRequestUuid, answer);
             throw;
