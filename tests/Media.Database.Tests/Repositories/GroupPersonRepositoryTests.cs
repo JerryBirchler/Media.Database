@@ -51,6 +51,24 @@ public class GroupPersonRepositoryTests
     private GroupPerson CreateGroupPerson(bool isAdmin = false) => _fixture.Create<GroupPerson>() with { IsAdmin = isAdmin };
 
     [Test]
+    public async Task ListActiveMemberIdsAsync_Should_ReturnTheGroupsActiveMembers()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QueryManyAsync(QueryGroupsPersons.ListActiveMemberIdsSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, int>>()))
+            .ReturnsAsync([3, 5, 8]);
+
+        (await CreateRepository().ListActiveMemberIdsAsync(4)).ShouldBe([3, 5, 8]);
+    }
+
+    [Test]
+    public void AuditKinds_Should_TellTheMembers_OfADemotedDevice_AndNobody_OfAnOwnersOwnRemoval()
+    {
+        AuditKinds.WhoIsTold(AuditKinds.DeviceDemoted).ShouldBe(Told.Members);
+        AuditKinds.WhoIsTold(AuditKinds.DeviceRemoved).ShouldBe(Told.Nobody);
+        AuditKinds.WhoIsTold(AuditKinds.DeviceAdded).ShouldBe(Told.Subject);
+    }
+
+    [Test]
     public void GroupPersonRepository_Should_Implement_IGroupPersonRepository()
     {
         CreateRepository().ShouldBeAssignableTo<IGroupPersonRepository>();

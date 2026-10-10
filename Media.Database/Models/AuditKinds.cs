@@ -95,8 +95,19 @@ public static class AuditKinds
     /// </summary>
     public const string DeviceAdded = "device.added";
 
-    /// <summary>A device was taken out of a group (DATABASE-74). The subject is the device's owner.</summary>
+    /// <summary>
+    /// A device was taken out of a group by its owner (DATABASE-74): history only -- they know, and
+    /// nobody else needs telling.
+    /// </summary>
     public const string DeviceRemoved = "device.removed";
+
+    /// <summary>
+    /// An admin demoted a device: took it out of the group, saying why -- its parameters carry the
+    /// device's name, the flavor (in repair, broken, replaced, other; stolen, lost, compromised, no
+    /// longer trusted -- the last four lock it out) and an optional note (DATABASE-75). Told to the
+    /// group's members. Never names the owner: the entry has no subject.
+    /// </summary>
+    public const string DeviceDemoted = "device.demoted";
 
     /// <summary>Its recipient saw a notification (WEB-140): a change in the notification's state.</summary>
     public const string NotificationSeen = "notification.seen";
@@ -121,6 +132,9 @@ public static class AuditKinds
 
     /// <summary>The parameter naming the device a device.* entry is about, by its name (DATABASE-74).</summary>
     public const string DeviceNameParameter = "deviceName";
+
+    /// <summary>The parameter saying why a device was demoted (DATABASE-75), by its flavor's name.</summary>
+    public const string FlavorParameter = "flavor";
 
     /// <summary>The parameter naming a note's recipients, by person id (DATABASE-73): never shown to a client.</summary>
     public const string RecipientsParameter = "recipients";
@@ -150,7 +164,8 @@ public static class AuditKinds
         NoteSent => Told.Named,
         MemberAdded or MemberRequestAccepted or MemberMadeAdmin or MemberMadeMember
             or MemberEnabled or MemberDisabled or MemberRemoved or RequestDeclined
-            or DeviceAdded or DeviceRemoved => Told.Subject,
+            or DeviceAdded => Told.Subject,
+        DeviceDemoted => Told.Members,
         _ => Told.Nobody
     };
 }
@@ -177,5 +192,8 @@ public enum Told
     /// The people the entry names itself (DATABASE-73): a note's recipients, those still active
     /// members of the group.
     /// </summary>
-    Named
+    Named,
+
+    /// <summary>The group's active members, every one (DATABASE-75).</summary>
+    Members
 }

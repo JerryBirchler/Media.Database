@@ -32,6 +32,9 @@ public interface IGroupPersonRepository
     /// <summary>The ids of the group's active admins (WORKER-29): who is told when someone leaves.</summary>
     Task<List<int>> ListActiveAdminIdsAsync(int groupId);
 
+    /// <summary>The ids of the group's active members, admins included (DATABASE-75): who is told of a demoted device.</summary>
+    Task<List<int>> ListActiveMemberIdsAsync(int groupId);
+
     /// <summary>
     /// Deactivates the active association for a (GroupId, PersonId) pair unless it is the group's
     /// last active admin -- the check and the change in one statement, so concurrent removals cannot

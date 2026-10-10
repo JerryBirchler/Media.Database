@@ -139,6 +139,13 @@ public static class QueryGroupsPersons
         ;";
 
     /// <summary>The ids of a group's active admins (WORKER-29): who is told when someone leaves.</summary>
+    /// <summary>SQL to list a group's active members' person ids, admins included (DATABASE-75).</summary>
+    public static string ListActiveMemberIdsSql => $@"
+        SELECT {cgp.PersonId}
+        FROM {ts.GroupsPersons}
+        WHERE {cgp.GroupId} = {pn.GroupId} AND {cgp.IsActive} = true
+        ;";
+
     public static string ListActiveAdminIdsSql => $@"
         SELECT {cgp.PersonId}
         FROM {ts.GroupsPersons}
