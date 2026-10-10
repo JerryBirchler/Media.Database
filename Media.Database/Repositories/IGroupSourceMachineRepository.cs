@@ -6,9 +6,10 @@ public interface IGroupSourceMachineRepository
 {
     /// <summary>
     /// Upserts a group/device association: reactivates any existing row for the pair, active or
-    /// not, or inserts a new active row if none exists.
+    /// not, or inserts a new active row if none exists -- recorded as <paramref name="audit"/> in the
+    /// same transaction (DATABASE-74).
     /// </summary>
-    Task<GroupSourceMachine> UpsertAsync(int groupId, int sourceMachineId);
+    Task<GroupSourceMachine> UpsertAsync(int groupId, int sourceMachineId, AuditEntry audit);
 
     /// <summary>
     /// Finds the single active group/device association row for <paramref name="sourceMachineId"/>,
@@ -17,10 +18,11 @@ public interface IGroupSourceMachineRepository
     Task<GroupSourceMachine?> GetActiveBySourceMachineIdAsync(int sourceMachineId);
 
     /// <summary>
-    /// Deactivates the active association for a (groupId, sourceMachineId) pair. Returns the
+    /// Deactivates the active association for a (groupId, sourceMachineId) pair, recorded as
+    /// <paramref name="audit"/> in the same transaction when there was one (DATABASE-74). Returns the
     /// updated association, or <see langword="null"/> if none was active.
     /// </summary>
-    Task<GroupSourceMachine?> DeactivateAsync(int groupId, int sourceMachineId);
+    Task<GroupSourceMachine?> DeactivateAsync(int groupId, int sourceMachineId, AuditEntry audit);
 
     /// <summary>
     /// Identifies a keyset-paged page of <paramref name="groupId"/>'s devices, ordered by device

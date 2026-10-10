@@ -1,5 +1,6 @@
 #nullable enable
 using AutoFixture;
+using Media.Common.Transactions;
 using Media.Database.Mappers;
 using Media.Database.Models;
 using Media.Database.Repositories;
@@ -23,18 +24,27 @@ namespace Media.Database.Tests.Repositories;
 public class GroupSourceMachineRepositoryTests
 {
     private Mock<ISqlQueryExecutor> _sqlExecutorMock = null!;
+    private Mock<IAuditMessageRepository> _auditMock = null!;
+    private Mock<IUnitOfWork> _unitOfWorkMock = null!;
     private IFixture _fixture = null!;
+
+    /// <summary>What every change in these tests is recorded as (DATABASE-74).</summary>
+    private static readonly AuditEntry Audit = AuditKinds.DeviceEntry(AuditKinds.DeviceAdded, 9, 7, "KITCHEN-FRAME");
 
     [SetUp]
     public void Setup()
     {
         _fixture = AutoMoqFixture.Create();
         _sqlExecutorMock = new Mock<ISqlQueryExecutor>();
+        _auditMock = new Mock<IAuditMessageRepository>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
     }
 
     private GroupSourceMachineRepository CreateRepository() => new(
         _sqlExecutorMock.Object,
         new MapGroupSourceMachineResponse(),
+        _auditMock.Object,
+        () => _unitOfWorkMock.Object,
         Mock.Of<ILogger<GroupSourceMachineRepository>>());
 
     private GroupSourceMachine CreateGroupSourceMachine() => _fixture.Create<GroupSourceMachine>();
@@ -50,10 +60,10 @@ public class GroupSourceMachineRepositoryTests
     {
         var upserted = CreateGroupSourceMachine();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
             .ReturnsAsync(upserted);
 
-        var result = await CreateRepository().UpsertAsync(upserted.GroupId, upserted.SourceMachineId);
+        var result = await CreateRepository().UpsertAsync(upserted.GroupId, upserted.SourceMachineId, Audit);
 
         result.ShouldBe(upserted);
     }
@@ -64,11 +74,11 @@ public class GroupSourceMachineRepositoryTests
         Action<NpgsqlParameterCollection>? captured = null;
         var groupSourceMachine = CreateGroupSourceMachine();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
-            .Callback<string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupSourceMachine>>((_, configure, _) => captured = configure)
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .Callback<IUnitOfWork, string, Action<NpgsqlParameterCollection>, Func<NpgsqlDataReader, GroupSourceMachine>>((_, _, configure, _) => captured = configure)
             .ReturnsAsync(groupSourceMachine);
 
-        await CreateRepository().UpsertAsync(4, 8);
+        await CreateRepository().UpsertAsync(4, 8, Audit);
 
         using var command = new NpgsqlCommand();
         captured!(command.Parameters);
@@ -80,10 +90,10 @@ public class GroupSourceMachineRepositoryTests
     public void UpsertAsync_Should_Rethrow_When_ExecutorThrows()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpsertAsync(1, 2));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpsertAsync(1, 2, Audit));
     }
 
     [Test]
@@ -91,10 +101,10 @@ public class GroupSourceMachineRepositoryTests
     {
         var deactivated = CreateGroupSourceMachine();
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsSourceMachines.DeactivateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.DeactivateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
             .ReturnsAsync(deactivated);
 
-        var result = await CreateRepository().DeactivateAsync(deactivated.GroupId, deactivated.SourceMachineId);
+        var result = await CreateRepository().DeactivateAsync(deactivated.GroupId, deactivated.SourceMachineId, Audit);
 
         result.ShouldBe(deactivated);
     }
@@ -103,10 +113,10 @@ public class GroupSourceMachineRepositoryTests
     public async Task DeactivateAsync_Should_ReturnNull_When_NoneActive()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsSourceMachines.DeactivateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.DeactivateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
             .ReturnsAsync((GroupSourceMachine?)null);
 
-        var result = await CreateRepository().DeactivateAsync(1, 2);
+        var result = await CreateRepository().DeactivateAsync(1, 2, Audit);
 
         result.ShouldBeNull();
     }
@@ -115,10 +125,47 @@ public class GroupSourceMachineRepositoryTests
     public void DeactivateAsync_Should_Rethrow_When_ExecutorThrows()
     {
         _sqlExecutorMock
-            .Setup(e => e.QuerySingleAsync(QueryGroupsSourceMachines.DeactivateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.DeactivateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DeactivateAsync(1, 2));
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().DeactivateAsync(1, 2, Audit));
+    }
+
+    [Test]
+    public async Task UpsertAsync_Should_RecordTheAudit_InTheSameTransaction()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .ReturnsAsync(CreateGroupSourceMachine());
+
+        await CreateRepository().UpsertAsync(4, 8, Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(_unitOfWorkMock.Object, 4, Audit), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CommitAsync(It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task DeactivateAsync_Should_RecordNothing_When_NoneActive()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.DeactivateSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .ReturnsAsync((GroupSourceMachine?)null);
+
+        await CreateRepository().DeactivateAsync(1, 2, Audit);
+
+        _auditMock.Verify(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int>(), It.IsAny<AuditEntry>()), Times.Never);
+    }
+
+    [Test]
+    public void UpsertAsync_Should_RollBack_When_TheAuditFails()
+    {
+        _sqlExecutorMock
+            .Setup(e => e.QuerySingleAsync(_unitOfWorkMock.Object, QueryGroupsSourceMachines.UpsertSql, It.IsAny<Action<NpgsqlParameterCollection>>(), It.IsAny<Func<NpgsqlDataReader, GroupSourceMachine>>()))
+            .ReturnsAsync(CreateGroupSourceMachine());
+        _auditMock.Setup(a => a.RecordAsync(It.IsAny<IUnitOfWork>(), It.IsAny<int>(), It.IsAny<AuditEntry>())).ThrowsAsync(new InvalidOperationException("boom"));
+
+        Should.ThrowAsync<InvalidOperationException>(() => CreateRepository().UpsertAsync(1, 2, Audit));
+        _unitOfWorkMock.Verify(u => u.RollbackAsync(It.IsAny<System.Threading.CancellationToken>()), Times.Once);
     }
 
     [Test]

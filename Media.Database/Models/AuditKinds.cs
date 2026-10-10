@@ -89,6 +89,15 @@ public static class AuditKinds
     /// </summary>
     public const string RequestMuted = "request.muted";
 
+    /// <summary>
+    /// A device was put in a group -- added, or switched back on (DATABASE-74). The subject is the
+    /// device's owner; its parameters carry the device's name.
+    /// </summary>
+    public const string DeviceAdded = "device.added";
+
+    /// <summary>A device was taken out of a group (DATABASE-74). The subject is the device's owner.</summary>
+    public const string DeviceRemoved = "device.removed";
+
     /// <summary>Its recipient saw a notification (WEB-140): a change in the notification's state.</summary>
     public const string NotificationSeen = "notification.seen";
 
@@ -110,11 +119,21 @@ public static class AuditKinds
     /// </summary>
     public const string NoteParameter = "note";
 
+    /// <summary>The parameter naming the device a device.* entry is about, by its name (DATABASE-74).</summary>
+    public const string DeviceNameParameter = "deviceName";
+
     /// <summary>The parameter naming a note's recipients, by person id (DATABASE-73): never shown to a client.</summary>
     public const string RecipientsParameter = "recipients";
 
     /// <summary>The longest a note may be.</summary>
     public const int NoteMaxLength = 280;
+
+    /// <summary>
+    /// An entry about a device (DATABASE-74): of <paramref name="kind"/>, about its owner
+    /// <paramref name="owner"/>, done by <paramref name="actor"/>, naming the device by its name.
+    /// </summary>
+    public static AuditEntry DeviceEntry(string kind, int? owner, int? actor, string deviceName) =>
+        new(kind, owner, actor, System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { [DeviceNameParameter] = deviceName }));
 
     /// <summary>An entry of <paramref name="kind"/>, about <paramref name="subject"/>, done by <paramref name="actor"/>.</summary>
     public static AuditEntry Entry(string kind, int subject, int actor, bool? isAdmin = null) =>
@@ -130,7 +149,8 @@ public static class AuditKinds
         InviteQueued => Told.Invitee,
         NoteSent => Told.Named,
         MemberAdded or MemberRequestAccepted or MemberMadeAdmin or MemberMadeMember
-            or MemberEnabled or MemberDisabled or MemberRemoved or RequestDeclined => Told.Subject,
+            or MemberEnabled or MemberDisabled or MemberRemoved or RequestDeclined
+            or DeviceAdded or DeviceRemoved => Told.Subject,
         _ => Told.Nobody
     };
 }
